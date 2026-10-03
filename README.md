@@ -18,7 +18,7 @@ Una vez compilado, puedes ejecutar el juego con el siguiente comando:
 ./game
 ```
 
-## Partida local
+## Instruciones para jugar
 
 Introduce un nombre y elige un color en el menú. En la partida, haz clic en
 una casilla neutral o enemiga para ordenar el avance automático hasta ella.
