@@ -17,3 +17,11 @@ Una vez compilado, puedes ejecutar el juego con el siguiente comando:
 ```bash
 ./game
 ```
+
+## Partida local
+
+Introduce un nombre y elige un color en el menú. En la partida, haz clic en
+una casilla neutral o enemiga para ordenar el avance automático hasta ella.
+Haz clic derecho o pulsa `ESC` para cancelar la orden. Las tropas crecen con
+el tiempo; captura la base del bot para ganar. Pulsa `R` al terminar para
+empezar otra partida.
