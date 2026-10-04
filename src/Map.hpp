@@ -14,6 +14,7 @@ public:
     TerritoryCell& getCell(size_t x, size_t y) const;
     TerritoryCell& getCellFromIndex(size_t index) const; // Método temporal, hay que eliminar la búsqueda por índice
     std::vector<TerritoryCell>& getCells() {return cells;}
+    const std::vector<TerritoryCell>& getCells() const {return cells;}
     const size_t getWidth() const {return rows;}
     const size_t getHeight() const {return columns;}
 

@@ -11,6 +11,7 @@ Color cellColor(Owner owner, Color playerColor, Color botColor)
 {
     if (owner == Owner::Player) return playerColor;
     if (owner == Owner::Bot) return botColor;
+    if (owner == Owner::Water) return Color{0,0,0,255};
     return Color{55, 63, 73, 255};
 }
 }
@@ -114,7 +115,6 @@ void MainGameState::render()
     const Vector2 mousePosition = GetMousePosition();
     const int hoveredCell = getCellIndex(mousePosition);
 
-    // El vector del mapa está en orden por filas: índice = fila * columnas + columna.
     for(size_t row = 0; row < map.getWidth(); row++){
         for(size_t column = 0; column < map.getHeight(); column++){
 

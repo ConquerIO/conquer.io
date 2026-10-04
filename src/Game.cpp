@@ -49,7 +49,7 @@ Game::Game(std::string playerName, Color playerColor)
       tick_timer(0.0f),
       game_over(false),
       winner(Owner::Land),
-      map(*new Map(50, 50))
+      map(Map::fromImage("./maps/map1.png"))
 {
 }
 

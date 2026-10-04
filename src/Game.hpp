@@ -19,7 +19,7 @@ public:
     void setPlayerTarget(int targetIndex);
     void cancelPlayerAttack();
 
-    const Map& getMap() const { return map; }
+    Map getMap() const { return map; }
     const Player& getPlayer() const { return player; }
     const Bot& getBot() const { return bot; }
     float getTime() const { return game_time; }
@@ -39,7 +39,7 @@ private:
 
     Player player;
     Bot bot;
-    Map& map;
+    Map map;
     float game_time;
     bool game_over;
     //Este es para controlar el tema de los ticks de crecimiento
