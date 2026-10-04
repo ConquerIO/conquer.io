@@ -130,7 +130,7 @@ void MainGameState::render()
         const Color ownershipColor = cell.owner == Owner::Player ? player.getColor()
             : cell.owner == Owner::Bot ? bot.getColor() : Color{31, 37, 45, 255};
         const float borderThickness = cell.capture_protection > 0.0f ? 3.0f
-            : cell.owner == Owner::Neutral ? 0.7f : 1.5f;
+            : cell.owner == Owner::Land ? 0.7f : 1.5f;
         DrawRectangleLinesEx(cellBounds, borderThickness,
                              ownershipColor);
 
@@ -147,7 +147,7 @@ void MainGameState::render()
             DrawRectangleLinesEx(cellBounds, 2.0f, GOLD);
         }
 
-        if (cell.owner != Owner::Neutral
+        if (cell.owner != Owner::Land
             && cell.troops >= 10.0f && cellWidth >= 20.0f)
         {
             const int troops = static_cast<int>(cell.troops);

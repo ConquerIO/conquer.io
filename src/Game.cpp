@@ -48,7 +48,7 @@ Game::Game(std::string playerName, Color playerColor)
       game_time(0.0f),
       tick_timer(0.0f),
       game_over(false),
-      winner(Owner::Neutral)
+      winner(Owner::Land)
 {
 }
 
@@ -62,9 +62,9 @@ void Game::update(float deltaTime)
         // Los temporizadores se reducen usando deltaTime para que el ritmo no dependa de los FPS.
         cell.combat_timer = std::max(0.0f, cell.combat_timer - deltaTime);
         cell.capture_protection = std::max(0.0f, cell.capture_protection - deltaTime);
-        if (cell.capture_protection == 0.0f) cell.protected_from = Owner::Neutral;
+        if (cell.capture_protection == 0.0f) cell.protected_from = Owner::Land;
         // Las tropas crecen solo en territorios propios que ya no están en combate.
-        /*if (cell.owner != Owner::Neutral && cell.combat_timer == 0.0f)
+        /*if (cell.owner != Owner::Land && cell.combat_timer == 0.0f)
         {
             cell.troops += TROOP_GROWTH_PER_SECOND * deltaTime;
         }*/
@@ -208,7 +208,7 @@ void Game::reset()
     player.cancelAttack();
     bot.reset();
     game_over = false;
-    winner = Owner::Neutral;
+    winner = Owner::Land;
 
     // Las bases empiezan en extremos opuestos; cada una ocupa un bloque inicial de 3x3.
     const int baseRow = MAP_ROWS / 2;
@@ -288,9 +288,9 @@ void Game::attack(int targetIndex, Owner attacker)
     if (force >= target.troops)
     {
         const bool capturedFromOpponent =
-            target.owner != Owner::Neutral && target.owner != attacker;
+            target.owner != Owner::Land && target.owner != attacker;
         const bool capturedBase = target.is_base;
-        target.protected_from = capturedFromOpponent ? target.owner : Owner::Neutral;
+        target.protected_from = capturedFromOpponent ? target.owner : Owner::Land;
         target.owner = attacker;
         target.troops = force - target.troops;
         target.capture_protection = capturedFromOpponent

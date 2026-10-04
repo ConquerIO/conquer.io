@@ -49,7 +49,7 @@ int Bot::getNextTarget(const std::vector<TerritoryCell>& map,
             {
                 playerTargets.emplace_back(sourceIndex, targetIndex);
             }
-            else if (map[targetIndex].owner == Owner::Neutral)
+            else if (map[targetIndex].owner == Owner::Land)
             {
                 // Heurística voraz de expansión: elige columnas más cercanas a la base
                 // del jugador (columna 5), sin calcular una ruta completa.
