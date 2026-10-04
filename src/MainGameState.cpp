@@ -115,8 +115,8 @@ void MainGameState::render()
     const Vector2 mousePosition = GetMousePosition();
     const int hoveredCell = getCellIndex(mousePosition);
 
-    for(size_t row = 0; row < map.getWidth(); row++){
-        for(size_t column = 0; column < map.getHeight(); column++){
+    for(size_t row = 0; row < map.getHeight(); row++){
+        for(size_t column = 0; column < map.getWidth(); column++){
 
             const Rectangle cellBounds{
                 bounds.x + column * cellWidth,
