@@ -86,7 +86,10 @@ void MenuState::handleInput()
     // Transición al estado de juego
     if (IsKeyPressed(KEY_ENTER) && !player_name.empty())
     {
-        this->state_machine->add_state(std::make_unique<MainGameState>(), true);
+        this->state_machine->add_state(
+            std::make_unique<MainGameState>(player_name, TERRITORY_COLORS[selected_color]),
+            true
+        );
     }
 }
 
@@ -106,27 +109,27 @@ void MenuState::render()
 
     // Título 
     const char* title    = "Conquer.io";
-    const int titleSize  = 60;
+    const int titleSize  = 68;
     const int titleW     = MeasureText(title, titleSize);
     DrawText(title, (screenW - titleW) / 2, 80, titleSize, DARKGRAY);
 
     // Subtítulo
     const char* subtitle = "Conquista el mapa. Domina el territorio.";
-    const int subSize    = 20;
+    const int subSize    = 24;
     const int subW       = MeasureText(subtitle, subSize);
-    DrawText(subtitle, (screenW - subW) / 2, 155, subSize, GRAY);
+    DrawText(subtitle, (screenW - subW) / 2, 175, subSize, GRAY);
 
     // Sección: nombre del jugador
     const char* nameLabel = "Introduce tu nombre:";
-    const int labelSize   = 24;
+    const int labelSize   = 28;
     const int labelW      = MeasureText(nameLabel, labelSize);
-    DrawText(nameLabel, (screenW - labelW) / 2, 240, labelSize, DARKGRAY);
+    DrawText(nameLabel, (screenW - labelW) / 2, 270, labelSize, DARKGRAY);
 
     // Caja de texto
-    const int boxW = 400;
-    const int boxH = 50;
+    const int boxW = 460;
+    const int boxH = 60;
     const int boxX = (screenW - boxW) / 2;
-    const int boxY = 280;
+    const int boxY = 315;
 
     DrawRectangle(boxX, boxY, boxW, boxH, LIGHTGRAY);
     DrawRectangleLines(boxX, boxY, boxW, boxH, DARKGRAY);
@@ -137,20 +140,20 @@ void MenuState::render()
     {
         displayText += "|";
     }
-    DrawText(displayText.c_str(), boxX + 10, boxY + 13, 24, DARKGRAY);
+    DrawText(displayText.c_str(), boxX + 12, boxY + 15, 28, DARKGRAY);
 
     // Sección: selección de color
     const char* colorLabel = "Elige el color de tu territorio:";
-    const int clSize = 24;
+    const int clSize = 28;
     const int clW = MeasureText(colorLabel, clSize);
-    DrawText(colorLabel, (screenW - clW) / 2, 370, clSize, DARKGRAY);
+    DrawText(colorLabel, (screenW - clW) / 2, 415, clSize, DARKGRAY);
 
     // Muestras de color
-    const int swatchSize = 50;
-    const int spacing = 20;
+    const int swatchSize = 58;
+    const int spacing = 24;
     const int totalW = NUM_COLORS * swatchSize + (NUM_COLORS - 1) * spacing;
     const int startX = (screenW - totalW) / 2;
-    const int swatchY = 415;
+    const int swatchY = 465;
 
     for (int i = 0; i < NUM_COLORS; i++)
     {
@@ -173,9 +176,9 @@ void MenuState::render()
             );
 
             // Nombre del color bajo las muestras
-            const int nameW = MeasureText(COLOR_NAMES[i], 20);
+            const int nameW = MeasureText(COLOR_NAMES[i], 24);
             DrawText(COLOR_NAMES[i], (screenW - nameW) / 2,
-                     swatchY + swatchSize + 15, 20, DARKGRAY);
+                     swatchY + swatchSize + 16, 24, DARKGRAY);
         }
         else
         {
@@ -185,20 +188,20 @@ void MenuState::render()
 
     // Instrucciones
     const char* arrowHint = "< >  Cambiar color";
-    const int ahW = MeasureText(arrowHint, 18);
-    DrawText(arrowHint, (screenW - ahW) / 2, 530, 18, GRAY);
+    const int ahW = MeasureText(arrowHint, 22);
+    DrawText(arrowHint, (screenW - ahW) / 2, 575, 22, GRAY);
 
     if (!player_name.empty())
     {
         const char* enterHint = "Pulsa ENTER para jugar";
-        const int ehW = MeasureText(enterHint, 22);
-        DrawText(enterHint, (screenW - ehW) / 2, 580, 22, DARKGREEN);
+        const int ehW = MeasureText(enterHint, 26);
+        DrawText(enterHint, (screenW - ehW) / 2, 635, 26, DARKGREEN);
     }
     else
     {
         const char* waitHint = "Escribe tu nombre para continuar";
-        const int whW = MeasureText(waitHint, 22);
-        DrawText(waitHint, (screenW - whW) / 2, 580, 22, MAROON);
+        const int whW = MeasureText(waitHint, 26);
+        DrawText(waitHint, (screenW - whW) / 2, 635, 26, MAROON);
     }
 
     EndDrawing();

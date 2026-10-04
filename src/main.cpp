@@ -5,7 +5,7 @@
 
 int main()
 {
-    InitWindow(1280, 720, "Conquer.io");
+    InitWindow(1600, 900, "Conquer.io");
     SetTargetFPS(60);
 
     float delta_time = 0.0f;

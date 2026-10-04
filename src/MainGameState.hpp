@@ -1,10 +1,13 @@
 #pragma once
 #include <GameState.hpp>
+#include <Game.hpp>
+#include <raylib.h>
+#include <string>
 
 class MainGameState : public GameState
 {
     public:
-        MainGameState();
+        MainGameState(std::string playerName, Color playerColor);
         ~MainGameState() = default;
 
         void init() override;
@@ -17,5 +20,8 @@ class MainGameState : public GameState
 
     
     private:
-        char entered_key;
+        Rectangle getMapBounds() const;
+        int getCellIndex(Vector2 position) const;
+
+        Game game;
 };
