@@ -75,9 +75,9 @@ void Game::update(float deltaTime)
     tick_timer += deltaTime;
 
     while(tick_timer>=TICK_INTERVAL){
-        tick_timer-=TICK_INTERVAL
-        updateTroopGrowth(Owner::Player)
-        updateTroopGrowth(Owner::Bot)
+        tick_timer-=TICK_INTERVAL;
+        updateTroopGrowth(deltaTime, Owner::Player);
+        updateTroopGrowth(deltaTime, Owner::Bot);
     }
 
     int playerCapturedTarget = -1;
@@ -132,7 +132,7 @@ float Game::getPlayerTroops(Owner owner) const{
     return troops;
 }
 
-float Game::calculateTroopLimit(float pixels){
+float Game::calculateTroopLimit(float pixels) const {
     return pixels*TROOPS_PER_PIXEL;
 }
 
@@ -151,10 +151,10 @@ float Game::calculateInterest(float troops, float pixels) const{
 
     const float interest= INITIAL_INTEREST * ((limit-troops) / (limit-INITIAL_TROOPS));
 
-    return max(0.0f, interest)
+    return max(0.0f, interest);
 }
 
-void Game::updateTroopGrowth(Owner owner){
+void Game::updateTroopGrowth(float deltaTime, Owner owner){
     //si no tenemos pixeles no podemos expandirnos
     const float pixels=getPlayerPixels(owner);
     if(pixels<=0.0){
@@ -162,7 +162,7 @@ void Game::updateTroopGrowth(Owner owner){
     }
 
     const float currentTroops=getPlayerTroops(owner);
-    const float limit=calculateTroopLimit(pixeles);
+    const float limit=calculateTroopLimit(pixels);
 
     //cuando lleguemos al limite no hay que crecer
     if(currentTroops>=limit){
