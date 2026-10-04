@@ -59,7 +59,7 @@ void MainGameState::render()
 
     const int screenWidth = GetScreenWidth();
     const int screenHeight = GetScreenHeight();
-    const std::vector<TerritoryCell>& map = game.getMap();
+    Map map = game.getMap();
     const Player& player = game.getPlayer();
     const Bot& bot = game.getBot();
     const bool gameOver = game.isOver();
@@ -67,7 +67,7 @@ void MainGameState::render()
     int botCells = 0;
     float playerTroops = 0.0f;
     float botTroops = 0.0f;
-    for (const TerritoryCell& cell : map)
+    for (TerritoryCell& cell : map.getCells())
     {
         if (cell.owner == Owner::Player)
         {
@@ -81,8 +81,8 @@ void MainGameState::render()
         }
     }
     // Las estadísticas del HUD se derivan del mapa actual para no duplicar estado.
-    const int playerPercent = playerCells * 100 / static_cast<int>(map.size());
-    const int botPercent = botCells * 100 / static_cast<int>(map.size());
+    const size_t playerPercent = playerCells * 100 / map.getCells().size();
+    const size_t botPercent = botCells * 100 / map.getCells().size();
 
     DrawRectangle(0, 0, screenWidth, 108, Color{31, 38, 47, 255});
     DrawText(player.getName().c_str(), 24, 12, 32, player.getColor());
@@ -115,46 +115,48 @@ void MainGameState::render()
     const int hoveredCell = getCellIndex(mousePosition);
 
     // El vector del mapa está en orden por filas: índice = fila * columnas + columna.
-    for (int i = 0; i < static_cast<int>(map.size()); ++i)
-    {
-        const int column = i % Game::MAP_COLUMNS;
-        const int row = i / Game::MAP_COLUMNS;
-        const Rectangle cellBounds{
-            bounds.x + column * cellWidth,
-            bounds.y + row * cellHeight,
-            cellWidth,
-            cellHeight
-        };
-        const TerritoryCell& cell = map[i];
-        DrawRectangleRec(cellBounds, cellColor(cell.owner, player.getColor(), bot.getColor()));
-        const Color ownershipColor = cell.owner == Owner::Player ? player.getColor()
-            : cell.owner == Owner::Bot ? bot.getColor() : Color{31, 37, 45, 255};
-        const float borderThickness = cell.capture_protection > 0.0f ? 3.0f
-            : cell.owner == Owner::Land ? 0.7f : 1.5f;
-        DrawRectangleLinesEx(cellBounds, borderThickness,
-                             ownershipColor);
+    for(size_t row = 0; row < map.getWidth(); row++){
+        for(size_t column = 0; column < map.getHeight(); column++){
 
-        if (cell.is_base)
-        {
-            DrawRectangleLinesEx(cellBounds, 2.0f, RAYWHITE);
-        }
-        else if (i == player.getTargetIndex() && !gameOver)
-        {
-            DrawRectangleLinesEx(cellBounds, 3.0f, GOLD);
-        }
-        else if (i == hoveredCell && cell.owner != Owner::Player && !gameOver)
-        {
-            DrawRectangleLinesEx(cellBounds, 2.0f, GOLD);
-        }
+            const Rectangle cellBounds{
+                bounds.x + column * cellWidth,
+                bounds.y + row * cellHeight,
+                cellWidth,
+                cellHeight
+            };
+            const TerritoryCell& cell = map.getCell(row, column);
+            DrawRectangleRec(cellBounds, cellColor(cell.owner, player.getColor(), bot.getColor()));
+            const Color ownershipColor = cell.owner == Owner::Player ? player.getColor()
+                : cell.owner == Owner::Bot ? bot.getColor() : Color{31, 37, 45, 255};
+            const float borderThickness = cell.capture_protection > 0.0f ? 3.0f
+                : cell.owner == Owner::Land ? 0.7f : 1.5f;
+            DrawRectangleLinesEx(cellBounds, borderThickness,
+                                ownershipColor);
 
-        if (cell.owner != Owner::Land
-            && cell.troops >= 10.0f && cellWidth >= 20.0f)
-        {
-            const int troops = static_cast<int>(cell.troops);
-            DrawText(TextFormat("%d", troops),
-                     static_cast<int>(cellBounds.x + 2),
-                     static_cast<int>(cellBounds.y + 3),
-                     14, RAYWHITE);
+            if (cell.is_base)
+            {
+                DrawRectangleLinesEx(cellBounds, 2.0f, RAYWHITE);
+            }
+            else if ((row * map.getWidth() + column) == player.getTargetIndex() && !gameOver)
+            {
+                DrawRectangleLinesEx(cellBounds, 3.0f, GOLD);
+            }
+            else if ((row * map.getWidth() + column) == hoveredCell && cell.owner != Owner::Player && !gameOver)
+            {
+                DrawRectangleLinesEx(cellBounds, 2.0f, GOLD);
+            }
+
+            if (cell.owner != Owner::Land
+                && cell.troops >= 10.0f && cellWidth >= 20.0f)
+            {
+                const int troops = static_cast<int>(cell.troops);
+                DrawText(TextFormat("%d", troops),
+                        static_cast<int>(cellBounds.x + 2),
+                        static_cast<int>(cellBounds.y + 3),
+                        14, RAYWHITE);
+            }  
+
+
         }
     }
 

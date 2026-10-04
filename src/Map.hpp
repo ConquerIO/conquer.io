@@ -3,14 +3,18 @@
 #include <TerritoryCell.hpp>
 
 class Map {
-    const unsigned int rows;
-    const unsigned int columns;
-    const std::vector<TerritoryCell>& cells;
+    const size_t rows;
+    const size_t columns;
+    std::vector<TerritoryCell> cells;
 
 public:
-    Map(unsigned int rows, unsigned int columns);
-    static Map& fromImage(const char* filename);
+    Map(size_t rows, size_t columns);
+    static Map fromImage(const char* filename);
 
-    TerritoryCell& getCell(unsigned int x, unsigned int y) const;
+    TerritoryCell& getCell(size_t x, size_t y) const;
+    TerritoryCell& getCellFromIndex(size_t index) const; // Método temporal, hay que eliminar la búsqueda por índice
+    std::vector<TerritoryCell>& getCells() {return cells;}
+    const size_t getWidth() const {return rows;}
+    const size_t getHeight() const {return columns;}
 
 };

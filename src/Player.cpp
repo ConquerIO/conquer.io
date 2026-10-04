@@ -32,10 +32,10 @@ bool Player::shouldAttack(float deltaTime, float interval)
     return true;
 }
 
-int Player::getNextTarget(const std::vector<TerritoryCell>& map,
+int Player::getNextTarget(Map& map,
                           int columns, int rows) const
 {
-    if (target_index < 0 || map[target_index].owner == Owner::Player) return -1;
+    if (target_index < 0 || map.getCellFromIndex(target_index).owner == Owner::Player) return -1;
 
     const int targetColumn = target_index % columns;
     const int targetRow = target_index / columns;
@@ -44,25 +44,24 @@ int Player::getNextTarget(const std::vector<TerritoryCell>& map,
     int bestTarget = -1;
 
     // Examina los territorios propios y propone solo los vecinos atacables.
-    for (int sourceIndex = 0; sourceIndex < static_cast<int>(map.size()); ++sourceIndex)
+    for (size_t sourceIndex = 0; sourceIndex < map.getCells().size(); ++sourceIndex)
     {
-        const TerritoryCell& source = map[sourceIndex];
+        const TerritoryCell& source = map.getCellFromIndex(sourceIndex);
         if (source.owner != Owner::Player || source.troops < 2.0f) continue;
 
-        const int column = sourceIndex % columns;
-        const int row = sourceIndex / columns;
-        const int neighbors[] = {
+        const size_t column = sourceIndex % columns;
+        const size_t row = sourceIndex / columns;
+        const size_t neighbors[] = {
             row > 0 ? sourceIndex - columns : -1,
             row + 1 < rows ? sourceIndex + columns : -1,
             column > 0 ? sourceIndex - 1 : -1,
             column + 1 < columns ? sourceIndex + 1 : -1
         };
 
-        for (const int neighbor : neighbors)
+        for (const size_t neighbor : neighbors)
         {
-            if (neighbor < 0 || map[neighbor].owner == Owner::Player
-                || (map[neighbor].protected_from == Owner::Player
-                    && map[neighbor].capture_protection > 0.0f)) continue;
+            const auto neighborCell = map.getCellFromIndex(neighbor);
+            if (neighbor < 0 || neighborCell.owner == Owner::Player || (neighborCell.protected_from == Owner::Player && neighborCell.capture_protection > 0.0f)) continue;
 
             const int neighborColumn = neighbor % columns;
             const int neighborRow = neighbor / columns;
