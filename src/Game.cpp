@@ -3,14 +3,21 @@
 #include <cmath>
 #include <utility>
 
+using namespace std;
+
 namespace
 {
     // Ritmo de crecimiento, ataques y protección temporal de las capturas.
-    constexpr float TROOP_GROWTH_PER_SECOND = 2.0f;
     constexpr float ATTACK_INTERVAL = 0.08f;
     constexpr float CAPTURE_PROTECTION_DURATION = 0.05f;
     constexpr float COMBAT_STALE_DURATION = 0.08f;
     constexpr float ATTACK_FORCE = 0.55f;
+
+    //Constantes para luego el calculo de los puntos e interes
+    constexpr float INITIAL_TROOPS = 500.0f;
+    constexpr float INITIAL_INTEREST = 0.10f;
+    constexpr float TROOPS_PER_PIXEL = 10.0f;
+    constexpr float TICK_INTERVAL = 1.0f;
 
 // constexpr float TROOP_GROWTH_PER_SECOND = 0.9f;
 // constexpr float ATTACK_INTERVAL = 0.02f;
@@ -39,6 +46,7 @@ Game::Game(std::string playerName, Color playerColor)
     : player(std::move(playerName), playerColor),
       bot(contrastingColor(playerColor)),
       game_time(0.0f),
+      tick_timer(0.0f),
       game_over(false),
       winner(Owner::Neutral)
 {
@@ -56,10 +64,20 @@ void Game::update(float deltaTime)
         cell.capture_protection = std::max(0.0f, cell.capture_protection - deltaTime);
         if (cell.capture_protection == 0.0f) cell.protected_from = Owner::Neutral;
         // Las tropas crecen solo en territorios propios que ya no están en combate.
-        if (cell.owner != Owner::Neutral && cell.combat_timer == 0.0f)
+        /*if (cell.owner != Owner::Neutral && cell.combat_timer == 0.0f)
         {
             cell.troops += TROOP_GROWTH_PER_SECOND * deltaTime;
-        }
+        }*/
+    }
+
+
+    //Aqui se ajusta es sistema de los ticks para ajustar el crecimiento
+    tick_timer += deltaTime;
+
+    while(tick_timer>=TICK_INTERVAL){
+        tick_timer-=TICK_INTERVAL
+        updateTroopGrowth(Owner::Player)
+        updateTroopGrowth(Owner::Bot)
     }
 
     int playerCapturedTarget = -1;
@@ -93,10 +111,100 @@ void Game::update(float deltaTime)
     }
 }
 
+float Game::getPlayerPixels(Owner owner) const {
+    float pixels =0.0;
+
+    for (int i=0; i <static_cast<int>(map.size()); i++){
+        if(map[i].owner==owner){
+            pixels ++;
+        }
+    } 
+    return pixels;
+}
+
+float Game::getPlayerTroops(Owner owner) const{
+    float troops=0.0;
+    for(int i=0; i <static_cast<int>(map.size()); i++){
+        if(map[i].owner==owner){
+            troops+=map[i].troops;
+        }
+    }
+    return troops;
+}
+
+float Game::calculateTroopLimit(float pixels){
+    return pixels*TROOPS_PER_PIXEL;
+}
+
+float Game::calculateInterest(float troops, float pixels) const{
+    const float limit=calculateTroopLimit(pixels);
+
+    //Si el limite es menor o igual
+    if (limit <=INITIAL_TROOPS){
+        return 0.0f;
+    }
+
+    //si es superior al limite no se puede crecer
+    if (troops>=limit){
+        return 0.0f;
+    }
+
+    const float interest= INITIAL_INTEREST * ((limit-troops) / (limit-INITIAL_TROOPS));
+
+    return max(0.0f, interest)
+}
+
+void Game::updateTroopGrowth(Owner owner){
+    //si no tenemos pixeles no podemos expandirnos
+    const float pixels=getPlayerPixels(owner);
+    if(pixels<=0.0){
+        return;
+    }
+
+    const float currentTroops=getPlayerTroops(owner);
+    const float limit=calculateTroopLimit(pixeles);
+
+    //cuando lleguemos al limite no hay que crecer
+    if(currentTroops>=limit){
+        return;
+    }
+
+    const float interest=calculateInterest(currentTroops,pixels);
+
+    //siguiendo este interés hay que sacar las tropas que se van creciendo con la formula, pero sin superar el limit, y luego añadimos
+    float newTroops=currentTroops*(1.0 + interest);
+    newTroops=min(newTroops, limit);
+    const float troopsToAdd=newTroops-currentTroops;
+    if(troopsToAdd<=0.0){
+        return;
+    }
+
+    //ahora hay que repartir estas tropas por las celdas que tienee este usuario
+    int availableCells=0;
+    for (int i=0; i <static_cast<int>(map.size()); i++){
+        if(map[i].owner==owner && map[i].combat_timer==0.0){
+            availableCells++;
+        }
+    }
+    if(availableCells==0){
+        return;
+    }
+
+    //se reparten por igual por las celdas del mapa 
+    const float troopsPerCell= troopsToAdd/static_cast<float>(availableCells);
+    for (int i=0; i <static_cast<int>(map.size()); i++){
+        if(map[i].owner==owner && map[i].combat_timer==0.0){
+            map[i].troops+=troopsPerCell;
+        }
+    }
+
+}
+
 void Game::reset()
 {
     map.assign(MAP_COLUMNS * MAP_ROWS, TerritoryCell{});
     game_time = 0.0f;
+    tick_timer=0.0;
     player.cancelAttack();
     bot.reset();
     game_over = false;

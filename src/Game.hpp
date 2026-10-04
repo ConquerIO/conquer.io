@@ -25,14 +25,24 @@ public:
     float getTime() const { return game_time; }
     bool isOver() const { return game_over; }
     Owner getWinner() const { return winner; }
+    
 
 private:
     void attack(int targetIndex, Owner attacker);
+
+    //Estas es para la parte del sistema de puntos
+    float getPlayerPixels(Owner owner) const;
+    float getPlayerTroops(Owner owner) const;
+    float calculateInterest(float troops, float pixels) const;
+    float calculateTroopLimit(float pixels) const;
+    void updateTroopGrowth(float deltaTime, Owner owner);
 
     Player player;
     Bot bot;
     std::vector<TerritoryCell> map;
     float game_time;
     bool game_over;
+    //Este es para controlar el tema de los ticks de crecimiento
+    float tick_timer;
     Owner winner;
 };
