@@ -5,10 +5,18 @@
 
 namespace
 {
-constexpr float TROOP_GROWTH_PER_SECOND = 0.9f;
-constexpr float ATTACK_INTERVAL = 0.05f;
-constexpr float CAPTURE_PROTECTION_DURATION = 0.1f;
-constexpr float COMBAT_STALE_DURATION = 0.25f;
+    // Ritmo de crecimiento, ataques y protección temporal de las capturas.
+    constexpr float TROOP_GROWTH_PER_SECOND = 2.0f;
+    constexpr float ATTACK_INTERVAL = 0.08f;
+    constexpr float CAPTURE_PROTECTION_DURATION = 0.05f;
+    constexpr float COMBAT_STALE_DURATION = 0.08f;
+    constexpr float ATTACK_FORCE = 0.55f;
+
+// constexpr float TROOP_GROWTH_PER_SECOND = 0.9f;
+// constexpr float ATTACK_INTERVAL = 0.02f;
+// constexpr float CAPTURE_PROTECTION_DURATION = 0.1f;
+// constexpr float COMBAT_STALE_DURATION = 0.05f;
+// constexpr float ATTACK_FORCE = 0.65f;
 
 Color contrastingColor(Color color)
 {
@@ -43,9 +51,11 @@ void Game::update(float deltaTime)
     game_time += deltaTime;
     for (TerritoryCell& cell : map)
     {
+        // Los temporizadores se reducen usando deltaTime para que el ritmo no dependa de los FPS.
         cell.combat_timer = std::max(0.0f, cell.combat_timer - deltaTime);
         cell.capture_protection = std::max(0.0f, cell.capture_protection - deltaTime);
         if (cell.capture_protection == 0.0f) cell.protected_from = Owner::Neutral;
+        // Las tropas crecen solo en territorios propios que ya no están en combate.
         if (cell.owner != Owner::Neutral && cell.combat_timer == 0.0f)
         {
             cell.troops += TROOP_GROWTH_PER_SECOND * deltaTime;
@@ -92,6 +102,7 @@ void Game::reset()
     game_over = false;
     winner = Owner::Neutral;
 
+    // Las bases empiezan en extremos opuestos; cada una ocupa un bloque inicial de 3x3.
     const int baseRow = MAP_ROWS / 2;
     const int playerBaseColumn = 5;
     const int botBaseColumn = MAP_COLUMNS - 6;
@@ -132,6 +143,7 @@ void Game::cancelPlayerAttack()
 void Game::attack(int targetIndex, Owner attacker)
 {
     TerritoryCell& target = map[targetIndex];
+    // Evita que el dueño anterior recapture inmediatamente una celda recién perdida.
     if (target.protected_from == attacker && target.capture_protection > 0.0f) return;
 
     const int column = targetIndex % MAP_COLUMNS;
@@ -143,6 +155,8 @@ void Game::attack(int targetIndex, Owner attacker)
         column + 1 < MAP_COLUMNS ? targetIndex + 1 : -1
     };
 
+    // Heurística voraz local: entre los vecinos propios, elige como origen el que
+    // tiene más tropas. No calcula una ruta global; solo resuelve este ataque.
     int sourceIndex = -1;
     for (const int neighbor : neighbors)
     {
@@ -156,10 +170,13 @@ void Game::attack(int targetIndex, Owner attacker)
 
     TerritoryCell& source = map[sourceIndex];
     if (source.troops < 2.0f) return;
-    const int force = static_cast<int>(source.troops * 0.5f);
+    // Combate determinista por desgaste: se envía una fracción entera de las tropas.
+    const int force = static_cast<int>(source.troops * ATTACK_FORCE);
     source.troops -= force;
     target.combat_timer = COMBAT_STALE_DURATION;
 
+    // La captura se decide comparando la fuerza enviada con las tropas defensoras
+    // antes de restarlas; si no alcanza, el objetivo conserva su dueño.
     if (force >= target.troops)
     {
         const bool capturedFromOpponent =

@@ -13,6 +13,7 @@ bool Bot::shouldMove(float deltaTime, float interval)
     move_timer += deltaTime;
     if (move_timer < interval) return false;
 
+    // Reinicia el temporizador al habilitar un movimiento del bot.
     move_timer = 0.0f;
     return true;
 }
@@ -20,10 +21,12 @@ bool Bot::shouldMove(float deltaTime, float interval)
 int Bot::getNextTarget(const std::vector<TerritoryCell>& map,
                        int columns, int rows, int excludedTarget)
 {
+    // Separa ataques al jugador de la expansión para dar prioridad al combate directo.
     std::vector<std::pair<int, int>> playerTargets;
     std::vector<std::pair<int, int>> expansionTargets;
     int closestColumn = columns;
 
+    // Reúne objetivos vecinos de todas las celdas del bot que pueden atacar.
     for (int sourceIndex = 0; sourceIndex < static_cast<int>(map.size()); ++sourceIndex)
     {
         const TerritoryCell& source = map[sourceIndex];
@@ -48,6 +51,8 @@ int Bot::getNextTarget(const std::vector<TerritoryCell>& map,
             }
             else if (map[targetIndex].owner == Owner::Neutral)
             {
+                // Heurística voraz de expansión: elige columnas más cercanas a la base
+                // del jugador (columna 5), sin calcular una ruta completa.
                 const int targetColumn = targetIndex % columns;
                 const int distanceToPlayer = std::abs(targetColumn - 5);
                 if (distanceToPlayer < closestColumn)
@@ -63,6 +68,8 @@ int Bot::getNextTarget(const std::vector<TerritoryCell>& map,
         }
     }
 
+    // No es un algoritmo de IA estándar: prioriza jugadores y reparte las elecciones
+    // restantes en ciclo (round-robin) para alternar entre objetivos equivalentes.
     const auto& targets = playerTargets.empty() ? expansionTargets : playerTargets;
     if (targets.empty()) return -1;
 
@@ -71,6 +78,7 @@ int Bot::getNextTarget(const std::vector<TerritoryCell>& map,
 
 void Bot::reset()
 {
+    // Restablece el ritmo y el orden cíclico de selección para una nueva partida.
     move_timer = 0.0f;
     move_count = 0;
 }

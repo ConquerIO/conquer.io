@@ -27,6 +27,7 @@ bool Player::shouldAttack(float deltaTime, float interval)
     attack_timer += deltaTime;
     if (attack_timer < interval) return false;
 
+    // Conserva el tiempo sobrante para mantener el intervalo estable entre frames.
     attack_timer -= interval;
     return true;
 }
@@ -42,6 +43,7 @@ int Player::getNextTarget(const std::vector<TerritoryCell>& map,
     int bestTroops = -1;
     int bestTarget = -1;
 
+    // Examina los territorios propios y propone solo los vecinos atacables.
     for (int sourceIndex = 0; sourceIndex < static_cast<int>(map.size()); ++sourceIndex)
     {
         const TerritoryCell& source = map[sourceIndex];
@@ -64,9 +66,13 @@ int Player::getNextTarget(const std::vector<TerritoryCell>& map,
 
             const int neighborColumn = neighbor % columns;
             const int neighborRow = neighbor / columns;
+            // Distancia Manhattan: cuenta pasos horizontales y verticales en la cuadrícula.
+            // Es una heurística voraz para acercarse al destino, no una búsqueda de ruta
+            // como A* o BFS; se usa aquí porque basta con elegir el siguiente vecino.
             const int distance = std::abs(neighborColumn - targetColumn)
                                + std::abs(neighborRow - targetRow);
             const int availableTroops = static_cast<int>(source.troops);
+            // Prioriza el vecino más cercano al objetivo; en empate, el de más tropas.
             if (distance < bestDistance
                 || (distance == bestDistance && availableTroops > bestTroops))
             {

@@ -6,6 +6,7 @@
 
 namespace
 {
+// Convierte la propiedad lógica de una celda en el color que se dibuja.
 Color cellColor(Owner owner, Color playerColor, Color botColor)
 {
     if (owner == Owner::Player) return playerColor;
@@ -26,6 +27,7 @@ void MainGameState::init()
 
 void MainGameState::handleInput()
 {
+    // Tras finalizar la partida solo se acepta reiniciar; se ignoran órdenes de ataque.
     if (game.isOver())
     {
         if (IsKeyPressed(KEY_R)) game.reset();
@@ -46,6 +48,7 @@ void MainGameState::handleInput()
 
 void MainGameState::update(float deltaTime)
 {
+    // El estado de presentación delega toda la simulación en Game.
     game.update(deltaTime);
 }
 
@@ -77,6 +80,7 @@ void MainGameState::render()
             botTroops += cell.troops;
         }
     }
+    // Las estadísticas del HUD se derivan del mapa actual para no duplicar estado.
     const int playerPercent = playerCells * 100 / static_cast<int>(map.size());
     const int botPercent = botCells * 100 / static_cast<int>(map.size());
 
@@ -110,6 +114,7 @@ void MainGameState::render()
     const Vector2 mousePosition = GetMousePosition();
     const int hoveredCell = getCellIndex(mousePosition);
 
+    // El vector del mapa está en orden por filas: índice = fila * columnas + columna.
     for (int i = 0; i < static_cast<int>(map.size()); ++i)
     {
         const int column = i % Game::MAP_COLUMNS;
@@ -177,6 +182,7 @@ void MainGameState::render()
 
 Rectangle MainGameState::getMapBounds() const
 {
+    // Reserva espacio para la cabecera y el pie de instrucciones.
     return Rectangle{
         24.0f,
         124.0f,
@@ -188,6 +194,7 @@ Rectangle MainGameState::getMapBounds() const
 int MainGameState::getCellIndex(Vector2 position) const
 {
     const Rectangle bounds = getMapBounds();
+    // Fuera del rectángulo del tablero no hay una celda seleccionable.
     if (position.x < bounds.x || position.y < bounds.y
         || position.x >= bounds.x + bounds.width
         || position.y >= bounds.y + bounds.height)
@@ -195,6 +202,8 @@ int MainGameState::getCellIndex(Vector2 position) const
         return -1;
     }
 
+    // Escala las coordenadas de pantalla a índices de cuadrícula (fila y columna).
+    // Es una transformación geométrica directa, no un algoritmo de búsqueda.
     const int column = static_cast<int>((position.x - bounds.x) / bounds.width * Game::MAP_COLUMNS);
     const int row = static_cast<int>((position.y - bounds.y) / bounds.height * Game::MAP_ROWS);
     return row * Game::MAP_COLUMNS + column;
