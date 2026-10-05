@@ -60,7 +60,7 @@ void MainGameState::render()
 
     const int screenWidth = GetScreenWidth();
     const int screenHeight = GetScreenHeight();
-    Map map = game.getMap();
+    const Map& map = game.getMap();
     const Player& player = game.getPlayer();
     const Bot& bot = game.getBot();
     const bool gameOver = game.isOver();
@@ -68,7 +68,7 @@ void MainGameState::render()
     int botCells = 0;
     float playerTroops = 0.0f;
     float botTroops = 0.0f;
-    for (TerritoryCell& cell : map.getCells())
+    for (const TerritoryCell& cell : map.getCells())
     {
         if (cell.owner == Owner::Player)
         {
@@ -110,8 +110,8 @@ void MainGameState::render()
 
     const Rectangle bounds = getMapBounds();
     DrawRectangleRec(bounds, Color{38, 45, 54, 255});
-    const float cellWidth = bounds.width / Game::MAP_COLUMNS;
-    const float cellHeight = bounds.height / Game::MAP_ROWS;
+    const float cellWidth = bounds.width / static_cast<float>(map.getWidth());
+    const float cellHeight = bounds.height / static_cast<float>(map.getHeight());
     const Vector2 mousePosition = GetMousePosition();
     const int hoveredCell = getCellIndex(mousePosition);
 
@@ -187,10 +187,13 @@ Rectangle MainGameState::getMapBounds() const
     // Ajusta la cuadrícula al espacio disponible conservando celdas cuadradas.
     const float availableWidth = static_cast<float>(std::max(1, GetScreenWidth() - 48));
     const float availableHeight = static_cast<float>(std::max(1, GetScreenHeight() - 212));
-    const float cellSize = std::min(availableWidth / Game::MAP_COLUMNS,
-                                   availableHeight / Game::MAP_ROWS);
-    const float mapWidth = cellSize * Game::MAP_COLUMNS;
-    const float mapHeight = cellSize * Game::MAP_ROWS;
+    const Map& map = game.getMap();
+    const float mapColumns = static_cast<float>(map.getWidth());
+    const float mapRows = static_cast<float>(map.getHeight());
+    const float cellSize = std::min(availableWidth / mapColumns,
+                                   availableHeight / mapRows);
+    const float mapWidth = cellSize * mapColumns;
+    const float mapHeight = cellSize * mapRows;
 
     return Rectangle{
         24.0f + (availableWidth - mapWidth) / 2.0f,
@@ -202,6 +205,7 @@ Rectangle MainGameState::getMapBounds() const
 
 int MainGameState::getCellIndex(Vector2 position) const
 {
+    const Map& map = game.getMap();
     const Rectangle bounds = getMapBounds();
     // Fuera del rectángulo del tablero no hay una celda seleccionable.
     if (position.x < bounds.x || position.y < bounds.y
@@ -213,7 +217,9 @@ int MainGameState::getCellIndex(Vector2 position) const
 
     // Escala las coordenadas de pantalla a índices de cuadrícula (fila y columna).
     // Es una transformación geométrica directa, no un algoritmo de búsqueda.
-    const int column = static_cast<int>((position.x - bounds.x) / bounds.width * Game::MAP_COLUMNS);
-    const int row = static_cast<int>((position.y - bounds.y) / bounds.height * Game::MAP_ROWS);
-    return row * Game::MAP_COLUMNS + column;
+    const size_t column = static_cast<size_t>(
+        (position.x - bounds.x) / bounds.width * map.getWidth());
+    const size_t row = static_cast<size_t>(
+        (position.y - bounds.y) / bounds.height * map.getHeight());
+    return static_cast<int>(row * map.getWidth() + column);
 }

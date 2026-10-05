@@ -10,9 +10,6 @@
 class Game
 {
 public:
-    static constexpr int MAP_COLUMNS = 64;
-    static constexpr int MAP_ROWS = 64;
-
     Game(std::string playerName, Color playerColor);
 
     void update(float deltaTime);
@@ -20,7 +17,7 @@ public:
     void setPlayerTarget(int targetIndex);
     void cancelPlayerAttack();
 
-    Map getMap() const { return map; }
+    const Map& getMap() const { return map; }
     const Player& getPlayer() const { return player; }
     const Bot& getBot() const { return bot; }
     float getTime() const { return game_time; }
@@ -41,6 +38,7 @@ private:
     Player player;
     Bot bot;
     Map map;
+    std::vector<Owner> terrain_owners;
     float game_time;
     bool game_over;
     //Este es para controlar el tema de los ticks de crecimiento

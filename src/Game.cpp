@@ -1,6 +1,8 @@
 #include <Game.hpp>
 #include <algorithm>
 #include <cmath>
+#include <limits>
+#include <stdexcept>
 #include <utility>
 
 using namespace std;
@@ -16,11 +18,6 @@ namespace
     constexpr float TROOPS_PER_PIXEL = 10.0f;
     constexpr float TICK_INTERVAL = 1.0f;
 
-// constexpr float TROOP_GROWTH_PER_SECOND = 0.9f;
-// constexpr float ATTACK_INTERVAL = 0.02f;
-// constexpr float CAPTURE_PROTECTION_DURATION = 0.1f;
-// constexpr float COMBAT_STALE_DURATION = 0.05f;
-// constexpr float ATTACK_FORCE = 0.65f;
 
 Color contrastingColor(Color color)
 {
@@ -48,6 +45,11 @@ Game::Game(std::string playerName, Color playerColor)
       winner(Owner::Land),
       map(Map::fromImage("./maps/map1.png"))
 {
+    terrain_owners.reserve(map.getCells().size());
+    for (const TerritoryCell& cell : map.getCells())
+    {
+        terrain_owners.push_back(cell.owner);
+    }
 }
 
 void Game::update(float deltaTime)
@@ -61,11 +63,6 @@ void Game::update(float deltaTime)
         cell.combat_timer = std::max(0.0f, cell.combat_timer - deltaTime);
         cell.capture_protection = std::max(0.0f, cell.capture_protection - deltaTime);
         if (cell.capture_protection == 0.0f) cell.protected_from = Owner::Land;
-        // Las tropas crecen solo en territorios propios que ya no están en combate.
-        /*if (cell.owner != Owner::Land && cell.combat_timer == 0.0f)
-        {
-            cell.troops += TROOP_GROWTH_PER_SECOND * deltaTime;
-        }*/
     }
 
 
@@ -95,28 +92,30 @@ void Game::update(float deltaTime)
 
 bool Game::expandTerritory(Owner owner)
 {
-    std::vector<int> nextWave;
+    std::vector<size_t> nextWave;
+    const size_t columns = map.getWidth();
+    const size_t rows = map.getHeight();
 
-    for (int row = 0; row < MAP_ROWS; ++row)
+    for (size_t row = 0; row < rows; ++row)
     {
-        for (int column = 0; column < MAP_COLUMNS; ++column)
+        for (size_t column = 0; column < columns; ++column)
         {
-            const int index = row * MAP_COLUMNS + column;
+            const size_t index = row * columns + column;
             if (map.getCellFromIndex(index).owner != Owner::Land) continue;
 
             const bool touchesOwner =
-                (row > 0 && map.getCellFromIndex(index - MAP_COLUMNS).owner == owner)
-                || (row + 1 < MAP_ROWS
-                    && map.getCellFromIndex(index + MAP_COLUMNS).owner == owner)
+                (row > 0 && map.getCellFromIndex(index - columns).owner == owner)
+                || (row + 1 < rows
+                    && map.getCellFromIndex(index + columns).owner == owner)
                 || (column > 0
                     && map.getCellFromIndex(index - 1).owner == owner)
-                || (column + 1 < MAP_COLUMNS
+                || (column + 1 < columns
                     && map.getCellFromIndex(index + 1).owner == owner);
             if (touchesOwner) nextWave.push_back(index);
         }
     }
 
-    for (const int index : nextWave)
+    for (const size_t index : nextWave)
     {
         TerritoryCell& cell = map.getCellFromIndex(index);
         cell.owner = owner;
@@ -222,33 +221,112 @@ void Game::reset()
     game_over = false;
     winner = Owner::Land;
 
-    // Las bases empiezan sobre tierra transitable; cada una ocupa un bloque de 3x3.
-    const int baseRow = MAP_ROWS / 2;
-    const int playerBaseColumn = 14;
-    const int botBaseColumn = 50;
+    for (size_t index = 0; index < map.getCells().size(); ++index)
+    {
+        TerritoryCell& cell = map.getCellFromIndex(index);
+        cell.owner = terrain_owners[index];
+        cell.troops = 0.0f;
+        cell.capture_protection = 0.0f;
+        cell.combat_timer = 0.0f;
+        cell.protected_from = Owner::Land;
+        cell.is_base = false;
+    }
+
+    const int mapWidth = static_cast<int>(map.getWidth());
+    const int mapHeight = static_cast<int>(map.getHeight());
+    if (mapWidth < 6 || mapHeight < 3)
+    {
+        throw std::runtime_error("El mapa es demasiado pequeño para colocar las bases.");
+    }
+
+    struct BasePosition
+    {
+        int column;
+        int row;
+        int playerDistance;
+        int botDistance;
+    };
+    std::vector<BasePosition> candidates;
+    const int targetRow = mapHeight / 2;
+    const int targetPlayerColumn = mapWidth / 4;
+    const int targetBotColumn = mapWidth * 3 / 4;
+
+    for (int row = 1; row < mapHeight - 1; ++row)
+    {
+        for (int column = 1; column < mapWidth - 1; ++column)
+        {
+            bool allLand = true;
+            for (int rowOffset = -1; rowOffset <= 1 && allLand; ++rowOffset)
+            {
+                for (int columnOffset = -1; columnOffset <= 1; ++columnOffset)
+                {
+                    if (map.getCell(column + columnOffset, row + rowOffset).owner != Owner::Land)
+                    {
+                        allLand = false;
+                        break;
+                    }
+                }
+            }
+            if (!allLand) continue;
+
+            candidates.push_back({
+                column,
+                row,
+                std::abs(column - targetPlayerColumn) + std::abs(row - targetRow),
+                std::abs(column - targetBotColumn) + std::abs(row - targetRow)
+            });
+        }
+    }
+
+    bool foundBasePositions = false;
+    BasePosition playerBase{};
+    BasePosition botBase{};
+    int bestDistance = std::numeric_limits<int>::max();
+    for (const BasePosition& playerCandidate : candidates)
+    {
+        for (const BasePosition& botCandidate : candidates)
+        {
+            if (playerCandidate.column + 2 >= botCandidate.column) continue;
+
+            const int distance = playerCandidate.playerDistance + botCandidate.botDistance;
+            if (distance >= bestDistance) continue;
+
+            bestDistance = distance;
+            playerBase = playerCandidate;
+            botBase = botCandidate;
+            foundBasePositions = true;
+        }
+    }
+
+    if (!foundBasePositions)
+    {
+        throw std::runtime_error("No hay espacio suficiente en tierra para colocar ambas bases.");
+    }
+
     for (int rowOffset = -1; rowOffset <= 1; ++rowOffset)
     {
         for (int columnOffset = -1; columnOffset <= 1; ++columnOffset)
         {
-            TerritoryCell& playerCell = map.getCellFromIndex((baseRow + rowOffset) * MAP_COLUMNS
-                                            + playerBaseColumn + columnOffset);
+            TerritoryCell& playerCell =
+                map.getCell(playerBase.column + columnOffset, playerBase.row + rowOffset);
             playerCell.owner = Owner::Player;
             playerCell.troops = rowOffset == 0 && columnOffset == 0 ? 48.0f : 8.0f;
 
-            TerritoryCell& botCell = map.getCellFromIndex((baseRow + rowOffset) * MAP_COLUMNS
-                                         + botBaseColumn + columnOffset);
+            TerritoryCell& botCell =
+                map.getCell(botBase.column + columnOffset, botBase.row + rowOffset);
             botCell.owner = Owner::Bot;
             botCell.troops = rowOffset == 0 && columnOffset == 0 ? 48.0f : 8.0f;
         }
     }
 
-    map.getCell(playerBaseColumn, baseRow).is_base = true;
-    map.getCell(botBaseColumn, baseRow).is_base = true;
+    map.getCell(playerBase.column, playerBase.row).is_base = true;
+    map.getCell(botBase.column, botBase.row).is_base = true;
 }
 
 void Game::setPlayerTarget(int targetIndex)
 {
-    if (targetIndex < 0 || targetIndex >= static_cast<int>(map.getCells().size()))
+    if (targetIndex < 0
+        || static_cast<size_t>(targetIndex) >= map.getCells().size())
     {
         return;
     }
