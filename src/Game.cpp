@@ -71,8 +71,8 @@ void Game::update(float deltaTime)
 
     while(tick_timer>=TICK_INTERVAL){
         tick_timer-=TICK_INTERVAL;
-        updateTroopGrowth(deltaTime, Owner::Player);
-        updateTroopGrowth(deltaTime, Owner::Bot);
+        updateTroopGrowth(Owner::Player);
+        updateTroopGrowth(Owner::Bot);
     }
 
     if (player.getTargetIndex() >= 0)
@@ -92,15 +92,15 @@ void Game::update(float deltaTime)
 
 bool Game::expandTerritory(Owner owner)
 {
-    std::vector<size_t> nextWave;
-    const size_t columns = map.getWidth();
-    const size_t rows = map.getHeight();
+    std::vector<std::size_t> nextWave;
+    const std::size_t columns = map.getWidth();
+    const std::size_t rows = map.getHeight();
 
-    for (size_t row = 0; row < rows; ++row)
+    for (std::size_t row = 0; row < rows; ++row)
     {
-        for (size_t column = 0; column < columns; ++column)
+        for (std::size_t column = 0; column < columns; ++column)
         {
-            const size_t index = row * columns + column;
+            const std::size_t index = row * columns + column;
             if (map.getCellFromIndex(index).owner != Owner::Land) continue;
 
             const bool touchesOwner =
@@ -115,7 +115,7 @@ bool Game::expandTerritory(Owner owner)
         }
     }
 
-    for (const size_t index : nextWave)
+    for (const std::size_t index : nextWave)
     {
         TerritoryCell& cell = map.getCellFromIndex(index);
         cell.owner = owner;
@@ -128,16 +128,16 @@ bool Game::expandTerritory(Owner owner)
     return !nextWave.empty();
 }
 
-size_t Game::getPlayerPixels(Owner owner) const {
-    size_t pixels = 0;
+std::size_t Game::getPlayerPixels(Owner owner) const {
+    std::size_t pixels = 0;
     for (const TerritoryCell& cell : map.getCells()){
         if(cell.owner == owner) pixels++;
     }
     return pixels;
 }
 
-size_t Game::getPlayerTroops(Owner owner) const{
-    size_t troops= 0;
+float Game::getPlayerTroops(Owner owner) const{
+    float troops = 0.0f;
     for (const TerritoryCell& cell : map.getCells()){
         if(cell.owner == owner) troops += cell.troops;
     }
@@ -166,7 +166,7 @@ float Game::calculateInterest(float troops, float pixels) const{
     return max(0.0f, interest);
 }
 
-void Game::updateTroopGrowth(float deltaTime, Owner owner){
+void Game::updateTroopGrowth(Owner owner){
     //si no tenemos pixeles no podemos expandirnos
     const float pixels=getPlayerPixels(owner);
     if(pixels<=0.0){
@@ -221,7 +221,7 @@ void Game::reset()
     game_over = false;
     winner = Owner::Land;
 
-    for (size_t index = 0; index < map.getCells().size(); ++index)
+    for (std::size_t index = 0; index < map.getCells().size(); ++index)
     {
         TerritoryCell& cell = map.getCellFromIndex(index);
         cell.owner = terrain_owners[index];
@@ -326,7 +326,7 @@ void Game::reset()
 void Game::setPlayerTarget(int targetIndex)
 {
     if (targetIndex < 0
-        || static_cast<size_t>(targetIndex) >= map.getCells().size())
+        || static_cast<std::size_t>(targetIndex) >= map.getCells().size())
     {
         return;
     }

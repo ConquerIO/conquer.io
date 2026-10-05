@@ -4,6 +4,7 @@
 #include <Player.hpp>
 #include <TerritoryCell.hpp>
 #include <Map.hpp>
+#include <cstddef>
 #include <string>
 #include <vector>
 
@@ -29,11 +30,11 @@ private:
     bool expandTerritory(Owner owner);
 
     //Estas es para la parte del sistema de puntos
-    size_t getPlayerPixels(Owner owner) const;
-    size_t getPlayerTroops(Owner owner) const;
+    std::size_t getPlayerPixels(Owner owner) const;
+    float getPlayerTroops(Owner owner) const;
     float calculateInterest(float troops, float pixels) const;
     float calculateTroopLimit(float pixels) const;
-    void updateTroopGrowth(float deltaTime, Owner owner);
+    void updateTroopGrowth(Owner owner);
 
     Player player;
     Bot bot;
