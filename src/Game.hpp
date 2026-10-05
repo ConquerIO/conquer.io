@@ -5,12 +5,13 @@
 #include <TerritoryCell.hpp>
 #include <Map.hpp>
 #include <string>
+#include <vector>
 
 class Game
 {
 public:
     static constexpr int MAP_COLUMNS = 64;
-    static constexpr int MAP_ROWS = 28;
+    static constexpr int MAP_ROWS = 64;
 
     Game(std::string playerName, Color playerColor);
 
@@ -28,7 +29,7 @@ public:
     
 
 private:
-    void attack(int targetIndex, Owner attacker);
+    bool expandTerritory(Owner owner);
 
     //Estas es para la parte del sistema de puntos
     size_t getPlayerPixels(Owner owner) const;

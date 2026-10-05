@@ -1,6 +1,6 @@
 # Conquer.io
 
-Conquer.io es un clon simple de estrategia por turnos/tiempo real inspirado en el clásico juego de conquista territorial. El objetivo es controlar el mayor territorio posible, expandirse sobre casillas neutras o enemigas y destruir la base del bot enemigo.
+Conquer.io es un juego de estrategia en tiempo real inspirado en los juegos de conquista territorial. El jugador y el bot se expanden sobre casillas neutrales en oleadas; el objetivo es controlar la mayor parte del mapa.
 
 ## Arquitectura general
 
@@ -75,7 +75,7 @@ La interfaz dibuja el título, el campo de nombre, la paleta de colores y mensaj
 Es la pantalla de juego real. Aquí se construye y se controla la partida:
 
 - obtiene el puntero del mouse para seleccionar una celda,
-- procesa clic izquierdo para mandar tropas hacia un objetivo,
+- procesa clic izquierdo para iniciar una expansión en oleadas desde el territorio del jugador,
 - procesa clic derecho o ESC para cancelar la orden,
 - detecta victoria/derrota y reinicio con `R`,
 - dibuja el mapa, la UI, estadísticas del territorio, contador y mensajes finales.
@@ -92,10 +92,9 @@ Es el núcleo de la lógica del juego. Esta clase contiene:
 Su ciclo de actualización:
 
 - hace crecer tropas de casillas controladas con el tiempo,
-- aplica ataques del jugador si hay un objetivo activo,
-- hace que el bot ataque también de forma periódica,
-- resuelve el combate entre dos territorios vecinales,
-- detecta si una base rival ha sido capturada para terminar la partida.
+- expande en cada intervalo a todas las celdas neutrales que tocan el territorio del jugador o del bot por sus cuatro lados,
+- inicia automáticamente las oleadas del bot,
+- detiene cada oleada al encontrar agua o territorio del otro jugador.
 
 ### `src/Player.hpp` / `src/Player.cpp`
 Representa al jugador humano.
@@ -104,22 +103,20 @@ Tiene:
 
 - nombre,
 - color del territorio,
-- objetivo de ataque actual,
-- temporizador de ataque,
-- lógica para decidir si debe atacar y qué celda seguir.
+- objetivo de expansión actual,
+- temporizador de expansión,
+- temporizador para marcar el intervalo entre oleadas de expansión.
 
-Cuando el usuario hace clic en una casilla enemiga o neutral, el jugador intenta avanzar hacia ella automáticamente.
+Cuando el usuario hace clic en una casilla neutral, el jugador inicia oleadas que ocupan todas las casillas neutrales que tocan su territorio por los cuatro lados. Cada rama se detiene ante el agua o el territorio de otro dueño. La expansión no consume tropas y continúa hasta que ya no quedan casillas neutrales adyacentes.
 
 ### `src/Bot.hpp` / `src/Bot.cpp`
 Representa la IA enemiga del bot.
 
 Su comportamiento:
 
-- el bot ataca en intervalos temporales,
-- identifica territorios del jugador y de expansión,
-- elige el objetivo más cercano o más útil,
-- prioriza atacar al jugador cuando detecta oportunidades,
-- evita objetivos protegidos por el enemigo.
+- se expande automáticamente en intervalos temporales,
+- ocupa todas las celdas neutrales que tocan su territorio por sus cuatro lados,
+- detiene cada rama al encontrar agua o territorio del jugador.
 
 ### `src/TerritoryCell.hpp`
 Define la estructura de cada celda del mapa.
@@ -160,10 +157,10 @@ g++ -o game src/*.cpp -I src/ -I vendor/include/ -L vendor/lib -lraylib -lGL -lm
 ## Cómo se juega
 
 - Introduce un nombre y elige un color en el menú.
-- Haz clic en una casilla neutral o enemiga para ordenar el avance automático hasta ella.
+- Haz clic en una casilla neutral para expandirte en oleadas por los cuatro costados.
 - Haz clic derecho o pulsa `ESC` para cancelar la orden.
 - Las tropas crecen con el tiempo.
-- Captura la base del bot para ganar.
+- La expansión del jugador se detiene al tocar territorio enemigo; no captura la base del bot.
 - Pulsa `R` al terminar una partida para empezar otra.
 
 ## Resumen de la arquitectura
@@ -172,9 +169,9 @@ El proyecto está organizado como un juego pequeño de escritorio con un patrón
 
 - `MenuState` gestiona la introducción del nombre y la elección de color.
 - `MainGameState` ejecuta la partida.
-- `Game` resuelve la lógica de mapa, ataque y expansión.
+- `Game` resuelve la lógica de mapa y expansión territorial.
 - `Player` y `Bot` representan a los actores del juego.
 - `TerritoryCell` describe cada una de las piezas del mapa.
 - `Raylib` se encarga de la ventana, renderizado y entrada del usuario.
 
-Esta estructura hace que el juego sea fácil de extender: se puede añadir más pantallas, cambiar la IA del bot, o mejorar la lógica de combate sin reescribir todo el proyecto.
+Esta estructura hace que el juego sea fácil de extender: se puede añadir más pantallas, cambiar el comportamiento del bot o mejorar la lógica de expansión sin reescribir todo el proyecto.

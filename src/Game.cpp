@@ -7,13 +7,10 @@ using namespace std;
 
 namespace
 {
-    // Ritmo de crecimiento, ataques y protección temporal de las capturas.
-    constexpr float ATTACK_INTERVAL = 0.08f;
-    constexpr float CAPTURE_PROTECTION_DURATION = 0.05f;
-    constexpr float COMBAT_STALE_DURATION = 0.08f;
-    constexpr float ATTACK_FORCE = 0.55f;
+    // Ritmo de crecimiento y expansión territorial.
+    constexpr float ATTACK_INTERVAL = 0.12f;
 
-    //Constantes para luego el calculo de los puntos e interes
+    // Constantes para luego el calculo de los puntos e interes
     constexpr float INITIAL_TROOPS = 500.0f;
     constexpr float INITIAL_INTEREST = 0.10f;
     constexpr float TROOPS_PER_PIXEL = 10.0f;
@@ -81,35 +78,55 @@ void Game::update(float deltaTime)
         updateTroopGrowth(deltaTime, Owner::Bot);
     }
 
-    int playerCapturedTarget = -1;
     if (player.getTargetIndex() >= 0)
     {
-        if (map.getCellFromIndex(player.getTargetIndex()).owner == Owner::Player)
+        if (player.shouldAttack(deltaTime, ATTACK_INTERVAL)
+            && !expandTerritory(Owner::Player))
         {
             player.cancelAttack();
-        }
-        else if (player.shouldAttack(deltaTime, ATTACK_INTERVAL))
-        {
-            const int nextTarget = player.getNextTarget(map, MAP_COLUMNS, MAP_ROWS);
-            if (nextTarget >= 0)
-            {
-                const Owner previousOwner = map.getCellFromIndex(nextTarget).owner;
-                attack(nextTarget, Owner::Player);
-                if (previousOwner != Owner::Player
-                    && map.getCellFromIndex(nextTarget).owner == Owner::Player)
-                {
-                    playerCapturedTarget = nextTarget;
-                }
-            }
         }
     }
 
     if (bot.shouldMove(deltaTime, ATTACK_INTERVAL))
     {
-        const int targetIndex =
-            bot.getNextTarget(map, MAP_COLUMNS, MAP_ROWS, playerCapturedTarget);
-        if (targetIndex >= 0) attack(targetIndex, Owner::Bot);
+        expandTerritory(Owner::Bot);
     }
+}
+
+bool Game::expandTerritory(Owner owner)
+{
+    std::vector<int> nextWave;
+
+    for (int row = 0; row < MAP_ROWS; ++row)
+    {
+        for (int column = 0; column < MAP_COLUMNS; ++column)
+        {
+            const int index = row * MAP_COLUMNS + column;
+            if (map.getCellFromIndex(index).owner != Owner::Land) continue;
+
+            const bool touchesOwner =
+                (row > 0 && map.getCellFromIndex(index - MAP_COLUMNS).owner == owner)
+                || (row + 1 < MAP_ROWS
+                    && map.getCellFromIndex(index + MAP_COLUMNS).owner == owner)
+                || (column > 0
+                    && map.getCellFromIndex(index - 1).owner == owner)
+                || (column + 1 < MAP_COLUMNS
+                    && map.getCellFromIndex(index + 1).owner == owner);
+            if (touchesOwner) nextWave.push_back(index);
+        }
+    }
+
+    for (const int index : nextWave)
+    {
+        TerritoryCell& cell = map.getCellFromIndex(index);
+        cell.owner = owner;
+        cell.troops = 0.0f;
+        cell.combat_timer = 0.0f;
+        cell.capture_protection = 0.0f;
+        cell.protected_from = Owner::Land;
+    }
+
+    return !nextWave.empty();
 }
 
 size_t Game::getPlayerPixels(Owner owner) const {
@@ -205,10 +222,10 @@ void Game::reset()
     game_over = false;
     winner = Owner::Land;
 
-    // Las bases empiezan en extremos opuestos; cada una ocupa un bloque inicial de 3x3.
+    // Las bases empiezan sobre tierra transitable; cada una ocupa un bloque de 3x3.
     const int baseRow = MAP_ROWS / 2;
-    const int playerBaseColumn = 5;
-    const int botBaseColumn = MAP_COLUMNS - 6;
+    const int playerBaseColumn = 14;
+    const int botBaseColumn = 50;
     for (int rowOffset = -1; rowOffset <= 1; ++rowOffset)
     {
         for (int columnOffset = -1; columnOffset <= 1; ++columnOffset)
@@ -225,79 +242,29 @@ void Game::reset()
         }
     }
 
-    map.getCell(baseRow, playerBaseColumn).is_base = true;
-    map.getCell(baseRow, playerBaseColumn).is_base = true;
+    map.getCell(playerBaseColumn, baseRow).is_base = true;
+    map.getCell(botBaseColumn, baseRow).is_base = true;
 }
 
 void Game::setPlayerTarget(int targetIndex)
 {
-    if (targetIndex >= 0 && targetIndex < static_cast<int>(map.getCells().size())
-        && map.getCellFromIndex(targetIndex).owner != Owner::Player)
+    if (targetIndex < 0 || targetIndex >= static_cast<int>(map.getCells().size()))
+    {
+        return;
+    }
+
+    const Owner targetOwner = map.getCellFromIndex(targetIndex).owner;
+    if (targetOwner == Owner::Land)
     {
         player.setTarget(targetIndex);
+    }
+    else if (targetOwner != Owner::Player)
+    {
+        player.cancelAttack();
     }
 }
 
 void Game::cancelPlayerAttack()
 {
     player.cancelAttack();
-}
-
-void Game::attack(int targetIndex, Owner attacker)
-{
-    TerritoryCell& target = map.getCellFromIndex(targetIndex);
-    // Evita que el dueño anterior recapture inmediatamente una celda recién perdida.
-    if (target.protected_from == attacker && target.capture_protection > 0.0f) return;
-
-    const int column = targetIndex % MAP_COLUMNS;
-    const int row = targetIndex / MAP_COLUMNS;
-    const int neighbors[] = {
-        row > 0 ? targetIndex - MAP_COLUMNS : -1,
-        row + 1 < MAP_ROWS ? targetIndex + MAP_COLUMNS : -1,
-        column > 0 ? targetIndex - 1 : -1,
-        column + 1 < MAP_COLUMNS ? targetIndex + 1 : -1
-    };
-
-    // Heurística voraz local: entre los vecinos propios, elige como origen el que
-    // tiene más tropas. No calcula una ruta global; solo resuelve este ataque.
-    int sourceIndex = -1;
-    for (const int neighbor : neighbors)
-    {
-        if (neighbor >= 0 && map.getCellFromIndex(neighbor).owner == attacker
-            && (sourceIndex < 0 || map.getCellFromIndex(neighbor).troops > map.getCellFromIndex(sourceIndex).troops))
-        {
-            sourceIndex = neighbor;
-        }
-    }
-    if (sourceIndex < 0) return;
-
-    TerritoryCell& source = map.getCellFromIndex(sourceIndex);
-    if (source.troops < 2.0f) return;
-    // Combate determinista por desgaste: se envía una fracción entera de las tropas.
-    const int force = static_cast<int>(source.troops * ATTACK_FORCE);
-    source.troops -= force;
-    target.combat_timer = COMBAT_STALE_DURATION;
-
-    // La captura se decide comparando la fuerza enviada con las tropas defensoras
-    // antes de restarlas; si no alcanza, el objetivo conserva su dueño.
-    if (force >= target.troops)
-    {
-        const bool capturedFromOpponent =
-            target.owner != Owner::Land && target.owner != attacker;
-        const bool capturedBase = target.is_base;
-        target.protected_from = capturedFromOpponent ? target.owner : Owner::Land;
-        target.owner = attacker;
-        target.troops = force - target.troops;
-        target.capture_protection = capturedFromOpponent
-            ? CAPTURE_PROTECTION_DURATION : 0.0f;
-        if (capturedBase)
-        {
-            game_over = true;
-            winner = attacker;
-        }
-    }
-    else
-    {
-        target.troops -= force;
-    }
 }

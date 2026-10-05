@@ -30,7 +30,7 @@ Map Map::fromImage(const char* filename){
     
     uint8_t* pixels = (uint8_t*)imageRGBA.data;
     
-    Map map(width, height);
+    Map map(height, width);
 
     for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {

@@ -124,7 +124,7 @@ void MainGameState::render()
                 cellWidth,
                 cellHeight
             };
-            const TerritoryCell& cell = map.getCell(row, column);
+            const TerritoryCell& cell = map.getCell(column, row);
             DrawRectangleRec(cellBounds, cellColor(cell.owner, player.getColor(), bot.getColor()));
             const Color ownershipColor = cell.owner == Owner::Player ? player.getColor()
                 : cell.owner == Owner::Bot ? bot.getColor() : Color{31, 37, 45, 255};
@@ -161,9 +161,9 @@ void MainGameState::render()
     }
 
     DrawRectangle(0, screenHeight - 64, screenWidth, 64, Color{31, 38, 47, 255});
-    const char* instructions = "Clic para avanzar hasta el territorio  |  Clic derecho o ESC para cancelar";
+    const char* instructions = "Clic en terreno neutral para expandirte | Clic derecho o ESC para cancelar";
     DrawText(instructions, 24, screenHeight - 41, 21, LIGHTGRAY);
-    const char* objective = "Captura la base rival para ganar";
+    const char* objective = "Expande tu territorio por las zonas neutrales";
     DrawText(objective, screenWidth - MeasureText(objective, 21) - 24,
              screenHeight - 41, 21, GOLD);
 
@@ -184,12 +184,19 @@ void MainGameState::render()
 
 Rectangle MainGameState::getMapBounds() const
 {
-    // Reserva espacio para la cabecera y el pie de instrucciones.
+    // Ajusta la cuadrícula al espacio disponible conservando celdas cuadradas.
+    const float availableWidth = static_cast<float>(std::max(1, GetScreenWidth() - 48));
+    const float availableHeight = static_cast<float>(std::max(1, GetScreenHeight() - 212));
+    const float cellSize = std::min(availableWidth / Game::MAP_COLUMNS,
+                                   availableHeight / Game::MAP_ROWS);
+    const float mapWidth = cellSize * Game::MAP_COLUMNS;
+    const float mapHeight = cellSize * Game::MAP_ROWS;
+
     return Rectangle{
-        24.0f,
-        124.0f,
-        static_cast<float>(std::max(1, GetScreenWidth() - 48)),
-        static_cast<float>(std::max(1, GetScreenHeight() - 212))
+        24.0f + (availableWidth - mapWidth) / 2.0f,
+        124.0f + (availableHeight - mapHeight) / 2.0f,
+        mapWidth,
+        mapHeight
     };
 }
 
