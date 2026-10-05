@@ -3,6 +3,7 @@
 #include <TerritoryCell.hpp>
 #include <raylib.h>
 #include <vector>
+#include <Map.hpp>
 
 class Bot
 {
@@ -11,8 +12,7 @@ public:
 
     Color getColor() const { return color; }
     bool shouldMove(float deltaTime, float interval);
-    int getNextTarget(const std::vector<TerritoryCell>& map,
-                      int columns, int rows, int excludedTarget);
+    int getNextTarget(Map& map, int columns, int rows, int excludedTarget);
     void reset();
 
 private:

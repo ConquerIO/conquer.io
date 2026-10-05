@@ -48,7 +48,8 @@ Game::Game(std::string playerName, Color playerColor)
       game_time(0.0f),
       tick_timer(0.0f),
       game_over(false),
-      winner(Owner::Neutral)
+      winner(Owner::Land),
+      map(Map::fromImage("./maps/map1.png"))
 {
 }
 
@@ -57,14 +58,14 @@ void Game::update(float deltaTime)
     if (game_over) return;
 
     game_time += deltaTime;
-    for (TerritoryCell& cell : map)
+    for (TerritoryCell& cell : map.getCells())
     {
         // Los temporizadores se reducen usando deltaTime para que el ritmo no dependa de los FPS.
         cell.combat_timer = std::max(0.0f, cell.combat_timer - deltaTime);
         cell.capture_protection = std::max(0.0f, cell.capture_protection - deltaTime);
-        if (cell.capture_protection == 0.0f) cell.protected_from = Owner::Neutral;
+        if (cell.capture_protection == 0.0f) cell.protected_from = Owner::Land;
         // Las tropas crecen solo en territorios propios que ya no están en combate.
-        /*if (cell.owner != Owner::Neutral && cell.combat_timer == 0.0f)
+        /*if (cell.owner != Owner::Land && cell.combat_timer == 0.0f)
         {
             cell.troops += TROOP_GROWTH_PER_SECOND * deltaTime;
         }*/
@@ -75,15 +76,15 @@ void Game::update(float deltaTime)
     tick_timer += deltaTime;
 
     while(tick_timer>=TICK_INTERVAL){
-        tick_timer-=TICK_INTERVAL
-        updateTroopGrowth(Owner::Player)
-        updateTroopGrowth(Owner::Bot)
+        tick_timer-=TICK_INTERVAL;
+        updateTroopGrowth(deltaTime, Owner::Player);
+        updateTroopGrowth(deltaTime, Owner::Bot);
     }
 
     int playerCapturedTarget = -1;
     if (player.getTargetIndex() >= 0)
     {
-        if (map[player.getTargetIndex()].owner == Owner::Player)
+        if (map.getCellFromIndex(player.getTargetIndex()).owner == Owner::Player)
         {
             player.cancelAttack();
         }
@@ -92,10 +93,10 @@ void Game::update(float deltaTime)
             const int nextTarget = player.getNextTarget(map, MAP_COLUMNS, MAP_ROWS);
             if (nextTarget >= 0)
             {
-                const Owner previousOwner = map[nextTarget].owner;
+                const Owner previousOwner = map.getCellFromIndex(nextTarget).owner;
                 attack(nextTarget, Owner::Player);
                 if (previousOwner != Owner::Player
-                    && map[nextTarget].owner == Owner::Player)
+                    && map.getCellFromIndex(nextTarget).owner == Owner::Player)
                 {
                     playerCapturedTarget = nextTarget;
                 }
@@ -111,28 +112,23 @@ void Game::update(float deltaTime)
     }
 }
 
-float Game::getPlayerPixels(Owner owner) const {
-    float pixels =0.0;
-
-    for (int i=0; i <static_cast<int>(map.size()); i++){
-        if(map[i].owner==owner){
-            pixels ++;
-        }
-    } 
+size_t Game::getPlayerPixels(Owner owner) const {
+    size_t pixels = 0;
+    for (const TerritoryCell& cell : map.getCells()){
+        if(cell.owner == owner) pixels++;
+    }
     return pixels;
 }
 
-float Game::getPlayerTroops(Owner owner) const{
-    float troops=0.0;
-    for(int i=0; i <static_cast<int>(map.size()); i++){
-        if(map[i].owner==owner){
-            troops+=map[i].troops;
-        }
+size_t Game::getPlayerTroops(Owner owner) const{
+    size_t troops= 0;
+    for (const TerritoryCell& cell : map.getCells()){
+        if(cell.owner == owner) troops += cell.troops;
     }
     return troops;
 }
 
-float Game::calculateTroopLimit(float pixels){
+float Game::calculateTroopLimit(float pixels) const {
     return pixels*TROOPS_PER_PIXEL;
 }
 
@@ -151,10 +147,10 @@ float Game::calculateInterest(float troops, float pixels) const{
 
     const float interest= INITIAL_INTEREST * ((limit-troops) / (limit-INITIAL_TROOPS));
 
-    return max(0.0f, interest)
+    return max(0.0f, interest);
 }
 
-void Game::updateTroopGrowth(Owner owner){
+void Game::updateTroopGrowth(float deltaTime, Owner owner){
     //si no tenemos pixeles no podemos expandirnos
     const float pixels=getPlayerPixels(owner);
     if(pixels<=0.0){
@@ -162,7 +158,7 @@ void Game::updateTroopGrowth(Owner owner){
     }
 
     const float currentTroops=getPlayerTroops(owner);
-    const float limit=calculateTroopLimit(pixeles);
+    const float limit=calculateTroopLimit(pixels);
 
     //cuando lleguemos al limite no hay que crecer
     if(currentTroops>=limit){
@@ -181,8 +177,8 @@ void Game::updateTroopGrowth(Owner owner){
 
     //ahora hay que repartir estas tropas por las celdas que tienee este usuario
     int availableCells=0;
-    for (int i=0; i <static_cast<int>(map.size()); i++){
-        if(map[i].owner==owner && map[i].combat_timer==0.0){
+    for (TerritoryCell& cell : map.getCells()){
+        if(cell.owner==owner && cell.combat_timer==0.0){
             availableCells++;
         }
     }
@@ -192,9 +188,9 @@ void Game::updateTroopGrowth(Owner owner){
 
     //se reparten por igual por las celdas del mapa 
     const float troopsPerCell= troopsToAdd/static_cast<float>(availableCells);
-    for (int i=0; i <static_cast<int>(map.size()); i++){
-        if(map[i].owner==owner && map[i].combat_timer==0.0){
-            map[i].troops+=troopsPerCell;
+    for (TerritoryCell& cell : map.getCells()){
+        if(cell.owner == owner && cell.combat_timer == 0.0){
+            cell.troops += troopsPerCell;
         }
     }
 
@@ -202,13 +198,12 @@ void Game::updateTroopGrowth(Owner owner){
 
 void Game::reset()
 {
-    map.assign(MAP_COLUMNS * MAP_ROWS, TerritoryCell{});
     game_time = 0.0f;
     tick_timer=0.0;
     player.cancelAttack();
     bot.reset();
     game_over = false;
-    winner = Owner::Neutral;
+    winner = Owner::Land;
 
     // Las bases empiezan en extremos opuestos; cada una ocupa un bloque inicial de 3x3.
     const int baseRow = MAP_ROWS / 2;
@@ -218,26 +213,26 @@ void Game::reset()
     {
         for (int columnOffset = -1; columnOffset <= 1; ++columnOffset)
         {
-            TerritoryCell& playerCell = map[(baseRow + rowOffset) * MAP_COLUMNS
-                                            + playerBaseColumn + columnOffset];
+            TerritoryCell& playerCell = map.getCellFromIndex((baseRow + rowOffset) * MAP_COLUMNS
+                                            + playerBaseColumn + columnOffset);
             playerCell.owner = Owner::Player;
             playerCell.troops = rowOffset == 0 && columnOffset == 0 ? 48.0f : 8.0f;
 
-            TerritoryCell& botCell = map[(baseRow + rowOffset) * MAP_COLUMNS
-                                         + botBaseColumn + columnOffset];
+            TerritoryCell& botCell = map.getCellFromIndex((baseRow + rowOffset) * MAP_COLUMNS
+                                         + botBaseColumn + columnOffset);
             botCell.owner = Owner::Bot;
             botCell.troops = rowOffset == 0 && columnOffset == 0 ? 48.0f : 8.0f;
         }
     }
 
-    map[baseRow * MAP_COLUMNS + playerBaseColumn].is_base = true;
-    map[baseRow * MAP_COLUMNS + botBaseColumn].is_base = true;
+    map.getCell(baseRow, playerBaseColumn).is_base = true;
+    map.getCell(baseRow, playerBaseColumn).is_base = true;
 }
 
 void Game::setPlayerTarget(int targetIndex)
 {
-    if (targetIndex >= 0 && targetIndex < static_cast<int>(map.size())
-        && map[targetIndex].owner != Owner::Player)
+    if (targetIndex >= 0 && targetIndex < static_cast<int>(map.getCells().size())
+        && map.getCellFromIndex(targetIndex).owner != Owner::Player)
     {
         player.setTarget(targetIndex);
     }
@@ -250,7 +245,7 @@ void Game::cancelPlayerAttack()
 
 void Game::attack(int targetIndex, Owner attacker)
 {
-    TerritoryCell& target = map[targetIndex];
+    TerritoryCell& target = map.getCellFromIndex(targetIndex);
     // Evita que el dueño anterior recapture inmediatamente una celda recién perdida.
     if (target.protected_from == attacker && target.capture_protection > 0.0f) return;
 
@@ -268,15 +263,15 @@ void Game::attack(int targetIndex, Owner attacker)
     int sourceIndex = -1;
     for (const int neighbor : neighbors)
     {
-        if (neighbor >= 0 && map[neighbor].owner == attacker
-            && (sourceIndex < 0 || map[neighbor].troops > map[sourceIndex].troops))
+        if (neighbor >= 0 && map.getCellFromIndex(neighbor).owner == attacker
+            && (sourceIndex < 0 || map.getCellFromIndex(neighbor).troops > map.getCellFromIndex(sourceIndex).troops))
         {
             sourceIndex = neighbor;
         }
     }
     if (sourceIndex < 0) return;
 
-    TerritoryCell& source = map[sourceIndex];
+    TerritoryCell& source = map.getCellFromIndex(sourceIndex);
     if (source.troops < 2.0f) return;
     // Combate determinista por desgaste: se envía una fracción entera de las tropas.
     const int force = static_cast<int>(source.troops * ATTACK_FORCE);
@@ -288,9 +283,9 @@ void Game::attack(int targetIndex, Owner attacker)
     if (force >= target.troops)
     {
         const bool capturedFromOpponent =
-            target.owner != Owner::Neutral && target.owner != attacker;
+            target.owner != Owner::Land && target.owner != attacker;
         const bool capturedBase = target.is_base;
-        target.protected_from = capturedFromOpponent ? target.owner : Owner::Neutral;
+        target.protected_from = capturedFromOpponent ? target.owner : Owner::Land;
         target.owner = attacker;
         target.troops = force - target.troops;
         target.capture_protection = capturedFromOpponent

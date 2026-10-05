@@ -1,18 +1,19 @@
 #pragma once
 
-enum class Owner
+enum class Owner : unsigned char
 {
-    Neutral, // Casilla sin dueño.
+    Water = 0,
+    Land = 1, // Casilla sin dueño.
     Player,  // Controlada por el jugador.
     Bot      // Controlada por el bot.
 };
 
 struct TerritoryCell
 {
-    Owner owner = Owner::Neutral;
+    Owner owner = Owner::Land;
     float troops = 0.0f; // Tropas estacionadas en la casilla.
     float capture_protection = 0.0f; // Tiempo restante de protección tras una captura enemiga.
     float combat_timer = 0.0f; // Tiempo durante el que esta casilla no genera tropas.
-    Owner protected_from = Owner::Neutral; // Bando contra el que protege la captura temporal.
+    Owner protected_from = Owner::Land; // Bando contra el que protege la captura temporal.
     bool is_base = false; // Si es la base cuya captura decide la partida.
 };
