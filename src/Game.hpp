@@ -4,14 +4,13 @@
 #include <Player.hpp>
 #include <TerritoryCell.hpp>
 #include <Map.hpp>
+#include <cstddef>
 #include <string>
+#include <vector>
 
 class Game
 {
 public:
-    static constexpr int MAP_COLUMNS = 64;
-    static constexpr int MAP_ROWS = 28;
-
     Game(std::string playerName, Color playerColor);
 
     void update(float deltaTime);
@@ -19,7 +18,7 @@ public:
     void setPlayerTarget(int targetIndex);
     void cancelPlayerAttack();
 
-    Map getMap() const { return map; }
+    const Map& getMap() const { return map; }
     const Player& getPlayer() const { return player; }
     const Bot& getBot() const { return bot; }
     float getTime() const { return game_time; }
@@ -28,18 +27,19 @@ public:
     
 
 private:
-    void attack(int targetIndex, Owner attacker);
+    bool expandTerritory(Owner owner);
 
     //Estas es para la parte del sistema de puntos
-    size_t getPlayerPixels(Owner owner) const;
-    size_t getPlayerTroops(Owner owner) const;
+    std::size_t getPlayerPixels(Owner owner) const;
+    float getPlayerTroops(Owner owner) const;
     float calculateInterest(float troops, float pixels) const;
     float calculateTroopLimit(float pixels) const;
-    void updateTroopGrowth(float deltaTime, Owner owner);
+    void updateTroopGrowth(Owner owner);
 
     Player player;
     Bot bot;
     Map map;
+    std::vector<Owner> terrain_owners;
     float game_time;
     bool game_over;
     //Este es para controlar el tema de los ticks de crecimiento

@@ -2,6 +2,8 @@
 #include <StateMachine.hpp>
 #include <raylib.h>
 #include <algorithm>
+#include <cstddef>
+#include <limits>
 #include <utility>
 
 namespace
@@ -28,7 +30,7 @@ void MainGameState::init()
 
 void MainGameState::handleInput()
 {
-    // Tras finalizar la partida solo se acepta reiniciar; se ignoran órdenes de ataque.
+    // Al finalizar la partida solo se acepta reiniciar
     if (game.isOver())
     {
         if (IsKeyPressed(KEY_R)) game.reset();
@@ -60,16 +62,18 @@ void MainGameState::render()
 
     const int screenWidth = GetScreenWidth();
     const int screenHeight = GetScreenHeight();
-    Map map = game.getMap();
+    const Map& map = game.getMap();
     const Player& player = game.getPlayer();
     const Bot& bot = game.getBot();
     const bool gameOver = game.isOver();
-    int playerCells = 0;
-    int botCells = 0;
+    std::size_t playerCells = 0;
+    std::size_t botCells = 0;
+    std::size_t landCells = 0;
     float playerTroops = 0.0f;
     float botTroops = 0.0f;
-    for (TerritoryCell& cell : map.getCells())
+    for (const TerritoryCell& cell : map.getCells())
     {
+        if (cell.owner != Owner::Water) ++landCells;
         if (cell.owner == Owner::Player)
         {
             ++playerCells;
@@ -82,8 +86,10 @@ void MainGameState::render()
         }
     }
     // Las estadísticas del HUD se derivan del mapa actual para no duplicar estado.
-    const size_t playerPercent = playerCells * 100 / map.getCells().size();
-    const size_t botPercent = botCells * 100 / map.getCells().size();
+    const int playerPercent = landCells == 0 ? 0
+        : static_cast<int>(100.0 * static_cast<double>(playerCells) / landCells);
+    const int botPercent = landCells == 0 ? 0
+        : static_cast<int>(100.0 * static_cast<double>(botCells) / landCells);
 
     DrawRectangle(0, 0, screenWidth, 108, Color{31, 38, 47, 255});
     DrawText(player.getName().c_str(), 24, 12, 32, player.getColor());
@@ -110,13 +116,13 @@ void MainGameState::render()
 
     const Rectangle bounds = getMapBounds();
     DrawRectangleRec(bounds, Color{38, 45, 54, 255});
-    const float cellWidth = bounds.width / Game::MAP_COLUMNS;
-    const float cellHeight = bounds.height / Game::MAP_ROWS;
+    const float cellWidth = bounds.width / static_cast<float>(map.getWidth());
+    const float cellHeight = bounds.height / static_cast<float>(map.getHeight());
     const Vector2 mousePosition = GetMousePosition();
     const int hoveredCell = getCellIndex(mousePosition);
 
-    for(size_t row = 0; row < map.getHeight(); row++){
-        for(size_t column = 0; column < map.getWidth(); column++){
+    for(std::size_t row = 0; row < map.getHeight(); row++){
+        for(std::size_t column = 0; column < map.getWidth(); column++){
 
             const Rectangle cellBounds{
                 bounds.x + column * cellWidth,
@@ -124,7 +130,8 @@ void MainGameState::render()
                 cellWidth,
                 cellHeight
             };
-            const TerritoryCell& cell = map.getCell(row, column);
+            const TerritoryCell& cell = map.getCell(column, row);
+            const std::size_t cellIndex = row * map.getWidth() + column;
             DrawRectangleRec(cellBounds, cellColor(cell.owner, player.getColor(), bot.getColor()));
             const Color ownershipColor = cell.owner == Owner::Player ? player.getColor()
                 : cell.owner == Owner::Bot ? bot.getColor() : Color{31, 37, 45, 255};
@@ -137,11 +144,15 @@ void MainGameState::render()
             {
                 DrawRectangleLinesEx(cellBounds, 2.0f, RAYWHITE);
             }
-            else if ((row * map.getWidth() + column) == player.getTargetIndex() && !gameOver)
+            else if (player.getTargetIndex() >= 0
+                     && cellIndex == static_cast<std::size_t>(player.getTargetIndex())
+                     && !gameOver)
             {
                 DrawRectangleLinesEx(cellBounds, 3.0f, GOLD);
             }
-            else if ((row * map.getWidth() + column) == hoveredCell && cell.owner != Owner::Player && !gameOver)
+            else if (hoveredCell >= 0
+                     && cellIndex == static_cast<std::size_t>(hoveredCell)
+                     && cell.owner != Owner::Player && !gameOver)
             {
                 DrawRectangleLinesEx(cellBounds, 2.0f, GOLD);
             }
@@ -161,9 +172,9 @@ void MainGameState::render()
     }
 
     DrawRectangle(0, screenHeight - 64, screenWidth, 64, Color{31, 38, 47, 255});
-    const char* instructions = "Clic para avanzar hasta el territorio  |  Clic derecho o ESC para cancelar";
+    const char* instructions = "Clic en terreno neutral para expandirte | Clic derecho o ESC para cancelar";
     DrawText(instructions, 24, screenHeight - 41, 21, LIGHTGRAY);
-    const char* objective = "Captura la base rival para ganar";
+    const char* objective = "Expande tu territorio por las zonas neutrales";
     DrawText(objective, screenWidth - MeasureText(objective, 21) - 24,
              screenHeight - 41, 21, GOLD);
 
@@ -184,17 +195,28 @@ void MainGameState::render()
 
 Rectangle MainGameState::getMapBounds() const
 {
-    // Reserva espacio para la cabecera y el pie de instrucciones.
+    // Ajusta la cuadrícula al espacio disponible conservando celdas cuadradas.
+    const float availableWidth = static_cast<float>(std::max(1, GetScreenWidth() - 48));
+    const float availableHeight = static_cast<float>(std::max(1, GetScreenHeight() - 212));
+    const Map& map = game.getMap();
+    const float mapColumns = static_cast<float>(map.getWidth());
+    const float mapRows = static_cast<float>(map.getHeight());
+    const float cellSize = std::min(availableWidth / mapColumns,
+                                   availableHeight / mapRows);
+    const float mapWidth = cellSize * mapColumns;
+    const float mapHeight = cellSize * mapRows;
+
     return Rectangle{
-        24.0f,
-        124.0f,
-        static_cast<float>(std::max(1, GetScreenWidth() - 48)),
-        static_cast<float>(std::max(1, GetScreenHeight() - 212))
+        24.0f + (availableWidth - mapWidth) / 2.0f,
+        124.0f + (availableHeight - mapHeight) / 2.0f,
+        mapWidth,
+        mapHeight
     };
 }
 
 int MainGameState::getCellIndex(Vector2 position) const
 {
+    const Map& map = game.getMap();
     const Rectangle bounds = getMapBounds();
     // Fuera del rectángulo del tablero no hay una celda seleccionable.
     if (position.x < bounds.x || position.y < bounds.y
@@ -206,7 +228,14 @@ int MainGameState::getCellIndex(Vector2 position) const
 
     // Escala las coordenadas de pantalla a índices de cuadrícula (fila y columna).
     // Es una transformación geométrica directa, no un algoritmo de búsqueda.
-    const int column = static_cast<int>((position.x - bounds.x) / bounds.width * Game::MAP_COLUMNS);
-    const int row = static_cast<int>((position.y - bounds.y) / bounds.height * Game::MAP_ROWS);
-    return row * Game::MAP_COLUMNS + column;
+    const std::size_t column = static_cast<std::size_t>(
+        (position.x - bounds.x) / bounds.width * map.getWidth());
+    const std::size_t row = static_cast<std::size_t>(
+        (position.y - bounds.y) / bounds.height * map.getHeight());
+    const std::size_t index = row * map.getWidth() + column;
+    if (index > static_cast<std::size_t>(std::numeric_limits<int>::max()))
+    {
+        return -1;
+    }
+    return static_cast<int>(index);
 }
