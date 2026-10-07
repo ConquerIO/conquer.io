@@ -67,7 +67,7 @@ Map Map::fromImage(const Image& image){
             
             TerritoryCell& cell = map.getCell(x, y);
             
-            cell.owner = isWater ? Owner::Water : Owner::Land;
+            cell.isWater = isWater;
         }
     }
     
@@ -111,7 +111,7 @@ Map Map::fromPerlinImage(const Image& image, float threshold){
             
             TerritoryCell& cell = map.getCell(x, y);
             
-            cell.owner = isWater ? Owner::Water : Owner::Land;
+            cell.isWater = isWater;
         }
     }
     

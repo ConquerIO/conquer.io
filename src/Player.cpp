@@ -2,22 +2,16 @@
 #include <utility>
 
 Player::Player(std::string name, Color color)
-    : name(std::move(name)),
-      color(color),
-      target_index(-1),
-      attack_timer(0.0f)
+    : Entity(std::move(name), color), attack_timer(0.0f)
 {
 }
 
 void Player::cancelAttack()
 {
-    target_index = -1;
-    attack_timer = 0.0f;
-}
-
-void Player::setTarget(int targetIndex)
-{
-    target_index = targetIndex;
+    // Devuelve al territorio el combustible que no se haya gastado.
+    troops += attack_fuel;
+    attack_fuel = 0;
+    target = Target::none();
     attack_timer = 0.0f;
 }
 

@@ -3,6 +3,7 @@
 #include <Bot.hpp>
 #include <Player.hpp>
 #include <TerritoryCell.hpp>
+#include <Target.hpp>
 #include <Map.hpp>
 #include <cstddef>
 #include <string>
@@ -15,34 +16,38 @@ public:
 
     void update(float deltaTime);
     void reset();
-    void setPlayerTarget(int targetIndex);
+    void setPlayerTarget(const Target& target, float ratio);
     void cancelPlayerAttack();
 
+    Player* getPlayer() const { return (Player*)entities[0];}
     const Map& getMap() const { return map; }
-    const Player& getPlayer() const { return player; }
-    const Bot& getBot() const { return bot; }
     float getTime() const { return game_time; }
     bool isOver() const { return game_over; }
-    Owner getWinner() const { return winner; }
-    
+    Entity* getWinner() const { return winner; }
+    std::vector<Entity*> getEntities() const {return entities;}
+
 
 private:
-    bool expandTerritory(Owner owner);
-
-    //Estas es para la parte del sistema de puntos
-    std::size_t getPlayerPixels(Owner owner) const;
-    float getPlayerTroops(Owner owner) const;
+    void spawnEntity(Entity* entity, int x, int y);
+    bool expandTerritory(Entity* owner);
+    // Indica si (x, y) es una celda de la frontera de `owner` (toca tierra o enemigo).
+    bool isFrontierCell(int x, int y, Entity* owner) const;
+    // Recalcula desde cero la frontera de `owner` recorriendo todo el mapa.
+    void rebuildFrontier(Entity* owner);
+    // Anade a la frontera de `victim` las celdas que quedan expuestas al perder
+    // la celda (x, y).
+    void addExposedFrontier(Entity* victim, int x, int y);
+    std::size_t getPlayerPixels(Entity* owner) const;
+    float getPlayerTroops(Entity* owner) const;
     float calculateInterest(float troops, float pixels) const;
     float calculateTroopLimit(float pixels) const;
-    void updateTroopGrowth(Owner owner);
+    void updateTroopGrowth(Entity* owner);
 
-    Player player;
-    Bot bot;
+    std::vector<Entity*> entities;
     Map map;
-    std::vector<Owner> terrain_owners;
     float game_time;
     bool game_over;
     //Este es para controlar el tema de los ticks de crecimiento
     float tick_timer;
-    Owner winner;
+    Entity* winner;
 };

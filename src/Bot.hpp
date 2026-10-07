@@ -1,17 +1,16 @@
 #pragma once
 
 #include <raylib.h>
+#include <Entity.hpp>
 
-class Bot
+class Bot : public Entity
 {
 public:
     explicit Bot(Color color);
 
-    Color getColor() const { return color; }
     bool shouldMove(float deltaTime, float interval);
     void reset();
 
 private:
-    Color color;
     float move_timer;
 };

@@ -1,5 +1,6 @@
 #include <MainGameState.hpp>
 #include <StateMachine.hpp>
+#include <Target.hpp>
 #include <raylib.h>
 #include <algorithm>
 #include <cstddef>
@@ -8,12 +9,11 @@
 
 namespace
 {
-// Convierte la propiedad lógica de una celda en el color que se dibuja.
-Color cellColor(Owner owner, Color playerColor, Color botColor)
+
+Color cellColor(const TerritoryCell& cell)
 {
-    if (owner == Owner::Player) return playerColor;
-    if (owner == Owner::Bot) return botColor;
-    if (owner == Owner::Water) return Color{0,0,0,255};
+    if (cell.owner != nullptr) return cell.owner->getColor();
+    if (cell.owner == nullptr && cell.isWater) return Color{0,0,0,255};
     return Color{55, 63, 73, 255};
 }
 }
@@ -37,6 +37,29 @@ void MainGameState::handleInput()
         return;
     }
 
+    const Vector2 mousePosition = GetMousePosition();
+    const Rectangle slider = getAttackSliderBounds();
+
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)
+        && CheckCollisionPointRec(mousePosition, slider))
+    {
+        dragging_attack_slider = true;
+    }
+
+    if (dragging_attack_slider && IsMouseButtonDown(MOUSE_BUTTON_LEFT))
+    {
+        float ratio = (mousePosition.x - slider.x) / slider.width;
+        if (ratio < 0.0f) ratio = 0.0f;
+        if (ratio > 1.0f) ratio = 1.0f;
+        attack_percent = static_cast<int>(ratio * 100.0f + 0.5f);
+        return;
+    }
+
+    if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT))
+    {
+        dragging_attack_slider = false;
+    }
+
     if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT) || IsKeyPressed(KEY_ESCAPE))
     {
         game.cancelPlayerAttack();
@@ -44,8 +67,26 @@ void MainGameState::handleInput()
 
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
     {
-        const int targetIndex = getCellIndex(GetMousePosition());
-        game.setPlayerTarget(targetIndex);
+        const std::pair<int, int> targetCoordinates = getCellCoordinates(GetMousePosition());
+        const int column = targetCoordinates.first;
+        const int row = targetCoordinates.second;
+        if (column < 0 || row < 0) return; // Clic fuera del tablero.
+
+        const TerritoryCell& cell = game.getMap().getCell(
+            static_cast<std::size_t>(column), static_cast<std::size_t>(row));
+
+        if (cell.isWater) return;
+
+        const float ratio = static_cast<float>(attack_percent) / 100.0f;
+
+        if (cell.owner == nullptr)
+        {
+            game.setPlayerTarget(Target::land(), ratio);
+        }
+        else if (cell.owner != game.getPlayer())
+        {
+            game.setPlayerTarget(Target::enemy(cell.owner), ratio);
+        }
     }
 }
 
@@ -63,26 +104,25 @@ void MainGameState::render()
     const int screenWidth = GetScreenWidth();
     const int screenHeight = GetScreenHeight();
     const Map& map = game.getMap();
-    const Player& player = game.getPlayer();
-    const Bot& bot = game.getBot();
+    Player* player = game.getPlayer();
+    Bot* bot = (Bot* )game.getEntities()[1];
     const bool gameOver = game.isOver();
     std::size_t playerCells = 0;
     std::size_t botCells = 0;
     std::size_t landCells = 0;
-    float playerTroops = 0.0f;
-    float botTroops = 0.0f;
+
     for (const TerritoryCell& cell : map.getCells())
     {
-        if (cell.owner != Owner::Water) ++landCells;
-        if (cell.owner == Owner::Player)
+        if (cell.isWater) continue;
+
+        ++landCells;
+        if (cell.owner == player)
         {
             ++playerCells;
-            playerTroops += cell.troops;
         }
-        else if (cell.owner == Owner::Bot)
+        else if (cell.owner != nullptr)
         {
             ++botCells;
-            botTroops += cell.troops;
         }
     }
     // Las estadísticas del HUD se derivan del mapa actual para no duplicar estado.
@@ -92,9 +132,9 @@ void MainGameState::render()
         : static_cast<int>(100.0 * static_cast<double>(botCells) / landCells);
 
     DrawRectangle(0, 0, screenWidth, 108, Color{31, 38, 47, 255});
-    DrawText(player.getName().c_str(), 24, 12, 32, player.getColor());
+    DrawText(player->getName().c_str(), 24, 12, 32, player->getColor());
     DrawText(TextFormat("%d%% territorio", playerPercent), 24, 51, 24, WHITE);
-    DrawText(TextFormat("%d tropas", static_cast<int>(playerTroops)),
+    DrawText(TextFormat("%d tropas", player->getTroops()),
              24, 78, 22, WHITE);
 
     const char* title = "CONQUISTA EL MAPA";
@@ -103,23 +143,11 @@ void MainGameState::render()
     const std::string clock = TextFormat("%02d:%02d", totalSeconds / 60, totalSeconds % 60);
     DrawText(clock.c_str(), (screenWidth - MeasureText(clock.c_str(), 24)) / 2, 55, 24, LIGHTGRAY);
 
-    const char* botName = "BOT";
-    const int botNameWidth = MeasureText(botName, 32);
-    DrawText(botName, screenWidth - botNameWidth - 24, 12, 32, bot.getColor());
-    const std::string botStats = TextFormat("%d%% territorio", botPercent);
-    DrawText(botStats.c_str(), screenWidth - MeasureText(botStats.c_str(), 24) - 24,
-             51, 24, WHITE);
-    const std::string botTroopStats = TextFormat("%d tropas", static_cast<int>(botTroops));
-    DrawText(botTroopStats.c_str(),
-             screenWidth - MeasureText(botTroopStats.c_str(), 22) - 24,
-             78, 22, WHITE);
-
     const Rectangle bounds = getMapBounds();
     DrawRectangleRec(bounds, Color{38, 45, 54, 255});
     const float cellWidth = bounds.width / static_cast<float>(map.getWidth());
     const float cellHeight = bounds.height / static_cast<float>(map.getHeight());
     const Vector2 mousePosition = GetMousePosition();
-    const int hoveredCell = getCellIndex(mousePosition);
 
     for(std::size_t row = 0; row < map.getHeight(); row++){
         for(std::size_t column = 0; column < map.getWidth(); column++){
@@ -132,36 +160,13 @@ void MainGameState::render()
             };
             const TerritoryCell& cell = map.getCell(column, row);
             const std::size_t cellIndex = row * map.getWidth() + column;
-            DrawRectangleRec(cellBounds, cellColor(cell.owner, player.getColor(), bot.getColor()));
-            const Color ownershipColor = cell.owner == Owner::Player ? player.getColor()
-                : cell.owner == Owner::Bot ? bot.getColor() : Color{31, 37, 45, 255};
-            const float borderThickness = cell.capture_protection > 0.0f ? 3.0f
-                : cell.owner == Owner::Land ? 0.7f : 1.5f;
-            DrawRectangleLinesEx(cellBounds, borderThickness,
-                                ownershipColor);
+            DrawRectangleRec(cellBounds, cellColor(cell));
+            const Color ownershipColor = cell.owner == player ? player->getColor(): Color{31, 37, 45, 255};
 
-            if (cell.is_base)
+            if (cell.owner == nullptr && cellWidth >= 20.0f)
             {
-                DrawRectangleLinesEx(cellBounds, 2.0f, RAYWHITE);
-            }
-            else if (player.getTargetIndex() >= 0
-                     && cellIndex == static_cast<std::size_t>(player.getTargetIndex())
-                     && !gameOver)
-            {
-                DrawRectangleLinesEx(cellBounds, 3.0f, GOLD);
-            }
-            else if (hoveredCell >= 0
-                     && cellIndex == static_cast<std::size_t>(hoveredCell)
-                     && cell.owner != Owner::Player && !gameOver)
-            {
-                DrawRectangleLinesEx(cellBounds, 2.0f, GOLD);
-            }
-
-            if (cell.owner != Owner::Land
-                && cell.troops >= 10.0f && cellWidth >= 20.0f)
-            {
-                const int troops = static_cast<int>(cell.troops);
-                DrawText(TextFormat("%d", troops),
+                const int troops = 0;// static_cast<int>(cell.troops);
+                DrawText(TextFormat("%d", player->getTroops()),
                         static_cast<int>(cellBounds.x + 2),
                         static_cast<int>(cellBounds.y + 3),
                         14, RAYWHITE);
@@ -171,18 +176,47 @@ void MainGameState::render()
         }
     }
 
-    DrawRectangle(0, screenHeight - 64, screenWidth, 64, Color{31, 38, 47, 255});
-    const char* instructions = "Clic en terreno neutral para expandirte | Clic derecho o ESC para cancelar";
-    DrawText(instructions, 24, screenHeight - 41, 21, LIGHTGRAY);
-    const char* objective = "Expande tu territorio por las zonas neutrales";
-    DrawText(objective, screenWidth - MeasureText(objective, 21) - 24,
-             screenHeight - 41, 21, GOLD);
+    const Rectangle slider = getAttackSliderBounds();
+    const float sliderRatio = static_cast<float>(attack_percent) / 100.0f;
+    const Color playerColor = player->getColor();
+
+    DrawRectangleRounded(slider, 0.5f, 8, Color{24, 29, 36, 255});
+    if (sliderRatio > 0.0f)
+    {
+        Rectangle fill = slider;
+        fill.width = slider.width * sliderRatio;
+        DrawRectangleRounded(fill, 0.5f, 8, playerColor);
+    }
+
+    const float knobX = slider.x + slider.width * sliderRatio;
+    DrawCircle(static_cast<int>(knobX),
+               static_cast<int>(slider.y + slider.height / 2.0f),
+               slider.height * 0.62f, RAYWHITE);
+
+    const std::size_t attackTroops = static_cast<std::size_t>(
+        static_cast<float>(player->getTroops()) * sliderRatio);
+    const char* sliderLabel = TextFormat("%d%% (%d)", attack_percent,
+                                         static_cast<int>(attackTroops));
+
+    const int labelFontSize = 20;
+    const int labelWidth = MeasureText(sliderLabel, labelFontSize);
+    const int playerLuminance =
+        (299 * static_cast<int>(playerColor.r)
+         + 587 * static_cast<int>(playerColor.g)
+         + 114 * static_cast<int>(playerColor.b)) / 1000;
+    const Color labelColor =
+        (sliderRatio >= 0.5f && playerLuminance > 140) ? Color{20, 24, 30, 255}
+                                                       : RAYWHITE;
+    DrawText(sliderLabel,
+             static_cast<int>(slider.x + (slider.width - labelWidth) / 2.0f),
+             static_cast<int>(slider.y + (slider.height - labelFontSize) / 2.0f),
+             labelFontSize, labelColor);
 
     if (gameOver)
     {
         DrawRectangle(0, 0, screenWidth, screenHeight, Fade(BLACK, 0.68f));
-        const char* result = game.getWinner() == Owner::Player ? "¡VICTORIA!" : "DERROTA";
-        const Color resultColor = game.getWinner() == Owner::Player ? GOLD : LIGHTGRAY;
+        const char* result = game.getWinner() == player ? "¡VICTORIA!" : "DERROTA";
+        const Color resultColor = game.getWinner() == player ? GOLD : LIGHTGRAY;
         DrawText(result, (screenWidth - MeasureText(result, 54)) / 2,
                  screenHeight / 2 - 60, 54, resultColor);
         const char* restart = "Pulsa R para jugar otra vez";
@@ -214,7 +248,19 @@ Rectangle MainGameState::getMapBounds() const
     };
 }
 
-int MainGameState::getCellIndex(Vector2 position) const
+Rectangle MainGameState::getAttackSliderBounds() const
+{
+    const float width = std::min(460.0f, static_cast<float>(GetScreenWidth()) - 96.0f);
+    const float height = 34.0f;
+    return Rectangle{
+        (static_cast<float>(GetScreenWidth()) - width) / 2.0f,
+        static_cast<float>(GetScreenHeight()) - 52.0f,
+        width,
+        height
+    };
+}
+
+std::pair<int, int> MainGameState::getCellCoordinates(Vector2 position) const
 {
     const Map& map = game.getMap();
     const Rectangle bounds = getMapBounds();
@@ -223,7 +269,7 @@ int MainGameState::getCellIndex(Vector2 position) const
         || position.x >= bounds.x + bounds.width
         || position.y >= bounds.y + bounds.height)
     {
-        return -1;
+        return {-1, -1};
     }
 
     // Escala las coordenadas de pantalla a índices de cuadrícula (fila y columna).
@@ -232,10 +278,6 @@ int MainGameState::getCellIndex(Vector2 position) const
         (position.x - bounds.x) / bounds.width * map.getWidth());
     const std::size_t row = static_cast<std::size_t>(
         (position.y - bounds.y) / bounds.height * map.getHeight());
-    const std::size_t index = row * map.getWidth() + column;
-    if (index > static_cast<std::size_t>(std::numeric_limits<int>::max()))
-    {
-        return -1;
-    }
-    return static_cast<int>(index);
+
+    return {column, row};
 }

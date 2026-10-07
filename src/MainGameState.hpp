@@ -3,6 +3,7 @@
 #include <Game.hpp>
 #include <raylib.h>
 #include <string>
+#include <iostream>
 
 class MainGameState : public GameState
 {
@@ -21,7 +22,10 @@ class MainGameState : public GameState
     
     private:
         Rectangle getMapBounds() const;
-        int getCellIndex(Vector2 position) const;
+        Rectangle getAttackSliderBounds() const;
+        std::pair<int, int> getCellCoordinates(Vector2 position) const;
 
         Game game;
+        int attack_percent = 100;            // Porcentaje de tropas destinado al ataque.
+        bool dragging_attack_slider = false;
 };
