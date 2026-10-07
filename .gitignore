@@ -32,6 +32,8 @@
 *.a
 *.lib
 
+!vendor/lib/libraylib.a
+
 # Executables
 *.exe
 *.out
