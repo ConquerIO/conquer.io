@@ -50,7 +50,7 @@ Game::Game(std::string playerName, Color playerColor):
       tick_timer(0.0f),
       game_over(false),
       winner(nullptr),
-      map(Map::fromImage("./maps/map1.png"))
+      map(Map::generateMap())
 {
     this->entities.push_back(new Player(std::move(playerName), playerColor));
     this->entities.push_back(new Bot(contrastingColor(playerColor)));
