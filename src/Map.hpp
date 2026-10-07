@@ -1,7 +1,11 @@
 #pragma once
 #include <cstddef>
 #include <vector>
+#include <cstdlib>
+#include <ctime>
+#include <raylib.h>
 #include <TerritoryCell.hpp>
+#include <MapGenerator.hpp>
 
 class Map {
     const std::size_t rows;
@@ -10,7 +14,10 @@ class Map {
 
 public:
     Map(std::size_t rows, std::size_t columns);
+    static Map fromImage(const Image& image);
     static Map fromImage(const char* filename);
+    static Map fromPerlinImage(const Image& image, float threshold);
+    static Map generateMap();
 
     TerritoryCell& getCell(std::size_t x, std::size_t y);
     const TerritoryCell& getCell(std::size_t x, std::size_t y) const;

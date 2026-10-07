@@ -43,7 +43,7 @@ Game::Game(std::string playerName, Color playerColor)
       tick_timer(0.0f),
       game_over(false),
       winner(Owner::Land),
-      map(Map::fromImage("./maps/map1.png"))
+      map(Map::generateMap())
 {
     terrain_owners.reserve(map.getCells().size());
     for (const TerritoryCell& cell : map.getCells())

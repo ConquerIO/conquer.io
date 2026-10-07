@@ -2,9 +2,21 @@
 #include <MenuState.hpp>
 #include <raylib.h>
 #include <memory>
+#include <cstdlib>
+#include <chrono>
 
 int main()
 {
+
+    std::srand(
+        static_cast<unsigned>(
+            std::chrono::high_resolution_clock::now()
+                .time_since_epoch()
+                .count()
+        )
+    );
+
+
     InitWindow(2560, 1440, "Conquer.io");
     SetTargetFPS(60);
 
