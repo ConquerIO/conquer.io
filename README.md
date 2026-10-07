@@ -145,6 +145,14 @@ Este proyecto utiliza Raylib. Las librerías estáticas y cabeceras ya están in
 ### 1. Compilar
 
 ```bash
+./build.sh        # compila
+./build.sh run    # compila y ejecuta
+./build.sh clean  # borra el binario generado
+```
+
+Equivale a este comando manual:
+
+```bash
 g++ -o game src/*.cpp -I src/ -I vendor/include/ -L vendor/lib -lraylib -lGL -lm -lpthread -lrt -lX11
 ```
 

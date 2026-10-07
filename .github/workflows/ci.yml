@@ -1,0 +1,49 @@
+name: CI
+
+# Compila el juego en cada push/PR para detectar errores de build.
+# Raylib va versionada en vendor/lib, asi que no hay que construirla ni cachearla.
+# No ejecuta el juego: los runners no tienen pantalla y InitWindow fallaria.
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Compilar (Linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Instalar dependencias del sistema
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            libgl1-mesa-dev \
+            xorg-dev \
+            libasound2-dev
+
+      - name: Compilar el juego
+        run: ./build.sh
+
+      - name: Comprobar warnings (informativo)
+        continue-on-error: true
+        run: |
+          g++ -fsyntax-only -Wall -Wextra src/*.cpp -I src/ -I vendor/include/
+
+      - name: Verificar binario
+        run: test -x game
