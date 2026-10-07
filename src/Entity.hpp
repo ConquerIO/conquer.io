@@ -1,6 +1,7 @@
 #pragma once
 #include <raylib.h>
 #include <string>
+#include <Target.hpp>
 
 class Entity {
 public:
@@ -9,14 +10,14 @@ public:
     const std::string& getName() const {return name;}
     const Color getColor() const {return color;}
     const std::size_t getTroops() const {return troops;}
-    Entity* getTarget() const { return target; }
+    const Target& getTarget() const { return target; }
 
-    void setTarget(Entity* target);
+    void setTarget(const Target& target);
     void setTroops(std::size_t troops);
 protected:
     std::string name;
     Color color;
-    Entity* target = nullptr;
+    Target target;
 
     std::size_t troops;
 };

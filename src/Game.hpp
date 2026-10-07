@@ -3,6 +3,7 @@
 #include <Bot.hpp>
 #include <Player.hpp>
 #include <TerritoryCell.hpp>
+#include <Target.hpp>
 #include <Map.hpp>
 #include <cstddef>
 #include <string>
@@ -15,7 +16,7 @@ public:
 
     void update(float deltaTime);
     void reset();
-    void setPlayerTarget(Entity* target);
+    void setPlayerTarget(const Target& target);
     void cancelPlayerAttack();
 
     Player* getPlayer() const { return (Player*)entities[0];}

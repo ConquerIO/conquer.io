@@ -34,6 +34,15 @@ Color contrastingColor(Color color)
     };
     return distance(red) > distance(cyan) ? red : cyan;
 }
+
+bool isConquerable(const TerritoryCell& cell, const Target& target)
+{
+    if (cell.isWater) return false;
+
+    if (target.isLand()) return cell.owner == nullptr;
+    if (target.isEnemy()) return cell.owner == target.getEntity();
+    return false;
+}
 }
 
 Game::Game(std::string playerName, Color playerColor):
@@ -65,7 +74,7 @@ void Game::update(float deltaTime)
         updateTroopGrowth(bot);
     }
 
-    if (player->getTarget() != nullptr) // refact tierra/agua
+    if (!player->getTarget().isNone())
     {
         if (player->shouldAttack(deltaTime, ATTACK_INTERVAL)
             && !expandTerritory(player))
@@ -82,6 +91,9 @@ void Game::update(float deltaTime)
 
 bool Game::expandTerritory(Entity* owner)
 {
+    const Target& target = owner->getTarget();
+    if (target.isNone()) return false;
+
     std::vector<std::size_t> nextWave;
     const std::size_t columns = map.getWidth();
     const std::size_t rows = map.getHeight();
@@ -91,7 +103,7 @@ bool Game::expandTerritory(Entity* owner)
         for (std::size_t column = 0; column < columns; ++column)
         {
             const std::size_t index = row * columns + column;
-            if (map.getCellFromIndex(index).owner != nullptr) continue;
+            if (!isConquerable(map.getCellFromIndex(index), target)) continue;
 
             const bool touchesOwner =
                 (row > 0 && map.getCellFromIndex(index - columns).owner == owner)
@@ -107,8 +119,7 @@ bool Game::expandTerritory(Entity* owner)
 
     for (const std::size_t index : nextWave)
     {
-        TerritoryCell& cell = map.getCellFromIndex(index);
-        cell.owner = owner;
+        map.getCellFromIndex(index).owner = owner;
     }
 
     return !nextWave.empty();
@@ -159,6 +170,8 @@ void Game::reset()
     tick_timer=0.0;
     game_over = false;
     winner = nullptr;
+    getPlayer()->cancelAttack();
+    static_cast<Bot*>(entities[1])->reset();
 
     const int mapWidth = static_cast<int>(map.getWidth());
     const int mapHeight = static_cast<int>(map.getHeight());
@@ -188,7 +201,9 @@ void Game::reset()
             {
                 for (int columnOffset = -1; columnOffset <= 1; ++columnOffset)
                 {
-                    if (map.getCell(column + columnOffset, row + rowOffset).owner != nullptr)
+                    const TerritoryCell& cell =
+                        map.getCell(column + columnOffset, row + rowOffset);
+                    if (cell.isWater || cell.owner != nullptr)
                     {
                         allLand = false;
                         break;
@@ -241,16 +256,9 @@ void Game::spawnEntity(Entity* entity, int x, int y){
             map.getCell(x + columnOffset, y + rowOffset).owner = entity;
 }
 
-void Game::setPlayerTarget(Entity* target)
+void Game::setPlayerTarget(const Target& target)
 {
-    if (target == nullptr)
-    {
-        getPlayer()->setTarget(target);
-    }
-    /*else if (targetOwner != entities[0])
-    {
-        player.cancelAttack();
-    }*/
+    getPlayer()->setTarget(target);
 }
 
 void Game::cancelPlayerAttack()

@@ -1,5 +1,6 @@
 #include <MainGameState.hpp>
 #include <StateMachine.hpp>
+#include <Target.hpp>
 #include <raylib.h>
 #include <algorithm>
 #include <cstddef>
@@ -44,8 +45,24 @@ void MainGameState::handleInput()
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
     {
         const std::pair<int, int> targetCoordinates = getCellCoordinates(GetMousePosition());
-        const auto owner = game.getMap().getCell(targetCoordinates.first, targetCoordinates.second).owner;
-        game.setPlayerTarget(owner);
+        const int column = targetCoordinates.first;
+        const int row = targetCoordinates.second;
+        if (column < 0 || row < 0) return; // Clic fuera del tablero.
+
+        const TerritoryCell& cell = game.getMap().getCell(
+            static_cast<std::size_t>(column), static_cast<std::size_t>(row));
+
+        // El agua no es un objetivo valido: el clic se ignora.
+        if (cell.isWater) return;
+
+        if (cell.owner == nullptr)
+        {
+            game.setPlayerTarget(Target::land());
+        }
+        else if (cell.owner != game.getPlayer())
+        {
+            game.setPlayerTarget(Target::enemy(cell.owner));
+        }
     }
 }
 
@@ -121,19 +138,6 @@ void MainGameState::render()
             const std::size_t cellIndex = row * map.getWidth() + column;
             DrawRectangleRec(cellBounds, cellColor(cell));
             const Color ownershipColor = cell.owner == player ? player->getColor(): Color{31, 37, 45, 255};
-
-            if (player->getTarget() != nullptr
-                     //&& cellIndex == static_cast<std::size_t>(player.getTargetIndex())
-                     && !gameOver)
-            {
-                DrawRectangleLinesEx(cellBounds, 3.0f, GOLD);
-            }
-           /*else if (hoveredCell >= 0
-                     && cellIndex == static_cast<std::size_t>(hoveredCell)
-                     && cell.owner != Owner::Player && !gameOver)
-            {
-                DrawRectangleLinesEx(cellBounds, 2.0f, GOLD);
-            }*/
 
             if (cell.owner == nullptr && cellWidth >= 20.0f)
             {
