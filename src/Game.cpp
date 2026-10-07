@@ -19,20 +19,21 @@ namespace
     constexpr float TICK_INTERVAL = 1.0f;
 
 
+int colorDistance(Color a, Color b)
+{
+    const int redDifference = static_cast<int>(a.r) - b.r;
+    const int greenDifference = static_cast<int>(a.g) - b.g;
+    const int blueDifference = static_cast<int>(a.b) - b.b;
+    return redDifference * redDifference
+        + greenDifference * greenDifference
+        + blueDifference * blueDifference;
+}
+
 Color contrastingColor(Color color)
 {
     const Color red{235, 65, 75, 255};
     const Color cyan{45, 205, 220, 255};
-    const auto distance = [color](Color other)
-    {
-        const int redDifference = static_cast<int>(color.r) - other.r;
-        const int greenDifference = static_cast<int>(color.g) - other.g;
-        const int blueDifference = static_cast<int>(color.b) - other.b;
-        return redDifference * redDifference
-            + greenDifference * greenDifference
-            + blueDifference * blueDifference;
-    };
-    return distance(red) > distance(cyan) ? red : cyan;
+    return colorDistance(color, red) > colorDistance(color, cyan) ? red : cyan;
 }
 
 bool isConquerable(const TerritoryCell& cell, const Target& target)
@@ -43,6 +44,10 @@ bool isConquerable(const TerritoryCell& cell, const Target& target)
     if (target.isEnemy()) return cell.owner == target.getEntity();
     return false;
 }
+
+// Desplazamientos de los 4 vecinos: arriba, abajo, izquierda, derecha.
+constexpr int NEIGHBOR_X[4] = {0, 0, -1, 1};
+constexpr int NEIGHBOR_Y[4] = {-1, 1, 0, 0};
 }
 
 Game::Game(std::string playerName, Color playerColor):
@@ -85,57 +90,156 @@ void Game::update(float deltaTime)
 
     if (bot->shouldMove(deltaTime, ATTACK_INTERVAL))
     {
-        // El bot destina todas sus tropas al ataque en curso antes de expandirse.
         bot->beginAttack(1.0f);
         expandTerritory(bot);
     }
 }
 
+/*
+    Algoritmo de expansión
+
+    Funcionamiento: obtiene la frontera del territorio y
+    la va expandiendo mientras decrementa el "attack fuel" (tropas
+    destinadas al ataque) del atacante.
+
+    Por último, recalcula la frontera para futuras expansiones.
+
+    Esta versión es una optimización importante en cuanto a rendimiento,
+    ya que no se tienen en consideración los píxeles interiores, lo que
+    reduce drásticamente el costo computacional.
+*/
 bool Game::expandTerritory(Entity* owner)
 {
     const Target& target = owner->getTarget();
     if (target.isNone()) return false;
 
-    std::vector<std::size_t> nextWave;
-    const std::size_t columns = map.getWidth();
-    const std::size_t rows = map.getHeight();
-
-    for (std::size_t row = 0; row < rows; ++row)
-    {
-        for (std::size_t column = 0; column < columns; ++column)
-        {
-            const std::size_t index = row * columns + column;
-            if (!isConquerable(map.getCellFromIndex(index), target)) continue;
-
-            const bool touchesOwner =
-                (row > 0 && map.getCellFromIndex(index - columns).owner == owner)
-                || (row + 1 < rows
-                    && map.getCellFromIndex(index + columns).owner == owner)
-                || (column > 0
-                    && map.getCellFromIndex(index - 1).owner == owner)
-                || (column + 1 < columns
-                    && map.getCellFromIndex(index + 1).owner == owner);
-            if (touchesOwner) nextWave.push_back(index);
-        }
-    }
-
-
     const std::size_t fuel = owner->getAttackFuel();
     if (fuel == 0) return false;
 
-    if (nextWave.size() > fuel)
+    std::vector<std::pair<int, int>>& frontier = owner->getFrontier();
+    if (frontier.empty())
     {
-        nextWave.resize(fuel);
+        rebuildFrontier(owner);
+        if (frontier.empty()) return false;
     }
 
-    for (const std::size_t index : nextWave)
+    const int columns = static_cast<int>(map.getWidth());
+    const int rows = static_cast<int>(map.getHeight());
+
+    std::vector<std::pair<int, int>> captured;
+    std::vector<Entity*> previousOwners;
+    std::size_t spent = 0;
+
+    for (const std::pair<int, int>& cell : frontier)
     {
-        map.getCellFromIndex(index).owner = owner;
+        if (spent >= fuel) break;
+        const int x = cell.first;
+        const int y = cell.second;
+        if (map.getCell(x, y).owner != owner) continue;
+
+        for (int i = 0; i < 4 && spent < fuel; ++i)
+        {
+            const int nx = x + NEIGHBOR_X[i];
+            const int ny = y + NEIGHBOR_Y[i];
+            if (nx < 0 || ny < 0 || nx >= columns || ny >= rows) continue;
+
+            TerritoryCell& neighbor = map.getCell(nx, ny);
+            if (!isConquerable(neighbor, target)) continue;
+
+            previousOwners.push_back(neighbor.owner);
+            neighbor.owner = owner;
+            captured.emplace_back(nx, ny);
+            ++spent;
+        }
     }
 
-    owner->setAttackFuel(fuel - nextWave.size());
+    if (captured.empty()) return false;
 
-    return !nextWave.empty();
+    owner->setAttackFuel(fuel - spent);
+
+    std::vector<std::pair<int, int>> nextFrontier;
+    nextFrontier.reserve(frontier.size() + captured.size());
+    for (const std::pair<int, int>& cell : frontier)
+    {
+        if (isFrontierCell(cell.first, cell.second, owner))
+            nextFrontier.push_back(cell);
+    }
+    for (const std::pair<int, int>& cell : captured)
+    {
+        if (isFrontierCell(cell.first, cell.second, owner))
+            nextFrontier.push_back(cell);
+    }
+    frontier.swap(nextFrontier);
+
+    for (std::size_t i = 0; i < captured.size(); ++i)
+    {
+        Entity* victim = previousOwners[i];
+        if (victim == nullptr || victim == owner) continue;
+        addExposedFrontier(victim, captured[i].first, captured[i].second);
+    }
+
+    return true;
+}
+
+bool Game::isFrontierCell(int x, int y, Entity* owner) const
+{
+    const TerritoryCell& cell = map.getCell(x, y);
+    if (cell.isWater || cell.owner != owner) return false;
+
+    const int columns = static_cast<int>(map.getWidth());
+    const int rows = static_cast<int>(map.getHeight());
+
+    // Es frontera si algun vecino es tierra (neutral) o territorio enemigo.
+    for (int i = 0; i < 4; ++i)
+    {
+        const int nx = x + NEIGHBOR_X[i];
+        const int ny = y + NEIGHBOR_Y[i];
+        if (nx < 0 || ny < 0 || nx >= columns || ny >= rows) continue;
+
+        const TerritoryCell& neighbor = map.getCell(nx, ny);
+        if (!neighbor.isWater && neighbor.owner != owner) return true;
+    }
+
+    return false;
+}
+
+void Game::rebuildFrontier(Entity* owner)
+{
+    std::vector<std::pair<int, int>>& frontier = owner->getFrontier();
+    frontier.clear();
+
+    const int columns = static_cast<int>(map.getWidth());
+    const int rows = static_cast<int>(map.getHeight());
+    for (int y = 0; y < rows; ++y)
+    {
+        for (int x = 0; x < columns; ++x)
+        {
+            if (isFrontierCell(x, y, owner)) frontier.emplace_back(x, y);
+        }
+    }
+}
+
+void Game::addExposedFrontier(Entity* victim, int x, int y)
+{
+    const int columns = static_cast<int>(map.getWidth());
+    const int rows = static_cast<int>(map.getHeight());
+
+    std::vector<std::pair<int, int>>& frontier = victim->getFrontier();
+    for (int i = 0; i < 4; ++i)
+    {
+        const int nx = x + NEIGHBOR_X[i];
+        const int ny = y + NEIGHBOR_Y[i];
+        if (nx < 0 || ny < 0 || nx >= columns || ny >= rows) continue;
+
+        if (map.getCell(nx, ny).owner != victim) continue;
+        if (!isFrontierCell(nx, ny, victim)) continue;
+
+        const std::pair<int, int> neighbor{nx, ny};
+        if (std::find(frontier.begin(), frontier.end(), neighbor) == frontier.end())
+        {
+            frontier.push_back(neighbor);
+        }
+    }
 }
 
 std::size_t Game::getPlayerPixels(Entity* owner) const {
@@ -268,6 +372,9 @@ void Game::spawnEntity(Entity* entity, int x, int y){
     for (int rowOffset = -1; rowOffset <= 1; ++rowOffset)
         for (int columnOffset = -1; columnOffset <= 1; ++columnOffset)
             map.getCell(x + columnOffset, y + rowOffset).owner = entity;
+
+    // La base recien colocada define la frontera inicial de la entidad.
+    rebuildFrontier(entity);
 }
 
 void Game::setPlayerTarget(const Target& target, float ratio)

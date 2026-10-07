@@ -30,6 +30,13 @@ public:
 private:
     void spawnEntity(Entity* entity, int x, int y);
     bool expandTerritory(Entity* owner);
+    // Indica si (x, y) es una celda de la frontera de `owner` (toca tierra o enemigo).
+    bool isFrontierCell(int x, int y, Entity* owner) const;
+    // Recalcula desde cero la frontera de `owner` recorriendo todo el mapa.
+    void rebuildFrontier(Entity* owner);
+    // Anade a la frontera de `victim` las celdas que quedan expuestas al perder
+    // la celda (x, y).
+    void addExposedFrontier(Entity* victim, int x, int y);
     std::size_t getPlayerPixels(Entity* owner) const;
     float getPlayerTroops(Entity* owner) const;
     float calculateInterest(float troops, float pixels) const;
