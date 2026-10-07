@@ -77,12 +77,12 @@ void MainGameState::render()
         if (cell.owner == Owner::Player)
         {
             ++playerCells;
-            playerTroops += cell.troops;
+            //playerTroops += cell.troops;
         }
         else if (cell.owner == Owner::Bot)
         {
             ++botCells;
-            botTroops += cell.troops;
+            //botTroops += cell.troops;
         }
     }
     // Las estadísticas del HUD se derivan del mapa actual para no duplicar estado.
@@ -135,16 +135,8 @@ void MainGameState::render()
             DrawRectangleRec(cellBounds, cellColor(cell.owner, player.getColor(), bot.getColor()));
             const Color ownershipColor = cell.owner == Owner::Player ? player.getColor()
                 : cell.owner == Owner::Bot ? bot.getColor() : Color{31, 37, 45, 255};
-            const float borderThickness = cell.capture_protection > 0.0f ? 3.0f
-                : cell.owner == Owner::Land ? 0.7f : 1.5f;
-            DrawRectangleLinesEx(cellBounds, borderThickness,
-                                ownershipColor);
 
-            if (cell.is_base)
-            {
-                DrawRectangleLinesEx(cellBounds, 2.0f, RAYWHITE);
-            }
-            else if (player.getTargetIndex() >= 0
+            if (player.getTargetIndex() >= 0
                      && cellIndex == static_cast<std::size_t>(player.getTargetIndex())
                      && !gameOver)
             {
@@ -157,11 +149,10 @@ void MainGameState::render()
                 DrawRectangleLinesEx(cellBounds, 2.0f, GOLD);
             }
 
-            if (cell.owner != Owner::Land
-                && cell.troops >= 10.0f && cellWidth >= 20.0f)
+            if (cell.owner != Owner::Land && cellWidth >= 20.0f)
             {
-                const int troops = static_cast<int>(cell.troops);
-                DrawText(TextFormat("%d", troops),
+                const int troops = 0;// static_cast<int>(cell.troops);
+                DrawText(TextFormat("%d", playerTroops /* player.troops*/),
                         static_cast<int>(cellBounds.x + 2),
                         static_cast<int>(cellBounds.y + 3),
                         14, RAYWHITE);

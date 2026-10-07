@@ -57,14 +57,6 @@ void Game::update(float deltaTime)
     if (game_over) return;
 
     game_time += deltaTime;
-    for (TerritoryCell& cell : map.getCells())
-    {
-        // Los temporizadores se reducen usando deltaTime para que el ritmo no dependa de los FPS.
-        cell.combat_timer = std::max(0.0f, cell.combat_timer - deltaTime);
-        cell.capture_protection = std::max(0.0f, cell.capture_protection - deltaTime);
-        if (cell.capture_protection == 0.0f) cell.protected_from = Owner::Land;
-    }
-
 
     //Aqui se ajusta es sistema de los ticks para ajustar el crecimiento
     tick_timer += deltaTime;
@@ -119,10 +111,6 @@ bool Game::expandTerritory(Owner owner)
     {
         TerritoryCell& cell = map.getCellFromIndex(index);
         cell.owner = owner;
-        cell.troops = 0.0f;
-        cell.combat_timer = 0.0f;
-        cell.capture_protection = 0.0f;
-        cell.protected_from = Owner::Land;
     }
 
     return !nextWave.empty();
@@ -134,14 +122,6 @@ std::size_t Game::getPlayerPixels(Owner owner) const {
         if(cell.owner == owner) pixels++;
     }
     return pixels;
-}
-
-float Game::getPlayerTroops(Owner owner) const{
-    float troops = 0.0f;
-    for (const TerritoryCell& cell : map.getCells()){
-        if(cell.owner == owner) troops += cell.troops;
-    }
-    return troops;
 }
 
 float Game::calculateTroopLimit(float pixels) const {
@@ -173,7 +153,7 @@ void Game::updateTroopGrowth(Owner owner){
         return;
     }
 
-    const float currentTroops=getPlayerTroops(owner);
+    const float currentTroops= 0; //getPlayerTroops(owner);
     const float limit=calculateTroopLimit(pixels);
 
     //cuando lleguemos al limite no hay que crecer
@@ -194,7 +174,7 @@ void Game::updateTroopGrowth(Owner owner){
     //ahora hay que repartir estas tropas por las celdas que tienee este usuario
     int availableCells=0;
     for (TerritoryCell& cell : map.getCells()){
-        if(cell.owner==owner && cell.combat_timer==0.0){
+        if(cell.owner==owner){
             availableCells++;
         }
     }
@@ -203,12 +183,14 @@ void Game::updateTroopGrowth(Owner owner){
     }
 
     //se reparten por igual por las celdas del mapa 
+    // PENDIENTE DE REFACTORIZACION
+    /*
     const float troopsPerCell= troopsToAdd/static_cast<float>(availableCells);
     for (TerritoryCell& cell : map.getCells()){
         if(cell.owner == owner && cell.combat_timer == 0.0){
             cell.troops += troopsPerCell;
         }
-    }
+    }*/
 
 }
 
@@ -225,11 +207,6 @@ void Game::reset()
     {
         TerritoryCell& cell = map.getCellFromIndex(index);
         cell.owner = terrain_owners[index];
-        cell.troops = 0.0f;
-        cell.capture_protection = 0.0f;
-        cell.combat_timer = 0.0f;
-        cell.protected_from = Owner::Land;
-        cell.is_base = false;
     }
 
     const int mapWidth = static_cast<int>(map.getWidth());
@@ -310,17 +287,12 @@ void Game::reset()
             TerritoryCell& playerCell =
                 map.getCell(playerBase.column + columnOffset, playerBase.row + rowOffset);
             playerCell.owner = Owner::Player;
-            playerCell.troops = rowOffset == 0 && columnOffset == 0 ? 48.0f : 8.0f;
 
             TerritoryCell& botCell =
                 map.getCell(botBase.column + columnOffset, botBase.row + rowOffset);
             botCell.owner = Owner::Bot;
-            botCell.troops = rowOffset == 0 && columnOffset == 0 ? 48.0f : 8.0f;
         }
     }
-
-    map.getCell(playerBase.column, playerBase.row).is_base = true;
-    map.getCell(botBase.column, botBase.row).is_base = true;
 }
 
 void Game::setPlayerTarget(int targetIndex)

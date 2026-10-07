@@ -5,3 +5,7 @@ Entity::Entity(std::string name, Color color): name(name), color(color), targetI
 void Entity::setTarget(int targetIndex){
     this->targetIndex = targetIndex;
 }
+
+void Entity::setTroops(std::size_t troops){
+    this->troops = troops;
+}
