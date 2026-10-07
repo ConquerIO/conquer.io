@@ -2,22 +2,13 @@
 #include <utility>
 
 Player::Player(std::string name, Color color)
-    : name(std::move(name)),
-      color(color),
-      target_index(-1),
-      attack_timer(0.0f)
+    : Entity(std::move(name), color), attack_timer(0.0f)
 {
 }
 
 void Player::cancelAttack()
 {
-    target_index = -1;
-    attack_timer = 0.0f;
-}
-
-void Player::setTarget(int targetIndex)
-{
-    target_index = targetIndex;
+    targetIndex = -1;
     attack_timer = 0.0f;
 }
 

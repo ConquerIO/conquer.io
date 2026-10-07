@@ -1,10 +1,6 @@
 #include <Bot.hpp>
 
-Bot::Bot(Color color)
-    : color(color),
-      move_timer(0.0f)
-{
-}
+Bot::Bot(Color color) : Entity("Bot", color), move_timer(0.0f) {}
 
 bool Bot::shouldMove(float deltaTime, float interval)
 {
