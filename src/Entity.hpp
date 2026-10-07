@@ -9,14 +9,14 @@ public:
     const std::string& getName() const {return name;}
     const Color getColor() const {return color;}
     const std::size_t getTroops() const {return troops;}
-    int getTargetIndex() const { return targetIndex; }
+    Entity* getTarget() const { return target; }
 
-    void setTarget(int targetIndex);
+    void setTarget(Entity* target);
     void setTroops(std::size_t troops);
 protected:
     std::string name;
     Color color;
-    int targetIndex = -1;
+    Entity* target = nullptr;
 
     std::size_t troops;
 };

@@ -8,7 +8,7 @@ Player::Player(std::string name, Color color)
 
 void Player::cancelAttack()
 {
-    targetIndex = -1;
+    target = nullptr;
     attack_timer = 0.0f;
 }
 

@@ -72,7 +72,7 @@ Map Map::fromImage(const char* filename){
             
             TerritoryCell& cell = map.getCell(x, y);
             
-            cell.owner = isWater ? Owner::Water : Owner::Land;
+            cell.isWater = isWater;
         }
     }
     

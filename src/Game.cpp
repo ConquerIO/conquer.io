@@ -36,20 +36,15 @@ Color contrastingColor(Color color)
 }
 }
 
-Game::Game(std::string playerName, Color playerColor)
-    : player(std::move(playerName), playerColor),
-      bot(contrastingColor(playerColor)),
+Game::Game(std::string playerName, Color playerColor):
       game_time(0.0f),
       tick_timer(0.0f),
       game_over(false),
-      winner(Owner::Land),
+      winner(nullptr),
       map(Map::fromImage("./maps/map1.png"))
 {
-    terrain_owners.reserve(map.getCells().size());
-    for (const TerritoryCell& cell : map.getCells())
-    {
-        terrain_owners.push_back(cell.owner);
-    }
+    this->entities.push_back(new Player(std::move(playerName), playerColor));
+    this->entities.push_back(new Bot(contrastingColor(playerColor)));
 }
 
 void Game::update(float deltaTime)
@@ -61,28 +56,31 @@ void Game::update(float deltaTime)
     //Aqui se ajusta es sistema de los ticks para ajustar el crecimiento
     tick_timer += deltaTime;
 
+    const auto player = getPlayer();
+    const auto bot = (Bot*)entities[1];
+
     while(tick_timer>=TICK_INTERVAL){
         tick_timer-=TICK_INTERVAL;
-        updateTroopGrowth(Owner::Player);
-        updateTroopGrowth(Owner::Bot);
+        updateTroopGrowth(player);
+        updateTroopGrowth(bot);
     }
 
-    if (player.getTargetIndex() >= 0)
+    if (player->getTarget() != nullptr) // refact tierra/agua
     {
-        if (player.shouldAttack(deltaTime, ATTACK_INTERVAL)
-            && !expandTerritory(Owner::Player))
+        if (player->shouldAttack(deltaTime, ATTACK_INTERVAL)
+            && !expandTerritory(player))
         {
-            player.cancelAttack();
+            player->cancelAttack();
         }
     }
 
-    if (bot.shouldMove(deltaTime, ATTACK_INTERVAL))
+    if (bot->shouldMove(deltaTime, ATTACK_INTERVAL))
     {
-        expandTerritory(Owner::Bot);
+        expandTerritory(bot);
     }
 }
 
-bool Game::expandTerritory(Owner owner)
+bool Game::expandTerritory(Entity* owner)
 {
     std::vector<std::size_t> nextWave;
     const std::size_t columns = map.getWidth();
@@ -93,7 +91,7 @@ bool Game::expandTerritory(Owner owner)
         for (std::size_t column = 0; column < columns; ++column)
         {
             const std::size_t index = row * columns + column;
-            if (map.getCellFromIndex(index).owner != Owner::Land) continue;
+            if (map.getCellFromIndex(index).owner != nullptr) continue;
 
             const bool touchesOwner =
                 (row > 0 && map.getCellFromIndex(index - columns).owner == owner)
@@ -116,7 +114,7 @@ bool Game::expandTerritory(Owner owner)
     return !nextWave.empty();
 }
 
-std::size_t Game::getPlayerPixels(Owner owner) const {
+std::size_t Game::getPlayerPixels(Entity* owner) const {
     std::size_t pixels = 0;
     for (const TerritoryCell& cell : map.getCells()){
         if(cell.owner == owner) pixels++;
@@ -146,68 +144,21 @@ float Game::calculateInterest(float troops, float pixels) const{
     return max(0.0f, interest);
 }
 
-void Game::updateTroopGrowth(Owner owner){
-    //si no tenemos pixeles no podemos expandirnos
+void Game::updateTroopGrowth(Entity* owner){
     const float pixels=getPlayerPixels(owner);
-    if(pixels<=0.0){
-        return;
-    }
-
-    const float currentTroops= 0; //getPlayerTroops(owner);
+    const float currentTroops= owner->getTroops();
     const float limit=calculateTroopLimit(pixels);
-
-    //cuando lleguemos al limite no hay que crecer
-    if(currentTroops>=limit){
-        return;
-    }
-
     const float interest=calculateInterest(currentTroops,pixels);
-
-    //siguiendo este interés hay que sacar las tropas que se van creciendo con la formula, pero sin superar el limit, y luego añadimos
     float newTroops=currentTroops*(1.0 + interest);
-    newTroops=min(newTroops, limit);
-    const float troopsToAdd=newTroops-currentTroops;
-    if(troopsToAdd<=0.0){
-        return;
-    }
-
-    //ahora hay que repartir estas tropas por las celdas que tienee este usuario
-    int availableCells=0;
-    for (TerritoryCell& cell : map.getCells()){
-        if(cell.owner==owner){
-            availableCells++;
-        }
-    }
-    if(availableCells==0){
-        return;
-    }
-
-    //se reparten por igual por las celdas del mapa 
-    // PENDIENTE DE REFACTORIZACION
-    /*
-    const float troopsPerCell= troopsToAdd/static_cast<float>(availableCells);
-    for (TerritoryCell& cell : map.getCells()){
-        if(cell.owner == owner && cell.combat_timer == 0.0){
-            cell.troops += troopsPerCell;
-        }
-    }*/
-
+    owner->setTroops(newTroops);
 }
 
 void Game::reset()
 {
     game_time = 0.0f;
     tick_timer=0.0;
-    player.cancelAttack();
-    bot.reset();
     game_over = false;
-    winner = Owner::Land;
-
-    for (std::size_t index = 0; index < map.getCells().size(); ++index)
-    {
-        TerritoryCell& cell = map.getCellFromIndex(index);
-        cell.owner = terrain_owners[index];
-    }
+    winner = nullptr;
 
     const int mapWidth = static_cast<int>(map.getWidth());
     const int mapHeight = static_cast<int>(map.getHeight());
@@ -237,7 +188,7 @@ void Game::reset()
             {
                 for (int columnOffset = -1; columnOffset <= 1; ++columnOffset)
                 {
-                    if (map.getCell(column + columnOffset, row + rowOffset).owner != Owner::Land)
+                    if (map.getCell(column + columnOffset, row + rowOffset).owner != nullptr)
                     {
                         allLand = false;
                         break;
@@ -280,41 +231,29 @@ void Game::reset()
         throw std::runtime_error("No hay espacio suficiente en tierra para colocar ambas bases.");
     }
 
-    for (int rowOffset = -1; rowOffset <= 1; ++rowOffset)
-    {
-        for (int columnOffset = -1; columnOffset <= 1; ++columnOffset)
-        {
-            TerritoryCell& playerCell =
-                map.getCell(playerBase.column + columnOffset, playerBase.row + rowOffset);
-            playerCell.owner = Owner::Player;
-
-            TerritoryCell& botCell =
-                map.getCell(botBase.column + columnOffset, botBase.row + rowOffset);
-            botCell.owner = Owner::Bot;
-        }
-    }
+    spawnEntity(getPlayer(), playerBase.column, playerBase.row);
+    spawnEntity(entities[1], botBase.column, botBase.row);
 }
 
-void Game::setPlayerTarget(int targetIndex)
-{
-    if (targetIndex < 0
-        || static_cast<std::size_t>(targetIndex) >= map.getCells().size())
-    {
-        return;
-    }
+void Game::spawnEntity(Entity* entity, int x, int y){
+    for (int rowOffset = -1; rowOffset <= 1; ++rowOffset)
+        for (int columnOffset = -1; columnOffset <= 1; ++columnOffset)
+            map.getCell(x + columnOffset, y + rowOffset).owner = entity;
+}
 
-    const Owner targetOwner = map.getCellFromIndex(targetIndex).owner;
-    if (targetOwner == Owner::Land)
+void Game::setPlayerTarget(Entity* target)
+{
+    if (target == nullptr)
     {
-        player.setTarget(targetIndex);
+        getPlayer()->setTarget(target);
     }
-    else if (targetOwner != Owner::Player)
+    /*else if (targetOwner != entities[0])
     {
         player.cancelAttack();
-    }
+    }*/
 }
 
 void Game::cancelPlayerAttack()
 {
-    player.cancelAttack();
+    getPlayer()->cancelAttack();
 }
