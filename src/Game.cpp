@@ -15,7 +15,7 @@ namespace
     // Constantes para luego el calculo de los puntos e interes
     constexpr float INITIAL_TROOPS = 500.0f;
     constexpr float INITIAL_INTEREST = 0.10f;
-    constexpr float TROOPS_PER_PIXEL = 10.0f;
+    constexpr float TROOPS_PER_PIXEL = 200.0f;
     constexpr float TICK_INTERVAL = 1.0f;
 
 
@@ -85,6 +85,8 @@ void Game::update(float deltaTime)
 
     if (bot->shouldMove(deltaTime, ATTACK_INTERVAL))
     {
+        // El bot destina todas sus tropas al ataque en curso antes de expandirse.
+        bot->beginAttack(1.0f);
         expandTerritory(bot);
     }
 }
@@ -117,10 +119,21 @@ bool Game::expandTerritory(Entity* owner)
         }
     }
 
+
+    const std::size_t fuel = owner->getAttackFuel();
+    if (fuel == 0) return false;
+
+    if (nextWave.size() > fuel)
+    {
+        nextWave.resize(fuel);
+    }
+
     for (const std::size_t index : nextWave)
     {
         map.getCellFromIndex(index).owner = owner;
     }
+
+    owner->setAttackFuel(fuel - nextWave.size());
 
     return !nextWave.empty();
 }
@@ -160,7 +173,8 @@ void Game::updateTroopGrowth(Entity* owner){
     const float currentTroops= owner->getTroops();
     const float limit=calculateTroopLimit(pixels);
     const float interest=calculateInterest(currentTroops,pixels);
-    float newTroops=currentTroops*(1.0 + interest);
+
+    const float newTroops = currentTroops < 1.0f ? 1.0f : currentTroops * (1.0 + interest);
     owner->setTroops(newTroops);
 }
 
@@ -256,9 +270,12 @@ void Game::spawnEntity(Entity* entity, int x, int y){
             map.getCell(x + columnOffset, y + rowOffset).owner = entity;
 }
 
-void Game::setPlayerTarget(const Target& target)
+void Game::setPlayerTarget(const Target& target, float ratio)
 {
-    getPlayer()->setTarget(target);
+    Player* player = getPlayer();
+    player->setTarget(target);
+    // Destina al ataque la fraccion de tropas elegida (porcentaje del slider).
+    player->beginAttack(ratio);
 }
 
 void Game::cancelPlayerAttack()

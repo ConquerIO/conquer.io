@@ -8,6 +8,9 @@ Player::Player(std::string name, Color color)
 
 void Player::cancelAttack()
 {
+    // Devuelve al territorio el combustible que no se haya gastado.
+    troops += attack_fuel;
+    attack_fuel = 0;
     target = Target::none();
     attack_timer = 0.0f;
 }

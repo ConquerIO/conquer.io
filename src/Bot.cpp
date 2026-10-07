@@ -17,4 +17,5 @@ void Bot::reset()
 {
     move_timer = 0.0f;
     target = Target::land();
+    attack_fuel = 0;
 }

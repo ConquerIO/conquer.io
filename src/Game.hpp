@@ -16,7 +16,7 @@ public:
 
     void update(float deltaTime);
     void reset();
-    void setPlayerTarget(const Target& target);
+    void setPlayerTarget(const Target& target, float ratio);
     void cancelPlayerAttack();
 
     Player* getPlayer() const { return (Player*)entities[0];}
