@@ -311,8 +311,8 @@ void Game::spawnEntity(Entity* entity, int x, int y){
             if (nx >= 0 && nx < static_cast<int>(map.getWidth()) && 
                 ny >= 0 && ny < static_cast<int>(map.getHeight())) 
             {
-                // Solo conquistamos si la celda es tierra
-                if (!map.getCell(nx, ny).isWater) {
+                // Solo conquistamos si la celda es tierra y no tiene dueño
+                if (!map.getCell(nx, ny).isWater && map.getCell(nx, ny).owner == nullptr) {
                     map.getCell(nx, ny).owner = entity;
                 }
             }
@@ -436,7 +436,7 @@ void Game::reset()
     }    
 
     this->current_phase = GamePhase::SPAWN;
-    this->spawn_timer = 10.0f;
+    this->spawn_timer = 13.0f;
     this->player_spawn_preview = -1;
     
     // Llamamos al algoritmo para que esparza a los bots por el mapa
