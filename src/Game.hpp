@@ -9,6 +9,11 @@
 #include <string>
 #include <vector>
 
+enum class GamePhase {
+    SPAWN,
+    PLAYING
+};
+
 class Game
 {
 public:
@@ -26,6 +31,12 @@ public:
     Entity* getWinner() const { return winner; }
     std::vector<Entity*> getEntities() const {return entities;}
 
+    void setSpawnPreview(int targetIndex);
+    GamePhase getPhase() const { return current_phase; }
+    float getSpawnTimer() const { return spawn_timer; }
+    int getSpawnPreview() const { return player_spawn_preview; }
+    
+
 
 private:
     void spawnEntity(Entity* entity, int x, int y);
@@ -42,7 +53,14 @@ private:
     float calculateInterest(float troops, float pixels) const;
     float calculateTroopLimit(float pixels) const;
     void updateTroopGrowth(Entity* owner);
-
+    
+    void placePlayerAndStart();
+    void placeBots();
+    
+    GamePhase current_phase;
+    float spawn_timer;
+    int player_spawn_preview;
+    
     std::vector<Entity*> entities;
     Map map;
     float game_time;
