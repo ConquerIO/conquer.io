@@ -4,6 +4,7 @@
 #include <limits>
 #include <stdexcept>
 #include <utility>
+#include <iostream>
 
 using namespace std;
 
@@ -59,10 +60,28 @@ Game::Game(std::string playerName, Color playerColor):
 {
     this->entities.push_back(new Player(std::move(playerName), playerColor));
     this->entities.push_back(new Bot(contrastingColor(playerColor)));
+    this->entities.push_back(new Bot(Color{255, 215, 0, 255}));
+    this->entities.push_back(new Bot(Color{128, 0, 128, 255}));
+    this->entities.push_back(new Bot(Color{0, 128, 0, 255}));
+    this->entities.push_back(new Bot(Color{255, 215, 0, 255}));
+    this->entities.push_back(new Bot(Color{128, 0, 128, 255}));
+    this->entities.push_back(new Bot(Color{0, 128, 0, 255}));
+    this->entities.push_back(new Bot(Color{255, 215, 0, 255}));
+    this->entities.push_back(new Bot(Color{128, 0, 128, 255}));
+    this->entities.push_back(new Bot(Color{0, 128, 0, 255}));
 }
 
 void Game::update(float deltaTime)
-{
+{   
+    if (current_phase == GamePhase::SPAWN) {                                                                                                     
+        spawn_timer -= deltaTime;                                                                                                                
+        if (spawn_timer <= 0.0f) {                                                                                                               
+            placePlayerAndStart();                                                                                                                 
+            current_phase = GamePhase::PLAYING;                                                                                                  
+        }                                                                                                                                        
+        return; // Evita que se ejecute la lógica de juego mientras tanto                                                                        
+    } 
+
     if (game_over) return;
 
     game_time += deltaTime;
@@ -282,6 +301,128 @@ void Game::updateTroopGrowth(Entity* owner){
     owner->setTroops(newTroops);
 }
 
+void Game::spawnEntity(Entity* entity, int x, int y){
+    for (int rowOffset = -1; rowOffset <= 1; ++rowOffset) {
+        for (int columnOffset = -1; columnOffset <= 1; ++columnOffset) {
+            int nx = x + columnOffset;
+            int ny = y + rowOffset;
+            
+            // Comprobamos que no se salga de los límites del mapa
+            if (nx >= 0 && nx < static_cast<int>(map.getWidth()) && 
+                ny >= 0 && ny < static_cast<int>(map.getHeight())) 
+            {
+                // Solo conquistamos si la celda es tierra y no tiene dueño
+                if (!map.getCell(nx, ny).isWater && map.getCell(nx, ny).owner == nullptr) {
+                    map.getCell(nx, ny).owner = entity;
+                }
+            }
+        }
+    }
+
+    // La base recien colocada define la frontera inicial de la entidad.
+    rebuildFrontier(entity);
+}
+
+
+void Game::setSpawnPreview(int targetIndex){
+    // Si ya no estamos en fase de cortesía, ignoramos el clic
+    if (current_phase != GamePhase::SPAWN) {
+        return;
+    }
+
+    // Si el clic fue fuera de los límites del mapa, lo ignoramos
+    if (targetIndex < 0 || static_cast<std::size_t>(targetIndex) >= map.getCells().size()) {
+        return;
+    }
+
+    // Comprobamos qué hay en esa celda
+    const TerritoryCell& cell = map.getCellFromIndex(targetIndex);
+    
+    // Solo permitimos elegir si es tierra firme (no agua) y no pertenece a nadie aún
+    if (!cell.isWater && cell.owner == nullptr) {
+        player_spawn_preview = targetIndex;
+    }
+}
+
+/*
+Algoritmo basado en Poisson Disk Sampling, un método que garantiza que las bases se esparzan de forma natural y orgánica por el mapa evitando que se peguen, 
+pero utilizando la versión de Muestreo por Rechazo, que consiste en probar coordenadas al azar y descartar automáticamente aquellas que caigan dentro del radio 
+de seguridad de otra base, reduciendo dicho radio si el mapa se llena.
+*/
+void Game::placeBots(){
+    constexpr float MIN_BASE_DISTANCE = 6.0f;                                                                                                
+    constexpr int MAX_RADIUS_REDUCTIONS = 20;                                                                                                
+                                                                                                                                            
+    std::vector<std::pair<int, int>> bases;                                                                                                  
+                                                                                                                                            
+    int landCells = 0;                                                                                                                       
+    for (const auto& cell : map.getCells()) {                                                                                                
+        if (!cell.isWater) landCells++;                                                                                                      
+    }                                                                                                                                        
+                                                                                                                                            
+    float R = std::sqrt(static_cast<float>(landCells) / entities.size()) * 0.75f;                                                            
+    if (R < MIN_BASE_DISTANCE) R = MIN_BASE_DISTANCE;
+
+    // Bucle para colocar bots                                                                                                               
+    for (size_t i = 1; i < entities.size(); ++i) {                                                                                           
+        Entity* bot = entities[i];                                                                                                           
+        bool botPlaced = false;                                                                                                              
+        int reductions = 0;                                                                                                                  
+                                                                                                                                                
+        while (!botPlaced) {                                                                                                                 
+            for (int attempt = 0; attempt < 100; ++attempt) {                                                                                
+                int randomX = GetRandomValue(0, map.getWidth() - 1);                                                                         
+                int randomY = GetRandomValue(0, map.getHeight() - 1);                                                                        
+                                                                                                                                                
+                // Tiene que caer en tierra firme                                                                                            
+                if (map.getCell(randomX, randomY).isWater) continue;                                                                         
+                                                                                                                                                
+                bool validPosition = true;                                                                                                   
+                for (const auto& base : bases) {                                                                                             
+                    float dx = static_cast<float>(randomX - base.first);                                                                     
+                    float dy = static_cast<float>(randomY - base.second);                                                                    
+                    if (sqrt(dx * dx + dy * dy) < R) {                                                                                  
+                        validPosition = false;                                                                                               
+                        break;
+                    }
+                }
+
+                if (validPosition) {
+                    spawnEntity(bot, randomX, randomY);
+                    bases.push_back({randomX, randomY});
+                    botPlaced = true;
+                    break;
+                }
+            }
+            
+            if (!botPlaced) {
+                R *= 0.85f;
+                reductions++;
+                if (R < MIN_BASE_DISTANCE || reductions >= MAX_RADIUS_REDUCTIONS) {
+                    cout << "Mapa saturado. Se colocaron " << i - 1 << " bots." << endl;
+                    return; 
+                }
+            }
+        }
+    }
+}
+
+void Game::placePlayerAndStart(){
+    int player_index = player_spawn_preview;
+
+    if (player_index == -1) {
+        // Si el jugador no ha elegido un lugar en los 10s, colocamos su base en la primera celda disponible
+        do{
+            player_index = GetRandomValue(0, map.getCells().size() - 1);  
+        } while(map.getCellFromIndex(player_index).isWater || map.getCellFromIndex(player_index).owner != nullptr);
+    }
+
+    int player_x = player_index % map.getWidth();
+    int player_y = player_index / map.getWidth();
+
+    spawnEntity(getPlayer(), player_x, player_y);
+}
+
 void Game::reset()
 {
     game_time = 0.0f;
@@ -289,92 +430,17 @@ void Game::reset()
     game_over = false;
     winner = nullptr;
     getPlayer()->cancelAttack();
-    static_cast<Bot*>(entities[1])->reset();
 
-    const int mapWidth = static_cast<int>(map.getWidth());
-    const int mapHeight = static_cast<int>(map.getHeight());
-    if (mapWidth < 6 || mapHeight < 3)
-    {
-        throw std::runtime_error("El mapa es demasiado pequeño para colocar las bases.");
-    }
+    for (size_t i = 1; i < entities.size(); ++i) {
+        static_cast<Bot*>(entities[i])->reset();
+    }    
 
-    struct BasePosition
-    {
-        int column;
-        int row;
-        int playerDistance;
-        int botDistance;
-    };
-    std::vector<BasePosition> candidates;
-    const int targetRow = mapHeight / 2;
-    const int targetPlayerColumn = mapWidth / 4;
-    const int targetBotColumn = mapWidth * 3 / 4;
-
-    for (int row = 1; row < mapHeight - 1; ++row)
-    {
-        for (int column = 1; column < mapWidth - 1; ++column)
-        {
-            bool allLand = true;
-            for (int rowOffset = -1; rowOffset <= 1 && allLand; ++rowOffset)
-            {
-                for (int columnOffset = -1; columnOffset <= 1; ++columnOffset)
-                {
-                    const TerritoryCell& cell =
-                        map.getCell(column + columnOffset, row + rowOffset);
-                    if (cell.isWater || cell.owner != nullptr)
-                    {
-                        allLand = false;
-                        break;
-                    }
-                }
-            }
-            if (!allLand) continue;
-
-            candidates.push_back({
-                column,
-                row,
-                std::abs(column - targetPlayerColumn) + std::abs(row - targetRow),
-                std::abs(column - targetBotColumn) + std::abs(row - targetRow)
-            });
-        }
-    }
-
-    bool foundBasePositions = false;
-    BasePosition playerBase{};
-    BasePosition botBase{};
-    int bestDistance = std::numeric_limits<int>::max();
-    for (const BasePosition& playerCandidate : candidates)
-    {
-        for (const BasePosition& botCandidate : candidates)
-        {
-            if (playerCandidate.column + 2 >= botCandidate.column) continue;
-
-            const int distance = playerCandidate.playerDistance + botCandidate.botDistance;
-            if (distance >= bestDistance) continue;
-
-            bestDistance = distance;
-            playerBase = playerCandidate;
-            botBase = botCandidate;
-            foundBasePositions = true;
-        }
-    }
-
-    if (!foundBasePositions)
-    {
-        throw std::runtime_error("No hay espacio suficiente en tierra para colocar ambas bases.");
-    }
-
-    spawnEntity(getPlayer(), playerBase.column, playerBase.row);
-    spawnEntity(entities[1], botBase.column, botBase.row);
-}
-
-void Game::spawnEntity(Entity* entity, int x, int y){
-    for (int rowOffset = -1; rowOffset <= 1; ++rowOffset)
-        for (int columnOffset = -1; columnOffset <= 1; ++columnOffset)
-            map.getCell(x + columnOffset, y + rowOffset).owner = entity;
-
-    // La base recien colocada define la frontera inicial de la entidad.
-    rebuildFrontier(entity);
+    this->current_phase = GamePhase::SPAWN;
+    this->spawn_timer = 13.0f;
+    this->player_spawn_preview = -1;
+    
+    // Llamamos al algoritmo para que esparza a los bots por el mapa
+    placeBots();
 }
 
 void Game::setPlayerTarget(const Target& target, float ratio)

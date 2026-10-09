@@ -37,6 +37,19 @@ void MainGameState::handleInput()
         return;
     }
 
+    if (game.getPhase() == GamePhase::SPAWN) { // para bloquer ataques ... y capturar el spawn del jugador                                                                                      
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {                                                                                       
+            const std::pair<int, int> targetCoordinates = getCellCoordinates(GetMousePosition());                                            
+            const int column = targetCoordinates.first;                                                                                      
+            const int row = targetCoordinates.second;                                                                                        
+                                                                                                                                                
+            if (column >= 0 && row >= 0) { // Si el clic es dentro del tablero                                                               
+                game.setSpawnPreview(column + row * game.getMap().getWidth());                                                               
+            }                                                                                                                                
+        }                                                                                                                                    
+        return;                                   
+    }     
+
     const Vector2 mousePosition = GetMousePosition();
     const Rectangle slider = getAttackSliderBounds();
 
@@ -133,15 +146,29 @@ void MainGameState::render()
 
     DrawRectangle(0, 0, screenWidth, 108, Color{31, 38, 47, 255});
     DrawText(player->getName().c_str(), 24, 12, 32, player->getColor());
-    DrawText(TextFormat("%d%% territorio", playerPercent), 24, 51, 24, WHITE);
-    DrawText(TextFormat("%d tropas", player->getTroops()),
-             24, 78, 22, WHITE);
+    if (game.getPhase() == GamePhase::SPAWN) {
+        // HUD para la fase SPAWN
+        float timer = game.getSpawnTimer();
 
-    const char* title = "CONQUISTA EL MAPA";
-    DrawText(title, (screenWidth - MeasureText(title, 30)) / 2, 10, 30, RAYWHITE);
-    const int totalSeconds = static_cast<int>(game.getTime());
-    const std::string clock = TextFormat("%02d:%02d", totalSeconds / 60, totalSeconds % 60);
-    DrawText(clock.c_str(), (screenWidth - MeasureText(clock.c_str(), 24)) / 2, 55, 24, LIGHTGRAY);
+        const char* title = "ELIGE TU PUNTO DE PARTIDA";
+        DrawText(title, (screenWidth - MeasureText(title, 30)) / 2, 20, 30, RAYWHITE);
+        if (timer>=11.0f){
+        } else{
+            int timeLeft = static_cast<int>(timer);
+            std::string clock = TextFormat("El juego comienza en: %d s", timeLeft);
+            DrawText(clock.c_str(), (screenWidth - MeasureText(clock.c_str(), 24)) / 2, 60, 24, LIGHTGRAY);
+        }
+    } else{
+        DrawText(TextFormat("%d%% territorio", playerPercent), 24, 51, 24, WHITE);
+        DrawText(TextFormat("%d tropas", player->getTroops()),
+                    24, 78, 22, WHITE);
+
+        const char* title = "CONQUISTA EL MAPA";
+        DrawText(title, (screenWidth - MeasureText(title, 30)) / 2, 10, 30, RAYWHITE);
+        const int totalSeconds = static_cast<int>(game.getTime());
+        const std::string clock = TextFormat("%02d:%02d", totalSeconds / 60, totalSeconds % 60);
+        DrawText(clock.c_str(), (screenWidth - MeasureText(clock.c_str(), 24)) / 2, 55, 24, LIGHTGRAY);
+    }
 
     const Rectangle bounds = getMapBounds();
     DrawRectangleRec(bounds, Color{38, 45, 54, 255});
@@ -176,41 +203,75 @@ void MainGameState::render()
         }
     }
 
-    const Rectangle slider = getAttackSliderBounds();
-    const float sliderRatio = static_cast<float>(attack_percent) / 100.0f;
-    const Color playerColor = player->getColor();
-
-    DrawRectangleRounded(slider, 0.5f, 8, Color{24, 29, 36, 255});
-    if (sliderRatio > 0.0f)
-    {
-        Rectangle fill = slider;
-        fill.width = slider.width * sliderRatio;
-        DrawRectangleRounded(fill, 0.5f, 8, playerColor);
+    if (game.getPhase() == GamePhase::SPAWN) {                                                                                               
+        int previewIdx = game.getSpawnPreview();                                                                                             
+        if (previewIdx >= 0) {                                                                                                               
+            int cx = previewIdx % map.getWidth();                                                                                            
+            int cy = previewIdx / map.getWidth();                                                                                            
+                                                                                                                                                
+            Color previewColor = player->getColor();                                                                                         
+            previewColor.a = 150; // Hacerlo semitransparente                                                                                
+                                                                                                                                                
+            for (int dy = -1; dy <= 1; ++dy) {                                                                                               
+                for (int dx = -1; dx <= 1; ++dx) {                                                                                           
+                    int px = cx + dx;                                                                                                        
+                    int py = cy + dy;                                                                                                        
+                    if (px >= 0 && px < map.getWidth() && py >= 0 && py < map.getHeight()) {                                                 
+                        const TerritoryCell& cell = map.getCell(px, py);
+                        
+                        // Solo pintamos el cuadrado si es tierra Y está libre
+                        if (!cell.isWater && cell.owner == nullptr) { 
+                            Rectangle cellBounds{                                                                                                
+                                bounds.x + px * cellWidth,                                                                                       
+                                bounds.y + py * cellHeight,                                                                                      
+                                cellWidth,                                                                                                       
+                                cellHeight                                                                                                       
+                            };                                                                                                                   
+                            DrawRectangleRec(cellBounds, previewColor);                                                                          
+                        }
+                    }                                                                                                                        
+                }                                                                                                                            
+            }                                                                                                                                
+        }                                                                                                                                    
     }
+               
+    if (game.getPhase() == GamePhase::PLAYING) {
+        const Rectangle slider = getAttackSliderBounds();
+        const float sliderRatio = static_cast<float>(attack_percent) / 100.0f;
+        const Color playerColor = player->getColor();
 
-    const float knobX = slider.x + slider.width * sliderRatio;
-    DrawCircle(static_cast<int>(knobX),
-               static_cast<int>(slider.y + slider.height / 2.0f),
-               slider.height * 0.62f, RAYWHITE);
+        DrawRectangleRounded(slider, 0.5f, 8, Color{24, 29, 36, 255});
+        if (sliderRatio > 0.0f)
+        {
+            Rectangle fill = slider;
+            fill.width = slider.width * sliderRatio;
+            DrawRectangleRounded(fill, 0.5f, 8, playerColor);
+        }
 
-    const std::size_t attackTroops = static_cast<std::size_t>(
-        static_cast<float>(player->getTroops()) * sliderRatio);
-    const char* sliderLabel = TextFormat("%d%% (%d)", attack_percent,
-                                         static_cast<int>(attackTroops));
+        const float knobX = slider.x + slider.width * sliderRatio;
+        DrawCircle(static_cast<int>(knobX),
+                static_cast<int>(slider.y + slider.height / 2.0f),
+                slider.height * 0.62f, RAYWHITE);
 
-    const int labelFontSize = 20;
-    const int labelWidth = MeasureText(sliderLabel, labelFontSize);
-    const int playerLuminance =
-        (299 * static_cast<int>(playerColor.r)
-         + 587 * static_cast<int>(playerColor.g)
-         + 114 * static_cast<int>(playerColor.b)) / 1000;
-    const Color labelColor =
-        (sliderRatio >= 0.5f && playerLuminance > 140) ? Color{20, 24, 30, 255}
-                                                       : RAYWHITE;
-    DrawText(sliderLabel,
-             static_cast<int>(slider.x + (slider.width - labelWidth) / 2.0f),
-             static_cast<int>(slider.y + (slider.height - labelFontSize) / 2.0f),
-             labelFontSize, labelColor);
+        const std::size_t attackTroops = static_cast<std::size_t>(
+            static_cast<float>(player->getTroops()) * sliderRatio);
+        const char* sliderLabel = TextFormat("%d%% (%d)", attack_percent,
+                                            static_cast<int>(attackTroops));
+
+        const int labelFontSize = 20;
+        const int labelWidth = MeasureText(sliderLabel, labelFontSize);
+        const int playerLuminance =
+            (299 * static_cast<int>(playerColor.r)
+            + 587 * static_cast<int>(playerColor.g)
+            + 114 * static_cast<int>(playerColor.b)) / 1000;
+        const Color labelColor =
+            (sliderRatio >= 0.5f && playerLuminance > 140) ? Color{20, 24, 30, 255}
+                                                        : RAYWHITE;
+        DrawText(sliderLabel,
+                static_cast<int>(slider.x + (slider.width - labelWidth) / 2.0f),
+                static_cast<int>(slider.y + (slider.height - labelFontSize) / 2.0f),
+                labelFontSize, labelColor);
+    }
 
     if (gameOver)
     {
