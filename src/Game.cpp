@@ -68,12 +68,12 @@ Game::Game(std::string playerName, Color playerColor):
     this->entities.push_back(new Bot(Color{255, 215, 0, 255}));
     this->entities.push_back(new Bot(Color{128, 0, 128, 255}));
     this->entities.push_back(new Bot(Color{0, 128, 0, 255}));
+    this->entities.push_back(new Bot(Color{65, 215, 0, 255}));
+    this->entities.push_back(new Bot(Color{128, 34, 234, 255}));
+    this->entities.push_back(new Bot(Color{124, 146, 0, 255}));
     this->entities.push_back(new Bot(Color{255, 215, 0, 255}));
-    this->entities.push_back(new Bot(Color{128, 0, 128, 255}));
-    this->entities.push_back(new Bot(Color{0, 128, 0, 255}));
-    this->entities.push_back(new Bot(Color{255, 215, 0, 255}));
-    this->entities.push_back(new Bot(Color{128, 0, 128, 255}));
-    this->entities.push_back(new Bot(Color{0, 128, 0, 255}));
+    this->entities.push_back(new Bot(Color{53, 0, 128, 255}));
+    this->entities.push_back(new Bot(Color{0, 134, 132, 255}));
 }
 
 void Game::update(float deltaTime)

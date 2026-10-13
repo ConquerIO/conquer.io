@@ -1,6 +1,8 @@
 #include <Bot.hpp>
 #include <cstdlib>
 
+#define BOT_INITIAL_TROOPS 250
+
 namespace
 {
 // Valor aleatorio uniforme en [min, max].
@@ -14,6 +16,7 @@ float randomRange(float min, float max)
 
 Bot::Bot(Color color) : Entity("Bot", color)
 {
+    this->troops = BOT_INITIAL_TROOPS;
     reset();
 }
 
