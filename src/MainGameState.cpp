@@ -3,9 +3,12 @@
 #include <Target.hpp>
 #include <raylib.h>
 #include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <limits>
+#include <unordered_map>
 #include <utility>
+#include <vector>
 
 namespace
 {
@@ -15,6 +18,259 @@ Color cellColor(const TerritoryCell& cell)
     if (cell.owner != nullptr) return cell.owner->getColor();
     if (cell.owner == nullptr && cell.isWater) return Color{0,0,0,255};
     return Color{55, 63, 73, 255};
+}
+
+Color readableTextColor(Color background){
+    const int luminance =(299 * static_cast<int>(background.r)+ 587 * static_cast<int>(background.g) + 114 * static_cast<int>(background.b)) / 1000;
+    return luminance > 140 ? Color{20, 24, 30, 255} : RAYWHITE;
+}
+
+constexpr float LABEL_WIDTH_FILL = 0.70f;
+constexpr float LABEL_HEIGHT_FILL = 0.70f;
+//esta constante es para el nivel de grande
+constexpr float LABEL_SIZE_FACTOR = 0.75f;
+constexpr int LABEL_MIN_FONT = 8;
+constexpr int LABEL_MAX_FONT = 40;
+//constante para las trops, subirlo si las queremos mas pequeñas ese texto
+constexpr float LABEL_TROOPS_SCALE = 0.65f;
+constexpr float LABEL_LINE_GAP = 0.25f;
+
+//esto lo que hace es la etiqueta de la tropas y nombres para mostrarla
+struct TerritoryLabel{
+    Entity* owner = nullptr;
+    std::string name;
+    std::string troops;
+    Rectangle rect{};
+    std::size_t cells = 0; 
+    int nameFontSize = 0;
+    int troopsFontSize = 0;
+    bool visible = false;
+};
+
+//aqui estan los datos de un territorio
+struct TerritoryStats{
+    int minColumn = std::numeric_limits<int>::max();
+    int maxColumn = std::numeric_limits<int>::min();
+    int minRow = std::numeric_limits<int>::max();
+    int maxRow = std::numeric_limits<int>::min();
+    double columnSum = 0.0;
+    double rowSum = 0.0;
+    std::size_t cells = 0;
+};
+
+void clampToBounds(Rectangle& rect, const Rectangle& bounds){
+    if (rect.width <= bounds.width){
+        rect.x = std::min(std::max(rect.x, bounds.x),bounds.x + bounds.width - rect.width);
+    }
+    if (rect.height <= bounds.height){
+        rect.y = std::min(std::max(rect.y, bounds.y),bounds.y + bounds.height - rect.height);
+    }
+}
+
+bool findOwnedCellNear(const Map& map, Entity* owner,int startColumn, int startRow, int& outColumn, int& outRow){
+    const int columns = static_cast<int>(map.getWidth());
+    const int rows = static_cast<int>(map.getHeight());
+    const int maxRadius = std::max(columns, rows);
+
+    for (int radius = 0; radius <= maxRadius; ++radius)
+    {
+        for (int deltaRow = -radius; deltaRow <= radius; ++deltaRow)
+        {
+            for (int deltaColumn = -radius; deltaColumn <= radius; ++deltaColumn)
+            {
+                if (std::abs(deltaColumn) != radius && std::abs(deltaRow) != radius){
+                    continue;
+                }
+                const int column = startColumn + deltaColumn;
+                const int row = startRow + deltaRow;
+                if (column < 0 || row < 0 || column >= columns || row >= rows) {
+                    continue;
+                }
+
+                if (map.getCell(column, row).owner != owner) {
+                    continue;
+                }
+
+                outColumn = column;
+                outRow = row;
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+std::unordered_map<Entity*, TerritoryStats> collectTerritoryStats(
+    const Map& map, const std::vector<Entity*>& entities){
+    std::unordered_map<Entity*, TerritoryStats> stats;
+    stats.reserve(entities.size());
+
+    for (std::size_t row = 0; row < map.getHeight(); ++row){
+        for (std::size_t column = 0; column < map.getWidth(); ++column){
+            Entity* owner = map.getCell(column, row).owner;
+            if (owner == nullptr) {
+                continue;
+            }
+
+            TerritoryStats& s = stats[owner];
+            s.minColumn = std::min(s.minColumn, static_cast<int>(column));
+            s.maxColumn = std::max(s.maxColumn, static_cast<int>(column));
+            s.minRow = std::min(s.minRow, static_cast<int>(row));
+            s.maxRow = std::max(s.maxRow, static_cast<int>(row));
+            s.columnSum += static_cast<double>(column);
+            s.rowSum += static_cast<double>(row);
+            ++s.cells;
+        }
+    }
+    return stats;
+}
+
+
+//esta lo que haces es ir calculando el tamaño del territiorio para ajustar el texto cada vez que se aumenta o disminuye el territorio
+TerritoryLabel buildLabel(const Map& map, Entity* owner, const TerritoryStats& stats, const Rectangle& mapBounds){
+    TerritoryLabel label;
+    label.owner = owner;
+    label.cells = stats.cells;
+
+    //no se muestra si no tenemos un territorio
+    if (stats.cells == 0) {
+        return label;
+    }
+
+    const int centroidColumn =static_cast<int>(std::lround(stats.columnSum / static_cast<double>(stats.cells)));
+    const int centroidRow =static_cast<int>(std::lround(stats.rowSum / static_cast<double>(stats.cells)));
+    int anchorColumn = centroidColumn;
+    int anchorRow = centroidRow;
+    if (map.getCell(static_cast<std::size_t>(anchorColumn), static_cast<std::size_t>(anchorRow)).owner != owner){
+        findOwnedCellNear(map, owner, centroidColumn, centroidRow, anchorColumn, anchorRow);
+    }
+    const float cellWidth = mapBounds.width / static_cast<float>(map.getWidth());
+    const float cellHeight = mapBounds.height / static_cast<float>(map.getHeight());
+    const Rectangle box{
+        mapBounds.x + stats.minColumn * cellWidth,
+        mapBounds.y + stats.minRow * cellHeight,
+        (stats.maxColumn - stats.minColumn + 1) * cellWidth,
+        (stats.maxRow - stats.minRow + 1) * cellHeight
+    };
+
+    label.name = owner->getName();
+    label.troops = TextFormat("%d", static_cast<int>(owner->getTroops()));
+
+    const int referenceSize = 100;
+    const int nameWidthRef = MeasureText(label.name.c_str(), referenceSize);
+    int nameFontSize = nameWidthRef <= 0 ? referenceSize : static_cast<int>(referenceSize * (box.width * LABEL_WIDTH_FILL) / static_cast<float>(nameWidthRef));
+    nameFontSize = std::min(static_cast<int>(nameFontSize * LABEL_SIZE_FACTOR), LABEL_MAX_FONT);
+
+    float gap = nameFontSize * LABEL_LINE_GAP;
+    int troopsFontSize = static_cast<int>(nameFontSize * LABEL_TROOPS_SCALE);
+    float blockHeight = static_cast<float>(nameFontSize + troopsFontSize) + gap;
+
+    const float maxBlockHeight = box.height * LABEL_HEIGHT_FILL;
+    if (blockHeight > maxBlockHeight && blockHeight > 0.0f){
+        const float scale = maxBlockHeight / blockHeight;
+        nameFontSize = static_cast<int>(nameFontSize * scale);
+        troopsFontSize = static_cast<int>(nameFontSize * LABEL_TROOPS_SCALE);
+        gap = nameFontSize * LABEL_LINE_GAP;
+        blockHeight = static_cast<float>(nameFontSize + troopsFontSize) + gap;
+    }
+
+    //si es muy pequeño
+    if (nameFontSize < LABEL_MIN_FONT) {
+        return label;
+    }
+
+    const int textWidth =std::max(MeasureText(label.name.c_str(), nameFontSize),MeasureText(label.troops.c_str(), troopsFontSize));
+    const float anchorX = mapBounds.x + (anchorColumn + 0.5f) * cellWidth;
+    const float anchorY = mapBounds.y + (anchorRow + 0.5f) * cellHeight;
+
+    label.nameFontSize = nameFontSize;
+    label.troopsFontSize = troopsFontSize;
+    label.rect = Rectangle{
+        anchorX - textWidth / 2.0f,
+        anchorY - blockHeight / 2.0f,
+        static_cast<float>(textWidth),
+        blockHeight
+    };
+    label.visible = true;
+    return label;
+}
+
+void drawTerritoryLabel(const TerritoryLabel& label){
+    if (!label.visible) {
+        return;
+    }
+
+    const Color color = readableTextColor(label.owner->getColor());
+    const float gap = label.nameFontSize * LABEL_LINE_GAP;
+    const float nameWidth = MeasureText(label.name.c_str(), label.nameFontSize);
+    const float troopsWidth = MeasureText(label.troops.c_str(), label.troopsFontSize);
+
+    DrawText(label.name.c_str(),static_cast<int>(label.rect.x + (label.rect.width - nameWidth) / 2.0f),static_cast<int>(label.rect.y),label.nameFontSize, color);
+    DrawText(label.troops.c_str(),static_cast<int>(label.rect.x + (label.rect.width - troopsWidth) / 2.0f),static_cast<int>(label.rect.y + label.nameFontSize + gap),label.troopsFontSize, color);
+}
+
+
+//esta resuelve el solape entre varios territorios
+void separateLabels(std::vector<TerritoryLabel>& labels, const Rectangle& mapBounds){
+    for (std::size_t i = 0; i < labels.size(); ++i){
+        if (!labels[i].visible) {
+            continue;
+        }
+        for (std::size_t j = i + 1; j < labels.size(); ++j){
+            if (!labels[j].visible) {
+                continue;
+            }
+
+            TerritoryLabel& a = labels[i];
+            TerritoryLabel& b = labels[j];
+            if (!CheckCollisionRecs(a.rect, b.rect)) {
+                continue;
+            }
+
+            const Rectangle& ra = a.rect;
+            const Rectangle& rb = b.rect;
+            const float overlapX =std::min(ra.x + ra.width, rb.x + rb.width) - std::max(ra.x, rb.x);
+            const float overlapY =std::min(ra.y + ra.height, rb.y + rb.height) - std::max(ra.y, rb.y);
+
+            if (overlapX < overlapY){
+                const float shift = overlapX / 2.0f + 1.0f;
+                const float direction =(ra.x + ra.width / 2.0f <= rb.x + rb.width / 2.0f) ? -1.0f : 1.0f;
+                a.rect.x += direction * shift;
+                b.rect.x -= direction * shift;
+            }
+            else{
+                const float shift = overlapY / 2.0f + 1.0f;
+                const float direction =(ra.y + ra.height / 2.0f <= rb.y + rb.height / 2.0f) ? -1.0f : 1.0f;
+                a.rect.y += direction * shift;
+                b.rect.y -= direction * shift;
+            }
+
+            clampToBounds(a.rect, mapBounds);
+            clampToBounds(b.rect, mapBounds);
+        }
+    }
+
+    //si sigue con solapes se oculta la de menor tamaño
+    for (std::size_t i = 0; i < labels.size(); ++i){
+        if (!labels[i].visible) {
+            continue;
+        }
+        for (std::size_t j = i + 1; j < labels.size(); ++j){
+            if (!labels[j].visible) {
+                continue;
+            }
+            if (!CheckCollisionRecs(labels[i].rect, labels[j].rect)) {
+                continue;
+            }
+            if (labels[i].cells >= labels[j].cells) {
+                labels[j].visible = false;
+            }
+            else {
+                labels[i].visible = false;
+                break;
+            }
+        }
+    }
 }
 }
 
@@ -30,20 +286,19 @@ void MainGameState::init()
 
 void MainGameState::handleInput()
 {
-    // Al finalizar la partida solo se acepta reiniciar
     if (game.isOver())
     {
         if (IsKeyPressed(KEY_R)) game.reset();
         return;
     }
 
-    if (game.getPhase() == GamePhase::SPAWN) { // para bloquer ataques ... y capturar el spawn del jugador                                                                                      
+    if (game.getPhase() == GamePhase::SPAWN) {                                                                                      
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {                                                                                       
             const std::pair<int, int> targetCoordinates = getCellCoordinates(GetMousePosition());                                            
             const int column = targetCoordinates.first;                                                                                      
             const int row = targetCoordinates.second;                                                                                        
                                                                                                                                                 
-            if (column >= 0 && row >= 0) { // Si el clic es dentro del tablero                                                               
+            if (column >= 0 && row >= 0) {                                                           
                 game.setSpawnPreview(column + row * game.getMap().getWidth());                                                               
             }                                                                                                                                
         }                                                                                                                                    
@@ -138,16 +393,13 @@ void MainGameState::render()
             ++botCells;
         }
     }
-    // Las estadísticas del HUD se derivan del mapa actual para no duplicar estado.
     const int playerPercent = landCells == 0 ? 0
         : static_cast<int>(100.0 * static_cast<double>(playerCells) / landCells);
     const int botPercent = landCells == 0 ? 0
         : static_cast<int>(100.0 * static_cast<double>(botCells) / landCells);
 
     DrawRectangle(0, 0, screenWidth, 108, Color{31, 38, 47, 255});
-    DrawText(player->getName().c_str(), 24, 12, 32, player->getColor());
     if (game.getPhase() == GamePhase::SPAWN) {
-        // HUD para la fase SPAWN
         float timer = game.getSpawnTimer();
 
         const char* title = "ELIGE TU PUNTO DE PARTIDA";
@@ -159,10 +411,6 @@ void MainGameState::render()
             DrawText(clock.c_str(), (screenWidth - MeasureText(clock.c_str(), 24)) / 2, 60, 24, LIGHTGRAY);
         }
     } else{
-        DrawText(TextFormat("%d%% territorio", playerPercent), 24, 51, 24, WHITE);
-        DrawText(TextFormat("%d tropas", player->getTroops()),
-                    24, 78, 22, WHITE);
-
         const char* title = "CONQUISTA EL MAPA";
         DrawText(title, (screenWidth - MeasureText(title, 30)) / 2, 10, 30, RAYWHITE);
         const int totalSeconds = static_cast<int>(game.getTime());
@@ -189,17 +437,28 @@ void MainGameState::render()
             const std::size_t cellIndex = row * map.getWidth() + column;
             DrawRectangleRec(cellBounds, cellColor(cell));
             const Color ownershipColor = cell.owner == player ? player->getColor(): Color{31, 37, 45, 255};
+        }
+    }
 
-            if (cell.owner == nullptr && cellWidth >= 20.0f)
-            {
-                const int troops = 0;// static_cast<int>(cell.troops);
-                DrawText(TextFormat("%d", player->getTroops()),
-                        static_cast<int>(cellBounds.x + 2),
-                        static_cast<int>(cellBounds.y + 3),
-                        14, RAYWHITE);
-            }  
+    {
+        const std::vector<Entity*> entities = game.getEntities();
+        const std::unordered_map<Entity*, TerritoryStats> stats =
+            collectTerritoryStats(map, entities);
 
+        std::vector<TerritoryLabel> labels;
+        labels.reserve(entities.size());
+        const TerritoryStats empty;
+        for (Entity* entity : entities)
+        {
+            const auto it = stats.find(entity);
+            labels.push_back(buildLabel(map, entity,
+                                        it != stats.end() ? it->second : empty, bounds));
+        }
 
+        separateLabels(labels, bounds);
+        for (const TerritoryLabel& label : labels)
+        {
+            drawTerritoryLabel(label);
         }
     }
 
@@ -210,7 +469,7 @@ void MainGameState::render()
             int cy = previewIdx / map.getWidth();                                                                                            
                                                                                                                                                 
             Color previewColor = player->getColor();                                                                                         
-            previewColor.a = 150; // Hacerlo semitransparente                                                                                
+            previewColor.a = 150;                                                                              
                                                                                                                                                 
             for (int dy = -1; dy <= 1; ++dy) {                                                                                               
                 for (int dx = -1; dx <= 1; ++dx) {                                                                                           
@@ -219,7 +478,6 @@ void MainGameState::render()
                     if (px >= 0 && px < map.getWidth() && py >= 0 && py < map.getHeight()) {                                                 
                         const TerritoryCell& cell = map.getCell(px, py);
                         
-                        // Solo pintamos el cuadrado si es tierra Y está libre
                         if (!cell.isWater && cell.owner == nullptr) { 
                             Rectangle cellBounds{                                                                                                
                                 bounds.x + px * cellWidth,                                                                                       
@@ -290,7 +548,6 @@ void MainGameState::render()
 
 Rectangle MainGameState::getMapBounds() const
 {
-    // Ajusta la cuadrícula al espacio disponible conservando celdas cuadradas.
     const float availableWidth = static_cast<float>(std::max(1, GetScreenWidth() - 48));
     const float availableHeight = static_cast<float>(std::max(1, GetScreenHeight() - 212));
     const Map& map = game.getMap();
@@ -325,7 +582,6 @@ std::pair<int, int> MainGameState::getCellCoordinates(Vector2 position) const
 {
     const Map& map = game.getMap();
     const Rectangle bounds = getMapBounds();
-    // Fuera del rectángulo del tablero no hay una celda seleccionable.
     if (position.x < bounds.x || position.y < bounds.y
         || position.x >= bounds.x + bounds.width
         || position.y >= bounds.y + bounds.height)
@@ -333,8 +589,6 @@ std::pair<int, int> MainGameState::getCellCoordinates(Vector2 position) const
         return {-1, -1};
     }
 
-    // Escala las coordenadas de pantalla a índices de cuadrícula (fila y columna).
-    // Es una transformación geométrica directa, no un algoritmo de búsqueda.
     const std::size_t column = static_cast<std::size_t>(
         (position.x - bounds.x) / bounds.width * map.getWidth());
     const std::size_t row = static_cast<std::size_t>(
