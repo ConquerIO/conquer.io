@@ -17,7 +17,7 @@ public:
     static Map fromImage(const Image& image);
     static Map fromImage(const char* filename);
     static Map fromPerlinImage(const Image& image, float threshold);
-    static Map generateMap();
+    static Map generateMap(int width, int height);
 
     TerritoryCell& getCell(std::size_t x, std::size_t y);
     const TerritoryCell& getCell(std::size_t x, std::size_t y) const;
