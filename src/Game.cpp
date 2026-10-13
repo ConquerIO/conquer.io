@@ -90,12 +90,11 @@ void Game::update(float deltaTime)
     tick_timer += deltaTime;
 
     const auto player = getPlayer();
-    const auto bot = (Bot*)entities[1];
 
     while(tick_timer>=TICK_INTERVAL){
         tick_timer-=TICK_INTERVAL;
-        updateTroopGrowth(player);
-        updateTroopGrowth(bot);
+
+        for(auto entity: entities) updateTroopGrowth(entity);
     }
 
     if (!player->getTarget().isNone())
@@ -107,10 +106,14 @@ void Game::update(float deltaTime)
         }
     }
 
-    if (bot->shouldMove(deltaTime, ATTACK_INTERVAL))
-    {
-        bot->beginAttack(1.0f);
-        expandTerritory(bot);
+    for(int i = 1; i < entities.size(); ++i){
+        auto bot = (Bot*)entities[i];
+
+        if (bot->shouldMove(deltaTime, ATTACK_INTERVAL))
+        {
+            bot->beginAttack(1.0f);
+            expandTerritory(bot);
+        }
     }
 }
 
