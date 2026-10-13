@@ -95,6 +95,10 @@ void Game::update(float deltaTime)
     tick_timer += deltaTime;
 
     const auto player = getPlayer();
+    if(player->getTroops() == 0){
+        game_over = true;
+        // TODO: pantalla de game over
+    }
 
     while(tick_timer>=TICK_INTERVAL){
         tick_timer-=TICK_INTERVAL;
