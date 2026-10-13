@@ -23,3 +23,10 @@ void Entity::beginAttack(float ratio){
     this->attack_fuel += committed;
     this->troops -= committed;
 }
+
+void Entity::endAttack(){
+    // Devuelve al territorio el combustible que no se haya gastado.
+    this->troops += this->attack_fuel;
+    this->attack_fuel = 0;
+    this->target = Target::none();
+}

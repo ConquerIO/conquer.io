@@ -8,9 +8,18 @@ class Bot : public Entity
 public:
     explicit Bot(Color color);
 
-    bool shouldMove(float deltaTime, float interval);
+    // Indica si toca empezar un ataque nuevo (cada 6-10 s aleatorios).
+    bool shouldStartAttack(float deltaTime);
+    // Cadencia de las oleadas de expansion durante un ataque.
+    bool shouldExpand(float deltaTime, float interval);
+    // Fraccion de tropas (0.30-0.70) elegida para el ataque en curso.
+    float getAttackRatio() const { return attack_ratio; }
+
     void reset();
 
 private:
-    float move_timer;
+    float attack_decision_timer; // tiempo acumulado desde el ultimo ataque
+    float next_attack_delay;     // espera aleatoria [6, 10] hasta el proximo ataque
+    float expand_timer;          // temporizador de las oleadas de expansion
+    float attack_ratio;          // fraccion de tropas [0.30, 0.70] del ataque actual
 };

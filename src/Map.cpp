@@ -120,9 +120,7 @@ Map Map::fromPerlinImage(const Image& image, float threshold){
     return map;
 }
 
-Map Map::generateMap(){
-    int height=100;
-    int width=100;
+Map Map::generateMap(int width, int height){
 
     int offsetX = std::rand() % 10000;
     int offsetY = std::rand() % 10000;
