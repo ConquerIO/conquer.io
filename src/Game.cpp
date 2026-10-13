@@ -1,6 +1,7 @@
 #include <Game.hpp>
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <limits>
 #include <stdexcept>
 #include <utility>
@@ -49,6 +50,10 @@ bool isConquerable(const TerritoryCell& cell, const Target& target)
 // Desplazamientos de los 4 vecinos: arriba, abajo, izquierda, derecha.
 constexpr int NEIGHBOR_X[4] = {0, 0, -1, 1};
 constexpr int NEIGHBOR_Y[4] = {-1, 1, 0, 0};
+
+// Probabilidad de que el objetivo de un bot sea una entidad fronteriza.
+// El resto de las veces ataca tierra (preferentemente tierra).
+constexpr float BOT_ENEMY_TARGET_CHANCE = 0.30f;
 }
 
 Game::Game(std::string playerName, Color playerColor):
@@ -56,7 +61,7 @@ Game::Game(std::string playerName, Color playerColor):
       tick_timer(0.0f),
       game_over(false),
       winner(nullptr),
-      map(Map::generateMap(1000, 1000))
+      map(Map::generateMap(200, 200))
 {
     this->entities.push_back(new Player(std::move(playerName), playerColor));
     this->entities.push_back(new Bot(contrastingColor(playerColor)));
@@ -109,10 +114,18 @@ void Game::update(float deltaTime)
     for(int i = 1; i < entities.size(); ++i){
         auto bot = (Bot*)entities[i];
 
-        if (bot->shouldMove(deltaTime, ATTACK_INTERVAL))
+        if (bot->getTarget().isNone())
         {
-            bot->beginAttack(1.0f);
-            expandTerritory(bot);
+            if (bot->shouldStartAttack(deltaTime))
+            {
+                bot->setTarget(chooseBotTarget(bot));
+                bot->beginAttack(bot->getAttackRatio());
+            }
+        }
+        else if (bot->shouldExpand(deltaTime, ATTACK_INTERVAL)
+                 && !expandTerritory(bot))
+        {
+            bot->endAttack();
         }
     }
 }
@@ -262,6 +275,52 @@ void Game::addExposedFrontier(Entity* victim, int x, int y)
             frontier.push_back(neighbor);
         }
     }
+}
+
+Entity* Game::randomNeighborEntity(Entity* owner) const
+{
+    // Entidades distintas de `owner` que tocan su frontera.
+    std::vector<Entity*> neighbors;
+    const int columns = static_cast<int>(map.getWidth());
+    const int rows = static_cast<int>(map.getHeight());
+
+    for (const std::pair<int, int>& cell : owner->getFrontier())
+    {
+        const int x = cell.first;
+        const int y = cell.second;
+        for (int i = 0; i < 4; ++i)
+        {
+            const int nx = x + NEIGHBOR_X[i];
+            const int ny = y + NEIGHBOR_Y[i];
+            if (nx < 0 || ny < 0 || nx >= columns || ny >= rows) continue;
+
+            Entity* neighborOwner = map.getCell(nx, ny).owner;
+            if (neighborOwner == nullptr || neighborOwner == owner) continue;
+
+            if (std::find(neighbors.begin(), neighbors.end(), neighborOwner)
+                == neighbors.end())
+            {
+                neighbors.push_back(neighborOwner);
+            }
+        }
+    }
+
+    if (neighbors.empty()) return nullptr;
+    return neighbors[std::rand() % neighbors.size()];
+}
+
+Target Game::chooseBotTarget(Entity* owner) const
+{
+    // Preferentemente tierra; con cierta probabilidad, una entidad fronteriza.
+    const float roll = static_cast<float>(std::rand())
+        / static_cast<float>(RAND_MAX);
+
+    if (roll < BOT_ENEMY_TARGET_CHANCE)
+    {
+        Entity* enemy = randomNeighborEntity(owner);
+        if (enemy != nullptr) return Target::enemy(enemy);
+    }
+    return Target::land();
 }
 
 std::size_t Game::getPlayerPixels(Entity* owner) const {

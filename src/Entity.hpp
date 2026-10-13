@@ -22,6 +22,9 @@ public:
     void setTroops(std::size_t troops);
     void setAttackFuel(std::size_t fuel);
     void beginAttack(float ratio);
+    // Termina el ataque en curso: devuelve al territorio el combustible no gastado
+    // y deja la entidad sin objetivo.
+    void endAttack();
 protected:
     std::string name;
     Color color;
