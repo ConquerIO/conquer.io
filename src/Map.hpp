@@ -8,8 +8,8 @@
 #include <MapGenerator.hpp>
 
 class Map {
-    const std::size_t rows;
-    const std::size_t columns;
+    std::size_t rows;
+    std::size_t columns;
     std::vector<TerritoryCell> cells;
 
 public:

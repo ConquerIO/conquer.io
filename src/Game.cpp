@@ -63,6 +63,11 @@ Game::Game(std::string playerName, Color playerColor):
       winner(nullptr),
       map(Map::generateMap(200, 200))
 {
+   
+    createEntities(playerName, playerColor);
+}
+
+void Game::createEntities(std::string playerName, Color playerColor){
     this->entities.push_back(new Player(std::move(playerName), playerColor));
     this->entities.push_back(new Bot(contrastingColor(playerColor)));
     this->entities.push_back(new Bot(Color{255, 215, 0, 255}));
@@ -74,6 +79,11 @@ Game::Game(std::string playerName, Color playerColor):
     this->entities.push_back(new Bot(Color{255, 215, 0, 255}));
     this->entities.push_back(new Bot(Color{53, 0, 128, 255}));
     this->entities.push_back(new Bot(Color{0, 134, 132, 255}));
+}
+
+void Game::resetEntities(std::string playerName, Color playerColor){
+    this->entities.clear();
+    createEntities(playerName, playerColor);
 }
 
 void Game::update(float deltaTime)
@@ -496,6 +506,8 @@ void Game::reset()
     game_over = false;
     winner = nullptr;
     getPlayer()->cancelAttack();
+    this->map=Map::generateMap(200,200);
+    resetEntities(getPlayer()->getName(), getPlayer()->getColor());
 
     for (size_t i = 1; i < entities.size(); ++i) {
         static_cast<Bot*>(entities[i])->reset();

@@ -9,6 +9,8 @@
 #include <string>
 #include <vector>
 
+using namespace std;
+
 enum class GamePhase {
     SPAWN,
     PLAYING
@@ -39,6 +41,8 @@ public:
 
 
 private:
+    void createEntities(string playerName, Color playerColor);
+    void resetEntities(string playerName, Color playerColor);
     void spawnEntity(Entity* entity, int x, int y);
     bool expandTerritory(Entity* owner);
     // Indica si (x, y) es una celda de la frontera de `owner` (toca tierra o enemigo).
