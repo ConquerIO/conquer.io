@@ -33,6 +33,8 @@
 *.lib
 
 !vendor/lib/libraylib.a
+!vendor/lib/arm64/libraylib.a
+
 
 # Executables
 *.exe
