@@ -19,6 +19,8 @@ int main()
 
 
     InitWindow(2560, 1440, "Conquer.io");
+    // ESC no cierra la ventana: en partida cancela el ataque y en el menú sale del juego.
+    SetExitKey(KEY_NULL);
 
     {
         const int monitor = GetCurrentMonitor();

@@ -26,6 +26,13 @@ void MenuState::init()
 // Entrada
 void MenuState::handleInput()
 {
+    // ESC en el menú cierra el juego
+    if (IsKeyPressed(KEY_ESCAPE))
+    {
+        this->state_machine->remove_state(true);
+        return;
+    }
+
     // Entrada de texto para el nombre del jugador
     int key = GetCharPressed();
     while (key > 0)
