@@ -28,4 +28,5 @@ class MainGameState : public GameState
         Game game;
         int attack_percent = 100;            // Porcentaje de tropas destinado al ataque.
         bool dragging_attack_slider = false;
+        float game_over_timer = 0.0f;        // Tiempo transcurrido en la pantalla de Game Over.
 };

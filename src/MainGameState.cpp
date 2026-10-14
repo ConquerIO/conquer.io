@@ -1,4 +1,5 @@
 #include <MainGameState.hpp>
+#include <MenuState.hpp>
 #include <StateMachine.hpp>
 #include <Target.hpp>
 #include <raylib.h>
@@ -6,12 +7,16 @@
 #include <cmath>
 #include <cstddef>
 #include <limits>
+#include <memory>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 
 namespace
 {
+
+// Segundos en la pantalla de Game Over antes de aceptar teclas para volver al menú.
+constexpr float GAME_OVER_INPUT_DELAY = 1.0f;
 
 Color cellColor(const TerritoryCell& cell)
 {
@@ -305,7 +310,16 @@ void MainGameState::handleInput()
 {
     if (game.isOver())
     {
-        if (IsKeyPressed(KEY_R)) game.reset();
+        // Margen inicial para que una tecla o clic ya pulsado al perder no salte la pantalla.
+        if (game_over_timer < GAME_OVER_INPUT_DELAY) return;
+
+        if (GetKeyPressed() != 0
+            || IsMouseButtonPressed(MOUSE_BUTTON_LEFT)
+            || IsMouseButtonPressed(MOUSE_BUTTON_RIGHT))
+        {
+            // Vuelve al menú inicial; la partida actual se destruye al reemplazar el estado.
+            state_machine->add_state(std::make_unique<MenuState>(), true);
+        }
         return;
     }
 
@@ -379,6 +393,7 @@ void MainGameState::update(float deltaTime)
 {
     // El estado de presentación delega toda la simulación en Game.
     game.update(deltaTime);
+    if (game.isOver()) game_over_timer += deltaTime;
 }
 
 void MainGameState::render()
@@ -550,14 +565,27 @@ void MainGameState::render()
 
     if (gameOver)
     {
-        DrawRectangle(0, 0, screenWidth, screenHeight, Fade(BLACK, 0.68f));
-        const char* result = game.getWinner() == player ? "¡VICTORIA!" : "DERROTA";
-        const Color resultColor = game.getWinner() == player ? GOLD : LIGHTGRAY;
-        DrawText(result, (screenWidth - MeasureText(result, 54)) / 2,
-                 screenHeight / 2 - 60, 54, resultColor);
-        const char* restart = "Pulsa R para jugar otra vez";
-        DrawText(restart, (screenWidth - MeasureText(restart, 22)) / 2,
-                 screenHeight / 2 + 14, 22, RAYWHITE);
+        DrawRectangle(0, 0, screenWidth, screenHeight, Fade(BLACK, 0.75f));
+
+        const char* title = "GAME OVER";
+        const int titleSize = 96;
+        DrawText(title, (screenWidth - MeasureText(title, titleSize)) / 2,
+                 screenHeight / 2 - 120, titleSize, Color{235, 65, 75, 255});
+
+        const int seconds = static_cast<int>(game.getTime());
+        const char* survived = TextFormat("Has sobrevivido %02d:%02d",
+                                          seconds / 60, seconds % 60);
+        DrawText(survived, (screenWidth - MeasureText(survived, 30)) / 2,
+                 screenHeight / 2 - 4, 30, LIGHTGRAY);
+
+        // El aviso aparece tras el margen inicial y parpadea (0.5 s visible / 0.5 s oculto).
+        if (game_over_timer >= GAME_OVER_INPUT_DELAY
+            && std::fmod(game_over_timer, 1.0f) < 0.5f)
+        {
+            const char* hint = "Pulsa cualquier tecla para volver al menu";
+            DrawText(hint, (screenWidth - MeasureText(hint, 26)) / 2,
+                     screenHeight / 2 + 70, 26, RAYWHITE);
+        }
     }
 
     EndDrawing();
