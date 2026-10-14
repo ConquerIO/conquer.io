@@ -1,6 +1,7 @@
 #include <MainGameState.hpp>
 #include <MenuState.hpp>
 #include <StateMachine.hpp>
+#include <MenuState.hpp>
 #include <Target.hpp>
 #include <raylib.h>
 #include <algorithm>
@@ -319,6 +320,7 @@ void MainGameState::handleInput()
         {
             // Vuelve al menú inicial; la partida actual se destruye al reemplazar el estado.
             state_machine->add_state(std::make_unique<MenuState>(), true);
+
         }
         return;
     }
@@ -407,6 +409,7 @@ void MainGameState::render()
     Player* player = game.getPlayer();
     Bot* bot = (Bot* )game.getEntities()[1];
     const bool gameOver = game.isOver();
+    const auto winner = game.getWinner();
     std::size_t playerCells = 0;
     std::size_t botCells = 0;
     std::size_t landCells = 0;
@@ -586,6 +589,14 @@ void MainGameState::render()
             DrawText(hint, (screenWidth - MeasureText(hint, 26)) / 2,
                      screenHeight / 2 + 70, 26, RAYWHITE);
         }
+    }
+    else if(winner != nullptr){
+        DrawRectangle(0, 0, screenWidth, screenHeight, Fade(BLACK, 0.68f));
+        const auto result = TextFormat("GANADOR: %s", winner->getName().c_str());
+        DrawText(result, (screenWidth - MeasureText(result, 54)) / 2, screenHeight / 2 - 60, 54, GOLD);
+        DrawText(result, (screenWidth - MeasureText(result, 54)) / 2,
+                 screenHeight / 2 - 60, 54, GOLD);
+        const char* restart = "Pulsa cualquier tecla para salir";
     }
 
     EndDrawing();

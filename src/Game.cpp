@@ -122,7 +122,21 @@ void Game::update(float deltaTime)
     const auto player = getPlayer();
     if(getPlayerPixels(player)==0){
         game_over = true;
-        // TODO: pantalla de game over
+    }
+
+    for(auto it = entities.begin(); it != entities.end(); ){
+        if(*it != player && getPlayerPixels(*it) == 0){
+            it = entities.erase(it);
+        } else {
+            ++it;
+        }
+    }
+
+    winner = nullptr;
+    for (Entity* entity : entities) {
+        if (getPlayerPixels(entity) == 0) continue;
+        if (winner != nullptr) { winner = nullptr; break; }
+        winner = entity;
     }
 
     while(tick_timer>=TICK_INTERVAL){
