@@ -25,6 +25,8 @@ public:
     void setTarget(const Target& target);
     void setTroops(std::size_t troops);
     void setAttackFuel(std::size_t fuel);
+    double getTroopFraction() const { return troop_fraction; }
+    void setTroopFraction(double fraction) { troop_fraction = fraction; }
     void beginAttack(float ratio);
     void endAttack();
 protected:
@@ -35,6 +37,7 @@ protected:
     std::size_t troops = 500;
     std::size_t attack_fuel = 0;
     std::size_t attack_resistence=1;
+    double troop_fraction = 0.0; // decimales de crecimiento pendientes de sumar
 
     std::vector<std::pair<int, int>> frontier;
 };

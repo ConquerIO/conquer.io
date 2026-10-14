@@ -391,11 +391,19 @@ float Game::calculateInterest(float troops, float pixels) const{
 void Game::updateTroopGrowth(Entity* owner){
     const float pixels=getPlayerPixels(owner);
     const float currentTroops= owner->getTroops();
-    const float limit=calculateTroopLimit(pixels);
     const float interest=calculateInterest(currentTroops,pixels);
 
-    const float newTroops = currentTroops < 1.0f ? 1.0f : currentTroops * (1.0 + interest);
-    owner->setTroops(newTroops);
+    if (currentTroops < 1.0f) {
+        owner->setTroops(1);
+        owner->setTroopFraction(0.0);
+        return;
+    }
+
+    // Se acumulan los decimales del crecimiento para no perderlos en cada tick.
+    const double exact = currentTroops * (1.0 + interest) + owner->getTroopFraction();
+    const double whole = std::floor(exact);
+    owner->setTroops(static_cast<std::size_t>(whole));
+    owner->setTroopFraction(exact - whole);
 }
 
 void Game::spawnEntity(Entity* entity, int x, int y){
