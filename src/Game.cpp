@@ -31,12 +31,25 @@ int colorDistance(Color a, Color b)
         + blueDifference * blueDifference;
 }
 
-Color contrastingColor(Color color)
-{
-    const Color red{235, 65, 75, 255};
-    const Color cyan{45, 205, 220, 255};
-    return colorDistance(color, red) > colorDistance(color, cyan) ? red : cyan;
-}
+// Paleta de los bots: colores separados entre sí para distinguir cada territorio.
+constexpr Color BOT_PALETTE[] = {
+    {45, 205, 220, 255},   // cian
+    {235, 65, 75, 255},    // carmesí
+    {255, 215, 0, 255},    // dorado
+    {230, 60, 200, 255},   // magenta
+    {150, 230, 60, 255},   // lima
+    {0, 150, 130, 255},    // verde azulado
+    {140, 90, 240, 255},   // violeta
+    {255, 130, 40, 255},   // naranja
+    {255, 160, 200, 255},  // rosa
+    {150, 95, 50, 255},    // marrón
+    {235, 235, 235, 255},  // blanco
+    {40, 70, 180, 255},    // azul marino
+    {40, 200, 40, 255},    // verde
+};
+constexpr std::size_t BOT_COUNT = 10;
+// Distancia mínima (al cuadrado) entre el color de un bot y el del jugador.
+constexpr int MIN_PLAYER_COLOR_DISTANCE = 80 * 80;
 
 bool isConquerable(const TerritoryCell& cell, const Target& target)
 {
@@ -69,16 +82,13 @@ Game::Game(std::string playerName, Color playerColor):
 
 void Game::createEntities(std::string playerName, Color playerColor){
     this->entities.push_back(new Player(std::move(playerName), playerColor));
-    this->entities.push_back(new Bot(contrastingColor(playerColor)));
-    this->entities.push_back(new Bot(Color{255, 215, 0, 255}));
-    this->entities.push_back(new Bot(Color{128, 0, 128, 255}));
-    this->entities.push_back(new Bot(Color{0, 128, 0, 255}));
-    this->entities.push_back(new Bot(Color{65, 215, 0, 255}));
-    this->entities.push_back(new Bot(Color{128, 34, 234, 255}));
-    this->entities.push_back(new Bot(Color{124, 146, 0, 255}));
-    this->entities.push_back(new Bot(Color{255, 105, 180, 255}));
-    this->entities.push_back(new Bot(Color{53, 0, 128, 255}));
-    this->entities.push_back(new Bot(Color{0, 134, 132, 255}));
+
+    // Se saltan los colores de la paleta que se confunden con el del jugador.
+    for (const Color& color : BOT_PALETTE) {
+        if (entities.size() > BOT_COUNT) break;
+        if (colorDistance(color, playerColor) < MIN_PLAYER_COLOR_DISTANCE) continue;
+        this->entities.push_back(new Bot(color));
+    }
 }
 
 Game::~Game(){
