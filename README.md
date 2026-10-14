@@ -1,146 +1,106 @@
 # Conquer.io
 
-Conquer.io es un juego de estrategia en tiempo real inspirado en los juegos de conquista territorial. El jugador y el bot se expanden sobre casillas neutrales en oleadas; el objetivo es controlar la mayor parte del mapa.
+Conquer.io es un juego de estrategia en tiempo real inspirado en los juegos de conquista territorial. El jugador compite contra 10 bots en un mapa generado al azar: cada uno elige dónde empezar, gasta tropas para expandirse sobre tierra libre y ataca el territorio de los demás. El objetivo es controlar la mayor parte del mapa.
 
 ## Arquitectura general
 
-El proyecto sigue una arquitectura muy sencilla basada en:
+El proyecto sigue una arquitectura sencilla basada en:
 
-- Estado del juego (menú y partida) gestionado por una máquina de estados.
-- Lógica de mapa y expansión territorial centralizada en una clase `Game`.
-- Entidades `Player`, `Bot` y `TerritoryCell` que representan las tropas y el territorio.
-- Raylib como motor gráfico y de entrada para la ventana, dibujo y eventos.
+- Estados del juego (menú y partida) gestionados por una máquina de estados.
+- Lógica de mapa, tropas y expansión territorial centralizada en la clase `Game`.
+- Entidades (`Entity`, con sus variantes `Player` y `Bot`) que tienen tropas, objetivo y frontera.
+- Un mapa de casillas (`Map` y `TerritoryCell`) generado con ruido Perlin.
+- Raylib como motor gráfico y de entrada para la ventana, el dibujo y los eventos.
 
 La estructura principal es:
 
 ```text
 conquer.io/
 ├── src/               # Código fuente del juego
-├── vendor/            # Librerías y cabeceras de Raylib
+├── vendor/            # Cabeceras y librería estática de Raylib (x86_64 y ARM64)
+├── maps/              # Imágenes de mapas (actualmente no se usan)
+├── build.sh           # Script de compilación (x86_64)
+├── buildArm64.sh      # Script de compilación (ARM64)
 ├── game               # Binario generado tras compilar
-├── README.md          # Documentación del proyecto
-└── .gitignore
+└── README.md          # Documentación del proyecto
 ```
 
 ## Qué hace cada parte
 
 ### `src/main.cpp`
-Es el punto de entrada del programa. Aquí se crea la ventana con Raylib, se inicializa la máquina de estados y se ejecuta el bucle principal del juego:
+Es el punto de entrada del programa:
 
-- `InitWindow(...)` crea la ventana.
-- `StateMachine` decide qué estado está activo.
-- El bucle mientras la aplicación no termine:
-  - calcula el `deltaTime`,
-  - actualiza el estado actual,
-  - procesa la entrada,
-  - renderiza el frame.
+- inicializa la semilla aleatoria,
+- crea la ventana con `InitWindow(...)` (diseño de 2560x1440, reducida si el monitor es más pequeño),
+- desactiva ESC como tecla de salida de Raylib (`SetExitKey(KEY_NULL)`), porque el juego la usa para otras cosas,
+- arranca la máquina de estados con el menú y ejecuta el bucle principal: aplica los cambios de estado pendientes, procesa la entrada, actualiza y dibuja el frame.
 
 ### `src/StateMachine.hpp` / `src/StateMachine.cpp`
-Implementa la máquina de estados del juego. Permite:
-
-- añadir un estado nuevo,
-- reemplazar el estado actual,
-- retirar estados,
-- cambiar entre menús y partidas,
-- saber si la aplicación debe cerrarse.
-
-Esto es importante porque el juego se compone de varios "escenarios": menú principal y partida principal.
+Implementa la máquina de estados del juego. Permite añadir un estado, reemplazar el actual, retirarlo y saber si la aplicación debe cerrarse. Los cambios se aplican al principio del frame siguiente, así que un estado puede pedir el cambio desde su propio `handleInput()`.
 
 ### `src/GameState.hpp`
-Define la interfaz base de un estado del juego. Todos los estados deben implementar:
-
-- `init()`
-- `handleInput()`
-- `update(float deltaTime)`
-- `render()`
-- `pause()`
-- `resume()`
-
-Es la base común para que cualquier pantalla del juego pueda comportarse igual.
+Define la interfaz base de un estado del juego. Todos los estados implementan `init()`, `handleInput()`, `update(float deltaTime)`, `render()`, `pause()` y `resume()`.
 
 ### `src/MenuState.hpp` / `src/MenuState.cpp`
-Representa la pantalla principal del menú.
+Pantalla del menú principal:
 
-Hace lo siguiente:
-
-- permite escribir el nombre del jugador,
-- valida el largo máximo del texto,
-- borra texto con retroceso continuo,
-- selecciona un color para el territorio,
-- al pulsar Enter con un nombre válido, cambia al estado de juego principal.
-
-La interfaz dibuja el título, el campo de nombre, la paleta de colores y mensajes de ayuda.
+- permite escribir el nombre del jugador (máximo 15 caracteres), con borrado continuo al mantener retroceso,
+- selecciona el color del territorio con las flechas izquierda/derecha,
+- con Enter y un nombre válido, empieza la partida,
+- con ESC, cierra el juego.
 
 ### `src/MainGameState.hpp` / `src/MainGameState.cpp`
-Es la pantalla de juego real. Aquí se construye y se controla la partida:
+Pantalla de la partida. Traduce la entrada del usuario en órdenes para `Game` y lo dibuja todo:
 
-- obtiene el puntero del mouse para seleccionar una celda,
-- procesa clic izquierdo para iniciar una expansión en oleadas desde el territorio del jugador,
-- procesa clic derecho o ESC para cancelar la orden,
-- detecta victoria/derrota y reinicio con `R`,
-- dibuja el mapa, la UI, estadísticas del territorio, contador y mensajes finales.
+- durante la fase de colocación, el clic izquierdo elige la casilla donde empezará el jugador,
+- durante la partida, el clic izquierdo ataca: sobre tierra libre se expande, sobre territorio de otra entidad la ataca,
+- el deslizador inferior fija el porcentaje de tropas que se envía en cada ataque,
+- clic derecho o ESC cancela el ataque en curso,
+- dibuja el mapa, los nombres y tropas sobre cada territorio, las estadísticas y el deslizador,
+- al perder muestra la pantalla de Game Over con el tiempo sobrevivido; tras un segundo, cualquier tecla o clic vuelve al menú.
 
 ### `src/Game.hpp` / `src/Game.cpp`
-Es el núcleo de la lógica del juego. Esta clase contiene:
+Es el núcleo de la lógica del juego. Contiene el mapa, las entidades (el jugador en la posición 0 y los bots después), el tiempo de partida y el estado de fin de partida.
 
-- el mapa de casillas (`std::vector<TerritoryCell>`),
-- el jugador humano (`Player`),
-- el bot enemigo (`Bot`),
-- el tiempo de partida,
-- estado de fin de partida (`winner`, `game_over`).
+La partida tiene dos fases:
 
-Su ciclo de actualización:
+- **Colocación (`SPAWN`)**: los bots se reparten por el mapa con un muestreo de Poisson por rechazo (las bases se separan entre sí). El jugador tiene 13 segundos para elegir su casilla; si no elige, se le coloca en una casilla libre al azar.
+- **Juego (`PLAYING`)**: cada segundo crecen las tropas de todas las entidades; el jugador y los bots avanzan sus ataques cada 0,12 segundos.
 
-- hace crecer tropas de casillas controladas con el tiempo,
-- expande en cada intervalo a todas las celdas neutrales que tocan el territorio del jugador o del bot por sus cuatro lados,
-- inicia automáticamente las oleadas del bot,
-- detiene cada oleada al encontrar agua o territorio del otro jugador.
+Otras reglas que implementa:
+
+- **Crecimiento de tropas**: el interés empieza en un 10 % por tick y disminuye a medida que las tropas se acercan al límite de 200 por casilla controlada. Los decimales se acumulan entre ticks para no perderlos.
+- **Expansión por frontera**: solo se recorren las casillas del borde del territorio, y cada casilla conquistada gasta tropas del ataque.
+- **Resistencia**: conquistar tierra libre cuesta 1 tropa por casilla; conquistar territorio enemigo cuesta las tropas del enemigo divididas entre las del atacante (redondeado, mínimo 1).
+- **Ataques mutuos**: si dos entidades se atacan entre sí, sus ataques chocan y se restan.
+- **Bots**: usan una paleta de colores que evita los que se parecen al del jugador.
+- **Fin de partida**: la partida termina cuando el jugador se queda sin casillas.
+
+### `src/Entity.hpp` / `src/Entity.cpp`
+Clase base del jugador y los bots. Guarda nombre, color, tropas, el objetivo actual (`Target`), las tropas comprometidas en el ataque (`attack_fuel`), la resistencia del ataque y la frontera del territorio. `beginAttack` aparta el porcentaje de tropas del ataque y `endAttack` devuelve las que no se hayan gastado.
 
 ### `src/Player.hpp` / `src/Player.cpp`
-Representa al jugador humano.
-
-Tiene:
-
-- nombre,
-- color del territorio,
-- objetivo de expansión actual,
-- temporizador de expansión,
-- temporizador para marcar el intervalo entre oleadas de expansión.
-
-Cuando el usuario hace clic en una casilla neutral, el jugador inicia oleadas que ocupan todas las casillas neutrales que tocan su territorio por los cuatro lados. Cada rama se detiene ante el agua o el territorio de otro dueño. La expansión no consume tropas y continúa hasta que ya no quedan casillas neutrales adyacentes.
+El jugador humano: una `Entity` con un temporizador que marca el ritmo al que avanza su ataque.
 
 ### `src/Bot.hpp` / `src/Bot.cpp`
-Representa la IA enemiga del bot.
+La IA de los bots. Cada bot lanza un ataque cada 6-10 segundos con entre el 30 % y el 70 % de sus tropas. En el 30 % de los casos ataca a un vecino; el resto de las veces se expande sobre tierra libre.
 
-Su comportamiento:
+### `src/Target.hpp`
+Representa el objetivo de un ataque: ninguno, tierra libre o una entidad enemiga concreta.
 
-- se expande automáticamente en intervalos temporales,
-- ocupa todas las celdas neutrales que tocan su territorio por sus cuatro lados,
-- detiene cada rama al encontrar agua o territorio del jugador.
+### `src/Map.hpp` / `src/Map.cpp` y `src/MapGenerator.hpp` / `src/MapGenerator.cpp`
+`Map` guarda la cuadrícula de casillas (200x200). `MapGenerator` genera una imagen de ruido Perlin y `Map::generateMap` la convierte en mapa: los valores por debajo del umbral son agua y el resto tierra. `Map` también puede cargar un mapa desde una imagen (los píxeles negros son agua).
 
 ### `src/TerritoryCell.hpp`
-Define la estructura de cada celda del mapa.
+Cada casilla del mapa guarda:
 
-Cada casilla guarda:
+- `owner`: la entidad que la controla (`nullptr` si es tierra libre),
+- `isWater`: si es agua (no se puede conquistar).
 
-- `owner`: quién la controla (`Neutral`, `Player`, `Bot`),
-- `troops`: número de tropas que tiene,
-- `capture_protection`: protección temporal tras ser capturada,
-- `combat_timer`: tiempo de conflicto tras un ataque,
-- `protected_from`: quien está protegido para evitar retomas inmediatas,
-- `is_base`: si esa casilla es la base de una facción.
-
-La lógica del mapa se basa en estas casillas para calcular expansión, defensa y captura.
-
-### `src/vendor/`
-Contiene las bibliotecas y cabeceras de Raylib que usa el proyecto para renderizar gráficos, entrada de teclado/mouse y audio. Gracias a esto, no hace falta instalar Raylib en el sistema para compilar.
-
-### `game`
-Es el ejecutable compilado del juego. Se genera al compilar el proyecto con `g++` y se usa para lanzarlo desde la terminal.
+### `vendor/`
+Contiene las cabeceras de Raylib y su librería estática, compilada para x86_64 (`vendor/lib/`) y ARM64 (`vendor/lib/arm64/`). Gracias a esto no hace falta instalar Raylib en el sistema para compilar.
 
 ## Compilación y ejecución (Linux)
-
-Este proyecto utiliza Raylib. Las librerías estáticas y cabeceras ya están incluidas en `vendor/`, así que no es necesario instalar Raylib en el sistema para compilar.
 
 ### 1. Compilar
 
@@ -150,7 +110,9 @@ Este proyecto utiliza Raylib. Las librerías estáticas y cabeceras ya están in
 ./build.sh clean  # borra el binario generado
 ```
 
-Equivale a este comando manual:
+En ARM64, usa `./buildArm64.sh` con las mismas opciones.
+
+`./build.sh` equivale a este comando manual:
 
 ```bash
 g++ -o game src/*.cpp -I src/ -I vendor/include/ -L vendor/lib -lraylib -lGL -lm -lpthread -lrt -lX11
@@ -164,22 +126,14 @@ g++ -o game src/*.cpp -I src/ -I vendor/include/ -L vendor/lib -lraylib -lGL -lm
 
 ## Cómo se juega
 
-- Introduce un nombre y elige un color en el menú.
-- Haz clic en una casilla neutral para expandirte en oleadas por los cuatro costados.
-- Haz clic derecho o pulsa `ESC` para cancelar la orden.
-- Las tropas crecen con el tiempo.
-- La expansión del jugador se detiene al tocar territorio enemigo; no captura la base del bot.
-- Pulsa `R` al terminar una partida para empezar otra.
+- En el menú, escribe tu nombre, elige color con las flechas y pulsa Enter. ESC cierra el juego.
+- Tienes 13 segundos para hacer clic en la casilla donde quieres empezar.
+- Ajusta con el deslizador el porcentaje de tropas que envías en cada ataque.
+- Haz clic en tierra libre para expandirte o en el territorio de otro jugador para atacarlo.
+- Haz clic derecho o pulsa ESC para cancelar el ataque; las tropas no gastadas vuelven a tu territorio.
+- Tus tropas crecen cada segundo según el tamaño de tu territorio.
+- Si te quedas sin casillas, aparece la pantalla de Game Over; pulsa cualquier tecla para volver al menú.
 
-## Resumen de la arquitectura
+## Integración continua
 
-El proyecto está organizado como un juego pequeño de escritorio con un patrón clásico de máquina de estados:
-
-- `MenuState` gestiona la introducción del nombre y la elección de color.
-- `MainGameState` ejecuta la partida.
-- `Game` resuelve la lógica de mapa y expansión territorial.
-- `Player` y `Bot` representan a los actores del juego.
-- `TerritoryCell` describe cada una de las piezas del mapa.
-- `Raylib` se encarga de la ventana, renderizado y entrada del usuario.
-
-Esta estructura hace que el juego sea fácil de extender: se puede añadir más pantallas, cambiar el comportamiento del bot o mejorar la lógica de expansión sin reescribir todo el proyecto.
+`.github/workflows/ci.yml` compila el juego en cada push o pull request a `develop` y `main`, y muestra los avisos del compilador con `-Wall -Wextra` de forma informativa. No ejecuta el juego, porque los runners no tienen pantalla.
