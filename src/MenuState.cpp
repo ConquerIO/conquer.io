@@ -74,22 +74,13 @@ void MenuState::handleInput()
     }
 
     // Selección de color con flechas izquierda/derecha
-    if (IsKeyPressed(KEY_RIGHT))
+    if (IsKeyPressed(KEY_UP))
+    {
+        selected_color = (selected_color - 1 + NUM_COLORS) % NUM_COLORS;   
+    }
+    if (IsKeyPressed(KEY_DOWN))
     {
         selected_color = (selected_color + 1) % NUM_COLORS;
-    }
-    if (IsKeyPressed(KEY_LEFT))
-    {
-        selected_color = (selected_color - 1 + NUM_COLORS) % NUM_COLORS;
-    }
-
-    // Transición al estado de juego
-    if (IsKeyPressed(KEY_ENTER) && !player_name.empty())
-    {
-        this->state_machine->add_state(
-            std::make_unique<MainGameState>(player_name, TERRITORY_COLORS[selected_color]),
-            true
-        );
     }
 }
 
@@ -142,60 +133,46 @@ void MenuState::render()
     }
     DrawText(displayText.c_str(), boxX + 12, boxY + 15, 28, DARKGRAY);
 
-    // Sección: selección de color
-    const char* colorLabel = "Elige el color de tu territorio:";
-    const int clSize = 28;
-    const int clW = MeasureText(colorLabel, clSize);
-    DrawText(colorLabel, (screenW - clW) / 2, 415, clSize, DARKGRAY);
+    // Selector de color
+    const int colorBoxSize = boxH;  // mismo alto que la caja de texto (60px)
+    const int colorGap = 16;        // separación entre caja de nombre y cuadrado de color
+    const int colorBoxX = boxX + boxW + colorGap;
+    const int colorBoxY = boxY;
 
-    // Muestras de color
-    const int swatchSize = 58;
-    const int spacing = 24;
-    const int totalW = NUM_COLORS * swatchSize + (NUM_COLORS - 1) * spacing;
-    const int startX = (screenW - totalW) / 2;
-    const int swatchY = 465;
+    // cuadrado del color actual
+    DrawRectangle(colorBoxX, colorBoxY, colorBoxSize, colorBoxSize, TERRITORY_COLORS[selected_color]);
+    DrawRectangleLines(colorBoxX, colorBoxY, colorBoxSize, colorBoxSize, DARKGRAY);
 
-    for (int i = 0; i < NUM_COLORS; i++)
-    {
-        const int sx = startX + i * (swatchSize + spacing);
+    float centroX = colorBoxX + (colorBoxSize / 2.0f);
+    float parteArriba = colorBoxY;
+    float parteAbajo  = colorBoxY + colorBoxSize;
 
-        // Cuadro de color
-        DrawRectangle(sx, swatchY, swatchSize, swatchSize, TERRITORY_COLORS[i]);
+    // flechita arriba
+    DrawTriangle(
+        Vector2{ centroX, parteArriba - 14.0f },        // Punta
+        Vector2{ centroX - 8.0f, parteArriba - 8.0f },  // Base izquierda
+        Vector2{ centroX + 8.0f, parteArriba - 8.0f },  // Base derecha
+        DARKGRAY
+    );
 
-        if (i == selected_color)
-        {
-            // Borde grueso negro para el color seleccionado
-            DrawRectangleLinesEx(
-                Rectangle{
-                    static_cast<float>(sx - 3),
-                    static_cast<float>(swatchY - 3),
-                    static_cast<float>(swatchSize + 6),
-                    static_cast<float>(swatchSize + 6)
-                },
-                3.0f, BLACK
-            );
+    // flechita abajo
+    DrawTriangle(
+        Vector2{ centroX, parteAbajo + 14.0f },         // Punta
+        Vector2{ centroX + 8.0f, parteAbajo + 8.0f },   // Base derecha (antihorario)
+        Vector2{ centroX - 8.0f, parteAbajo + 8.0f },   // Base izquierda
+        DARKGRAY
+    );
 
-            // Nombre del color bajo las muestras
-            const int nameW = MeasureText(COLOR_NAMES[i], 24);
-            DrawText(COLOR_NAMES[i], (screenW - nameW) / 2,
-                     swatchY + swatchSize + 16, 24, DARKGRAY);
-        }
-        else
-        {
-            DrawRectangleLines(sx, swatchY, swatchSize, swatchSize, GRAY);
-        }
-    }
-
-    // Instrucciones
-    const char* arrowHint = "< >  Cambiar color";
-    const int ahW = MeasureText(arrowHint, 22);
-    DrawText(arrowHint, (screenW - ahW) / 2, 575, 22, GRAY);
+    // nombre del color debajo de las flechas
+    const int colorNameW = MeasureText(COLOR_NAMES[selected_color], 18);
+    DrawText(COLOR_NAMES[selected_color],
+            colorBoxX + (colorBoxSize - colorNameW) / 2,
+            colorBoxY + colorBoxSize + 34,
+            18, GRAY);
 
     if (!player_name.empty())
     {
-        const char* enterHint = "Pulsa ENTER para jugar";
-        const int ehW = MeasureText(enterHint, 26);
-        DrawText(enterHint, (screenW - ehW) / 2, 635, 26, DARKGREEN);
+        
     }
     else
     {

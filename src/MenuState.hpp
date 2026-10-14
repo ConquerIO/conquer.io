@@ -1,5 +1,6 @@
 #pragma once
 #include <GameState.hpp>
+#include <GameConfig.hpp>
 #include <string>
 
 class MenuState : public GameState
