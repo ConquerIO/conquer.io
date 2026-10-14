@@ -13,7 +13,7 @@ static const char* COLOR_NAMES[] = {
 };
 
 // Constructor
-MenuState::MenuState(): player_name(""), selected_color(0), frame_counter(0), backspace_timer(0.0f), backspace_repeating(false){}
+MenuState::MenuState(): player_name("player_"+std::to_string(GetRandomValue(100, 999))), selected_color(0), frame_counter(0), backspace_timer(0.0f), backspace_repeating(false){}
 
 // Inicialización
 void MenuState::init()
@@ -21,11 +21,25 @@ void MenuState::init()
     // La ventana ya está inicializada en main.cpp.
     // Aquí se puede añadir inicialización específica del menú
     // (cargar fuentes, texturas, audio, etc.)
+
+    scanAvailableMaps();
+}
+
+void MenuState::scanAvailableMaps(){
+
 }
 
 // Entrada
 void MenuState::handleInput()
 {
+    if (show_customization){
+        handleCustomizationInput();
+    } else{
+        handleMainMenuInput();
+    }
+}
+
+void MenuState::handleMainMenuInput(){
     // Entrada de texto para el nombre del jugador
     int key = GetCharPressed();
     while (key > 0)
@@ -82,6 +96,30 @@ void MenuState::handleInput()
     {
         selected_color = (selected_color + 1) % NUM_COLORS;
     }
+    
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && !player_name.empty())
+    {
+        const int screenW = GetScreenWidth();
+        const int buttonW = 460;
+        const int buttonH = 55;
+        const int buttonX = (screenW - buttonW) / 2;
+        const int buttonY = 405;
+
+        Vector2 mouse = GetMousePosition();
+        Rectangle buttonRect = {
+            static_cast<float>(buttonX), static_cast<float>(buttonY),
+            static_cast<float>(buttonW), static_cast<float>(buttonH)
+        };
+
+        if (CheckCollisionPointRec(mouse, buttonRect))
+        {
+            show_customization = true;
+        }
+    }
+}
+
+void MenuState::handleCustomizationInput(){
+
 }
 
 // Actualización
@@ -96,25 +134,30 @@ void MenuState::render()
     BeginDrawing();
     ClearBackground(RAYWHITE);
 
+    renderMainMenu();
+
+    if (show_customization)
+    {
+        renderCustomizationOverlay();
+    }
+
+    EndDrawing();
+}
+
+void MenuState::renderMainMenu(){
     const int screenW = GetScreenWidth();
 
     // Título 
-    const char* title    = "Conquer.io";
-    const int titleSize  = 68;
-    const int titleW     = MeasureText(title, titleSize);
-    DrawText(title, (screenW - titleW) / 2, 80, titleSize, DARKGRAY);
+    const char* title = "Conquer.io";
+    const int titleSize = 100;
+    const int titleW = MeasureText(title, titleSize);
+    DrawText(title, (screenW - titleW) / 2, 140, titleSize, DARKGRAY);
 
     // Subtítulo
     const char* subtitle = "Conquista el mapa. Domina el territorio.";
-    const int subSize    = 24;
-    const int subW       = MeasureText(subtitle, subSize);
-    DrawText(subtitle, (screenW - subW) / 2, 175, subSize, GRAY);
-
-    // Sección: nombre del jugador
-    const char* nameLabel = "Introduce tu nombre:";
-    const int labelSize   = 28;
-    const int labelW      = MeasureText(nameLabel, labelSize);
-    DrawText(nameLabel, (screenW - labelW) / 2, 270, labelSize, DARKGRAY);
+    const int subSize = 24;
+    const int subW = MeasureText(subtitle, subSize);
+    DrawText(subtitle, (screenW - subW) / 2, 240, subSize, GRAY);
 
     // Caja de texto
     const int boxW = 460;
@@ -125,17 +168,21 @@ void MenuState::render()
     DrawRectangle(boxX, boxY, boxW, boxH, LIGHTGRAY);
     DrawRectangleLines(boxX, boxY, boxW, boxH, DARKGRAY);
 
-    // Texto introducido + cursor parpadeante
-    std::string displayText = player_name;
-    if ((frame_counter / 30) % 2 == 0)
-    {
-        displayText += "|";
+    if (player_name.empty()){
+        DrawText("Introduce un nombre", boxX + 15, boxY + 16, 26, GRAY);
+    } else {
+        // Texto introducido + cursor parpadeante
+        std::string displayText = player_name;
+        if ((frame_counter / 30) % 2 == 0)
+        {
+            displayText += "|";
+        }
+        DrawText(displayText.c_str(), boxX + 12, boxY + 15, 28, DARKGRAY);
     }
-    DrawText(displayText.c_str(), boxX + 12, boxY + 15, 28, DARKGRAY);
 
     // Selector de color
     const int colorBoxSize = boxH;  // mismo alto que la caja de texto (60px)
-    const int colorGap = 16;        // separación entre caja de nombre y cuadrado de color
+    const int colorGap = 6;        // separación entre caja de nombre y cuadrado de color
     const int colorBoxX = boxX + boxW + colorGap;
     const int colorBoxY = boxY;
 
@@ -163,23 +210,36 @@ void MenuState::render()
         DARKGRAY
     );
 
-    // nombre del color debajo de las flechas
-    const int colorNameW = MeasureText(COLOR_NAMES[selected_color], 18);
-    DrawText(COLOR_NAMES[selected_color],
-            colorBoxX + (colorBoxSize - colorNameW) / 2,
-            colorBoxY + colorBoxSize + 34,
-            18, GRAY);
+    // Botón JUGAR
+    const int buttonW = 460;
+    const int buttonH = 55;
+    const int buttonX = (screenW - buttonW) / 2;
+    const int buttonY = 380;
 
-    if (!player_name.empty())
-    {
-        
-    }
-    else
-    {
-        const char* waitHint = "Escribe tu nombre para continuar";
-        const int whW = MeasureText(waitHint, 26);
-        DrawText(waitHint, (screenW - whW) / 2, 635, 26, MAROON);
+    Color colorFondoBoton;
+    Color colorTextoBoton;
+
+    if (!player_name.empty()) {
+        colorFondoBoton = DARKGREEN;
+        colorTextoBoton = RAYWHITE;
+    } else {
+        colorFondoBoton = Fade(DARKGREEN, 0.75f);
+        colorTextoBoton = Fade(RAYWHITE, 0.7f);
     }
 
-    EndDrawing();
+    DrawRectangle((float)buttonX, (float)buttonY, (float)buttonW, (float)buttonH, colorFondoBoton);
+    const char* btnText = "PERSONALIZAR PARTIDA";
+    const int btnTextW = MeasureText(btnText, 26);
+    DrawText(btnText,
+                buttonX + (buttonW - btnTextW) / 2,
+                buttonY + (buttonH - 26) / 2,
+                26, colorTextoBoton);
+
+    DrawRectangleLines(buttonX, buttonY, buttonW, buttonH, DARKGRAY);
+}
+
+
+void MenuState::renderCustomizationOverlay(){
+
+
 }

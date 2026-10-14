@@ -2,6 +2,7 @@
 #include <GameState.hpp>
 #include <GameConfig.hpp>
 #include <string>
+#include <vector>
 
 class MenuState : public GameState
 {
@@ -26,5 +27,23 @@ class MenuState : public GameState
         static constexpr int NUM_COLORS      = 6;
 
         float backspace_timer;              // Temporizador para borrado continuo
-        bool  backspace_repeating;          // ¿Estamos en fase de repetición?
+        bool  backspace_repeating;          // Estamos en fase de repetición?
+
+        bool show_customization = false;
+        GameConfig config;
+
+        std::vector<std::string> available_maps;
+
+        // indice del mapa seleccionado en la lista (-1 = procedural)
+        int selected_map_index = -1;
+
+        // submetodos para organizar el código
+        void handleMainMenuInput();
+        void handleCustomizationInput();
+        void renderMainMenu();
+        void renderCustomizationOverlay();
+
+        // escanear la carpeta maps/ para encontrar PNGs
+        void scanAvailableMaps();
+
 };
