@@ -1,5 +1,6 @@
 #include <MainGameState.hpp>
 #include <StateMachine.hpp>
+#include <MenuState.hpp>
 #include <Target.hpp>
 #include <raylib.h>
 #include <algorithm>
@@ -305,7 +306,22 @@ void MainGameState::handleInput()
 {
     if (game.isOver())
     {
-        if (IsKeyPressed(KEY_R)) game.reset();
+        if (IsKeyPressed(KEY_R)) {
+            this->state_machine->add_state(
+                std::make_unique<MenuState>(),
+                true
+            );
+        }
+        return;
+    }
+
+    if(game.getWinner() != nullptr){
+        if (GetCharPressed() != 0) {
+            this->state_machine->add_state(
+                std::make_unique<MenuState>(),
+                true
+            );
+        }
         return;
     }
 
@@ -392,6 +408,7 @@ void MainGameState::render()
     Player* player = game.getPlayer();
     Bot* bot = (Bot* )game.getEntities()[1];
     const bool gameOver = game.isOver();
+    const auto winner = game.getWinner();
     std::size_t playerCells = 0;
     std::size_t botCells = 0;
     std::size_t landCells = 0;
@@ -558,6 +575,14 @@ void MainGameState::render()
         const char* restart = "Pulsa R para jugar otra vez";
         DrawText(restart, (screenWidth - MeasureText(restart, 22)) / 2,
                  screenHeight / 2 + 14, 22, RAYWHITE);
+    }
+    else if(winner != nullptr){
+        DrawRectangle(0, 0, screenWidth, screenHeight, Fade(BLACK, 0.68f));
+        const auto result = TextFormat("GANADOR: %s", winner->getName().c_str());
+        DrawText(result, (screenWidth - MeasureText(result, 54)) / 2, screenHeight / 2 - 60, 54, GOLD);
+        DrawText(result, (screenWidth - MeasureText(result, 54)) / 2,
+                 screenHeight / 2 - 60, 54, GOLD);
+        const char* restart = "Pulsa cualquier tecla para salir";
     }
 
     EndDrawing();
