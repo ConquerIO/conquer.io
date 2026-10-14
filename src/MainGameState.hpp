@@ -31,4 +31,5 @@ class MainGameState : public GameState
         bool dragging_attack_slider = false;
 
         GameConfig config;
+        float game_over_timer = 0.0f;        // Tiempo transcurrido en la pantalla de Game Over.
 };
