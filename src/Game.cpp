@@ -81,7 +81,12 @@ void Game::createEntities(std::string playerName, Color playerColor){
     this->entities.push_back(new Bot(Color{0, 134, 132, 255}));
 }
 
+Game::~Game(){
+    for (auto entity : entities) delete entity;
+}
+
 void Game::resetEntities(std::string playerName, Color playerColor){
+    for (auto entity : entities) delete entity;
     this->entities.clear();
     createEntities(playerName, playerColor);
 }

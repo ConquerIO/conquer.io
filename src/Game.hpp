@@ -20,6 +20,10 @@ class Game
 {
 public:
     Game(std::string playerName, Color playerColor);
+    ~Game();
+    // Game es dueño de las entidades (punteros crudos): no se puede copiar.
+    Game(const Game&) = delete;
+    Game& operator=(const Game&) = delete;
 
     void update(float deltaTime);
     void reset();
