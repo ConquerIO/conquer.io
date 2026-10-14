@@ -162,6 +162,21 @@ bool Game::expandTerritory(Entity* owner)
     const Target& target = owner->getTarget();
     if (target.isNone()) return false;
 
+    //si nos atacan, se chocan los dos ataques y se reduce su attack_fuel (las tropas que usa para atacar)
+    //si el ataque es mutuo se reduce el attack_fuel de
+    if (target.isEnemy())
+    {
+        Entity* enemy = target.getEntity();
+        if (enemy != nullptr && enemy->getTarget().getEntity() == owner)
+        {
+            const std::size_t mine = owner->getAttackFuel();
+            const std::size_t enemyFuel = enemy->getAttackFuel();
+            enemy->setAttackFuel(enemyFuel > mine ? enemyFuel - mine : 0);
+            owner->setAttackFuel(0);
+            return false;
+        }
+    }
+
     const std::size_t fuel = owner->getAttackFuel();
     if (fuel == 0) return false;
 
@@ -178,15 +193,16 @@ bool Game::expandTerritory(Entity* owner)
     std::vector<std::pair<int, int>> captured;
     std::vector<Entity*> previousOwners;
     std::size_t spent = 0;
+    const std::size_t resistence= owner->getAttackResistence();
 
     for (const std::pair<int, int>& cell : frontier)
     {
-        if (spent >= fuel) break;
+        if (spent + resistence > fuel) break;
         const int x = cell.first;
         const int y = cell.second;
         if (map.getCell(x, y).owner != owner) continue;
 
-        for (int i = 0; i < 4 && spent < fuel; ++i)
+        for (int i = 0; i < 4 && spent + resistence <= fuel; ++i)
         {
             const int nx = x + NEIGHBOR_X[i];
             const int ny = y + NEIGHBOR_Y[i];
@@ -198,7 +214,7 @@ bool Game::expandTerritory(Entity* owner)
             previousOwners.push_back(neighbor.owner);
             neighbor.owner = owner;
             captured.emplace_back(nx, ny);
-            ++spent;
+            spent+=resistence;
         }
     }
 
