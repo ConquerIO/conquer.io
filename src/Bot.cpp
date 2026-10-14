@@ -48,4 +48,5 @@ void Bot::reset()
     attack_ratio = randomRange(0.30f, 0.70f);
     target = Target::none();
     attack_fuel = 0;
+    attack_resistence=1;
 }
