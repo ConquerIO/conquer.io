@@ -406,7 +406,7 @@ void MainGameState::render()
     const int screenHeight = GetScreenHeight();
     const Map& map = game.getMap();
     Player* player = game.getPlayer();
-    Bot* bot = (Bot* )game.getEntities()[1];
+    //Bot* bot = (Bot* )game.getEntities()[1];
     const bool gameOver = game.isOver();
     const auto winner = game.getWinner();
     std::size_t playerCells = 0;
