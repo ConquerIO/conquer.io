@@ -15,6 +15,9 @@ public:
     const std::size_t getTroops() const {return troops;}
     const std::size_t getAttackFuel() const {return attack_fuel;}
     const Target& getTarget() const { return target; }
+    const std::size_t getAttackResistence() const {
+        return attack_resistence;
+    }
     std::vector<std::pair<int, int>>& getFrontier() { return frontier; }
     const std::vector<std::pair<int, int>>& getFrontier() const { return frontier; }
 
@@ -22,8 +25,6 @@ public:
     void setTroops(std::size_t troops);
     void setAttackFuel(std::size_t fuel);
     void beginAttack(float ratio);
-    // Termina el ataque en curso: devuelve al territorio el combustible no gastado
-    // y deja la entidad sin objetivo.
     void endAttack();
 protected:
     std::string name;
@@ -32,6 +33,7 @@ protected:
 
     std::size_t troops = 500;
     std::size_t attack_fuel = 0;
+    std::size_t attack_resistence=1;
 
     std::vector<std::pair<int, int>> frontier;
 };

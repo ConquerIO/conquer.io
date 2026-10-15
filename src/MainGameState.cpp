@@ -1,5 +1,6 @@
 #include <MainGameState.hpp>
 #include <StateMachine.hpp>
+#include <MenuState.hpp>
 #include <Target.hpp>
 #include <raylib.h>
 #include <algorithm>
@@ -20,6 +21,7 @@ Color cellColor(const TerritoryCell& cell)
     return Color{55, 63, 73, 255};
 }
 
+//esto lo que hace es ver el color de fondo de cada jugador y dependiendo el contraste que genere pone el nombre en blanco o negro
 Color readableTextColor(Color background){
     const int luminance =(299 * static_cast<int>(background.r)+ 587 * static_cast<int>(background.g) + 114 * static_cast<int>(background.b)) / 1000;
     return luminance > 140 ? Color{20, 24, 30, 255} : RAYWHITE;
@@ -59,9 +61,12 @@ struct TerritoryStats{
 };
 
 void clampToBounds(Rectangle& rect, const Rectangle& bounds){
+    //evita que el rectangulo salga del limite de ancho por la izquierda y por la derecha de ancho
     if (rect.width <= bounds.width){
         rect.x = std::min(std::max(rect.x, bounds.x),bounds.x + bounds.width - rect.width);
     }
+
+    //igual para la altura
     if (rect.height <= bounds.height){
         rect.y = std::min(std::max(rect.y, bounds.y),bounds.y + bounds.height - rect.height);
     }
@@ -112,6 +117,7 @@ std::unordered_map<Entity*, TerritoryStats> collectTerritoryStats(
                 continue;
             }
 
+            //saca las coordenadas para calcular el centroide
             TerritoryStats& s = stats[owner];
             s.minColumn = std::min(s.minColumn, static_cast<int>(column));
             s.maxColumn = std::max(s.maxColumn, static_cast<int>(column));
@@ -137,15 +143,20 @@ TerritoryLabel buildLabel(const Map& map, Entity* owner, const TerritoryStats& s
         return label;
     }
 
+    //se calcula el centroide
     const int centroidColumn =static_cast<int>(std::lround(stats.columnSum / static_cast<double>(stats.cells)));
     const int centroidRow =static_cast<int>(std::lround(stats.rowSum / static_cast<double>(stats.cells)));
     int anchorColumn = centroidColumn;
     int anchorRow = centroidRow;
+
+    //si no es del owner se busca la mas proxima
     if (map.getCell(static_cast<std::size_t>(anchorColumn), static_cast<std::size_t>(anchorRow)).owner != owner){
         findOwnedCellNear(map, owner, centroidColumn, centroidRow, anchorColumn, anchorRow);
     }
     const float cellWidth = mapBounds.width / static_cast<float>(map.getWidth());
     const float cellHeight = mapBounds.height / static_cast<float>(map.getHeight());
+    
+    //este es el rectangulo donde se muestran el nombre y las tropas
     const Rectangle box{
         mapBounds.x + stats.minColumn * cellWidth,
         mapBounds.y + stats.minRow * cellHeight,
@@ -156,15 +167,18 @@ TerritoryLabel buildLabel(const Map& map, Entity* owner, const TerritoryStats& s
     label.name = owner->getName();
     label.troops = TextFormat("%d", static_cast<int>(owner->getTroops()));
 
+    //calcula el tamaño del nombre
     const int referenceSize = 100;
     const int nameWidthRef = MeasureText(label.name.c_str(), referenceSize);
     int nameFontSize = nameWidthRef <= 0 ? referenceSize : static_cast<int>(referenceSize * (box.width * LABEL_WIDTH_FILL) / static_cast<float>(nameWidthRef));
     nameFontSize = std::min(static_cast<int>(nameFontSize * LABEL_SIZE_FACTOR), LABEL_MAX_FONT);
 
+    //lo mismo con las tropas
     float gap = nameFontSize * LABEL_LINE_GAP;
     int troopsFontSize = static_cast<int>(nameFontSize * LABEL_TROOPS_SCALE);
     float blockHeight = static_cast<float>(nameFontSize + troopsFontSize) + gap;
 
+    //si es mas alto que el bloque donde se mete, se reduce 
     const float maxBlockHeight = box.height * LABEL_HEIGHT_FILL;
     if (blockHeight > maxBlockHeight && blockHeight > 0.0f){
         const float scale = maxBlockHeight / blockHeight;
@@ -174,7 +188,7 @@ TerritoryLabel buildLabel(const Map& map, Entity* owner, const TerritoryStats& s
         blockHeight = static_cast<float>(nameFontSize + troopsFontSize) + gap;
     }
 
-    //si es muy pequeño
+    //si es muy pequeño no se muestra
     if (nameFontSize < LABEL_MIN_FONT) {
         return label;
     }
@@ -183,6 +197,7 @@ TerritoryLabel buildLabel(const Map& map, Entity* owner, const TerritoryStats& s
     const float anchorX = mapBounds.x + (anchorColumn + 0.5f) * cellWidth;
     const float anchorY = mapBounds.y + (anchorRow + 0.5f) * cellHeight;
 
+    //lo centra y lo marca visible
     label.nameFontSize = nameFontSize;
     label.troopsFontSize = troopsFontSize;
     label.rect = Rectangle{
@@ -195,6 +210,7 @@ TerritoryLabel buildLabel(const Map& map, Entity* owner, const TerritoryStats& s
     return label;
 }
 
+//dibuja la etiqueta en pantalla
 void drawTerritoryLabel(const TerritoryLabel& label){
     if (!label.visible) {
         return;
@@ -232,12 +248,14 @@ void separateLabels(std::vector<TerritoryLabel>& labels, const Rectangle& mapBou
             const float overlapX =std::min(ra.x + ra.width, rb.x + rb.width) - std::max(ra.x, rb.x);
             const float overlapY =std::min(ra.y + ra.height, rb.y + rb.height) - std::max(ra.y, rb.y);
 
+            //si el solape horizaontal el menor lo mueve a la dir opuesta 1 pixel 
             if (overlapX < overlapY){
                 const float shift = overlapX / 2.0f + 1.0f;
                 const float direction =(ra.x + ra.width / 2.0f <= rb.x + rb.width / 2.0f) ? -1.0f : 1.0f;
                 a.rect.x += direction * shift;
                 b.rect.x -= direction * shift;
             }
+            //si el vertical es menor lo hace con este 
             else{
                 const float shift = overlapY / 2.0f + 1.0f;
                 const float direction =(ra.y + ra.height / 2.0f <= rb.y + rb.height / 2.0f) ? -1.0f : 1.0f;
@@ -288,7 +306,22 @@ void MainGameState::handleInput()
 {
     if (game.isOver())
     {
-        if (IsKeyPressed(KEY_R)) game.reset();
+        if (IsKeyPressed(KEY_R)) {
+            this->state_machine->add_state(
+                std::make_unique<MenuState>(),
+                true
+            );
+        }
+        return;
+    }
+
+    if(game.getWinner() != nullptr){
+        if (GetCharPressed() != 0) {
+            this->state_machine->add_state(
+                std::make_unique<MenuState>(),
+                true
+            );
+        }
         return;
     }
 
@@ -375,6 +408,7 @@ void MainGameState::render()
     Player* player = game.getPlayer();
     Bot* bot = (Bot* )game.getEntities()[1];
     const bool gameOver = game.isOver();
+    const auto winner = game.getWinner();
     std::size_t playerCells = 0;
     std::size_t botCells = 0;
     std::size_t landCells = 0;
@@ -541,6 +575,14 @@ void MainGameState::render()
         const char* restart = "Pulsa R para jugar otra vez";
         DrawText(restart, (screenWidth - MeasureText(restart, 22)) / 2,
                  screenHeight / 2 + 14, 22, RAYWHITE);
+    }
+    else if(winner != nullptr){
+        DrawRectangle(0, 0, screenWidth, screenHeight, Fade(BLACK, 0.68f));
+        const auto result = TextFormat("GANADOR: %s", winner->getName().c_str());
+        DrawText(result, (screenWidth - MeasureText(result, 54)) / 2, screenHeight / 2 - 60, 54, GOLD);
+        DrawText(result, (screenWidth - MeasureText(result, 54)) / 2,
+                 screenHeight / 2 - 60, 54, GOLD);
+        const char* restart = "Pulsa cualquier tecla para salir";
     }
 
     EndDrawing();
