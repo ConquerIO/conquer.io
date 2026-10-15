@@ -40,6 +40,8 @@ int main()
         }
     }
 
+    SetExitKey(KEY_NULL);
+
     SetTargetFPS(60);
 
     float delta_time = 0.0f;

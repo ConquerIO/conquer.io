@@ -274,7 +274,7 @@ void separateLabels(std::vector<TerritoryLabel>& labels, const Rectangle& mapBou
 }
 }
 
-MainGameState::MainGameState(std::string playerName, Color playerColor)
+MainGameState::MainGameState(std::string playerName, Color playerColor, const GameConfig &config)
     : game(std::move(playerName), playerColor)
 {
 }

@@ -1,6 +1,7 @@
 #pragma once
 #include <GameState.hpp>
 #include <Game.hpp>
+#include <GameConfig.hpp>
 #include <raylib.h>
 #include <string>
 #include <iostream>
@@ -8,7 +9,7 @@
 class MainGameState : public GameState
 {
     public:
-        MainGameState(std::string playerName, Color playerColor);
+        MainGameState(std::string playerName, Color playerColor, const GameConfig &config);
         ~MainGameState() = default;
 
         void init() override;

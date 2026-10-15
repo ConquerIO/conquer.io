@@ -76,6 +76,11 @@ void MenuState::handleInput()
 }
 
 void MenuState::handleMainMenuInput(){
+
+    if (IsKeyPressed(KEY_ESCAPE)){
+        this->state_machine->remove_state(true); // termina la ejecucion
+    }
+
     // Entrada de texto para el nombre del jugador
     int key = GetCharPressed();
     while (key > 0)
@@ -155,7 +160,193 @@ void MenuState::handleMainMenuInput(){
 }
 
 void MenuState::handleCustomizationInput(){
+    //volver al menu de inicio
+    if (IsKeyPressed(KEY_ESCAPE)){
+        show_customization = false;
+        active_troop_box = 0;
+        return;
+    }
 
+    if (active_troop_box != 0){
+        std::string& currentStr = (active_troop_box == 1) ? player_troops_str : bot_troops_str;
+        std::size_t maxLimit = (active_troop_box == 1) ? MAX_PLAYER_TROOPS : MAX_BOT_TROOPS;
+
+        // escribir dígitos
+        int key = GetCharPressed();
+        while (key > 0){
+            if (key >= '0' && key <= '9' && currentStr.length() < 4) { // solo numeros
+                std::string testStr = currentStr + static_cast<char>(key);
+                unsigned long val = std::stoul(testStr);
+                if (val <= maxLimit){
+                    currentStr = testStr;
+                }
+            }
+            key = GetCharPressed();
+        }
+
+        // Borrar
+        if (IsKeyPressed(KEY_BACKSPACE) && !currentStr.empty()){
+            currentStr.pop_back();
+        }
+    }
+
+    // procesar los clics
+    if (!IsMouseButtonPressed(MOUSE_BUTTON_LEFT)){
+        return;
+    }
+
+    Vector2 mouse = GetMousePosition();
+
+    // coordenadas (deben coincidir con las del render)
+    const int screenW = GetScreenWidth();
+    const int screenH = GetScreenHeight();
+    const int panelW = 1000;
+    const int panelH = 700;
+    const int panelX = (screenW - panelW) / 2;
+    const int panelY = (screenH - panelH) / 2;
+    const int colW = 270;
+    const int colGap = 40;
+    const int startY = panelY + 75;
+    const int col1X = panelX + 60;
+    const int col2X = col1X + colW + colGap;
+    const int col3X = col2X + colW + colGap;
+
+    // Columna 1 - MAPA
+    // checkbox "Procedural" (misma posición que en el render: col1X, startY + 35)
+    Rectangle cbProcedural = { (float)col1X, (float)(startY + 35), 200, 18 };
+    if (CheckCollisionPointRec(mouse, cbProcedural)){
+        config.map_type = MapType::PROCEDURAL;
+        config.map_filename = "";
+    }
+
+    // checkbox "Desde archivo"
+    Rectangle cbFile = { (float)col1X, (float)(startY + 65), 200, 18 };
+    if (CheckCollisionPointRec(mouse, cbFile) && !available_maps.empty()){
+        config.map_type = MapType::MAP_FILE;
+        // Si no hay ninguno seleccionado aún, seleccionar el primero
+        if (selected_map_index < 0) selected_map_index = 0;
+        config.map_filename = available_maps[selected_map_index];
+    }
+
+    // clic en la lista de archivos
+    for (size_t i = 0; i < available_maps.size() && i < 6; i++){
+        int itemY = startY + 135 + static_cast<int>(i) * 30;
+        Rectangle itemRect = { (float)(col1X + 10), (float)itemY, 250, 18 };
+        if (CheckCollisionPointRec(mouse, itemRect)){
+            config.map_type = MapType::MAP_FILE;
+            selected_map_index = static_cast<int>(i);
+            config.map_filename = available_maps[selected_map_index];
+        }
+    }
+
+    // Columna 2 - DIFICULTAD
+    for (int i = 0; i < 5; i++){
+        int y = startY + 35 + i * 35;
+        Rectangle cbDiff = { (float)col2X, (float)y, 200, 18 };
+        if (CheckCollisionPointRec(mouse, cbDiff)){
+            config.difficulty = static_cast<BotDifficulty>(i);
+        }
+    }
+
+
+    // Columna 3 - Tropas iniciales del jugador y bots
+    int playerRowY = startY + 60;
+    Rectangle rectMinusPlayer = {(float)col3X, (float)playerRowY, 45, 40};
+    Rectangle rectBoxPlayer = {(float)(col3X + 55), (float)playerRowY, 100, 40};
+    Rectangle rectPlusPlayer = {(float)(col3X + 165), (float)playerRowY, 45, 40};
+
+    int botRowY = startY + 150;
+    Rectangle rectMinusBot = {(float)col3X, (float)botRowY, 45, 40};
+    Rectangle rectBoxBot = {(float)(col3X + 55), (float)botRowY, 100, 40};
+    Rectangle rectPlusBot = {(float)(col3X + 165), (float)botRowY, 45, 40};
+
+    // [-] Jugador
+    if (CheckCollisionPointRec(mouse, rectMinusPlayer)){
+        std::size_t val = player_troops_str.empty() ? 500 : std::stoul(player_troops_str);
+        val = (val <= MIN_PLAYER_TROOPS + 50) ? MIN_PLAYER_TROOPS : val - 50;
+        player_troops_str = std::to_string(val);
+    }
+    // [+] Jugador
+    if (CheckCollisionPointRec(mouse, rectPlusPlayer)){
+        std::size_t val = player_troops_str.empty() ? 500 : std::stoul(player_troops_str);
+        val = std::min(MAX_PLAYER_TROOPS, val + 50);
+        player_troops_str = std::to_string(val);
+    }
+    // Foco caja jugador
+    if (CheckCollisionPointRec(mouse, rectBoxPlayer)){
+        active_troop_box = 1;
+    }
+
+    // [-] Bots
+    if (CheckCollisionPointRec(mouse, rectMinusBot)){
+        std::size_t val = bot_troops_str.empty() ? 250 : std::stoul(bot_troops_str);
+        val = (val <= MIN_BOT_TROOPS + 25) ? MIN_BOT_TROOPS : val - 25;
+        bot_troops_str = std::to_string(val);
+    }
+    // [+] Bots
+    if (CheckCollisionPointRec(mouse, rectPlusBot)){
+        std::size_t val = bot_troops_str.empty() ? 250 : std::stoul(bot_troops_str);
+        val = std::min(MAX_BOT_TROOPS, val + 25);
+        bot_troops_str = std::to_string(val);
+    }
+    // Foco caja bots
+    if (CheckCollisionPointRec(mouse, rectBoxBot)){
+        active_troop_box = 2;
+    }
+
+    // Quitar foco si haces clic fuera de las cajas de texto
+    if (!CheckCollisionPointRec(mouse, rectBoxPlayer) && !CheckCollisionPointRec(mouse, rectBoxBot)){
+        active_troop_box = 0;
+        // validar tropas del jugador al salir de la caja
+        if (player_troops_str.empty()) {
+            player_troops_str = "500"; // si lo dejó vacío, vuelve al valor por defecto
+        } else {
+            std::size_t val = std::stoul(player_troops_str);
+            if (val < MIN_PLAYER_TROOPS) player_troops_str = std::to_string(MIN_PLAYER_TROOPS); // Si puso 20, se sube a 100
+            if (val > MAX_PLAYER_TROOPS) player_troops_str = std::to_string(MAX_PLAYER_TROOPS);
+        }
+  
+        // validar tropas de los bots al salir de la caja
+        if (bot_troops_str.empty()) {
+            bot_troops_str = "250";
+        } else {
+            std::size_t val = std::stoul(bot_troops_str);
+            if (val < MIN_BOT_TROOPS) bot_troops_str = std::to_string(MIN_BOT_TROOPS); // Si puso 10, se sube a 50
+            if (val > MAX_BOT_TROOPS) bot_troops_str = std::to_string(MAX_BOT_TROOPS);
+        }
+    }
+
+    // Botones inferiores
+    const int btnW = 180;
+    const int btnH = 50;
+    const int btnGap = 30;
+    const int totalBtnW = btnW * 2 + btnGap;
+    const int btnStartX = panelX + (panelW - totalBtnW) / 2;
+    const int btnY = panelY + panelH - 75;
+
+    // botón ESC
+    Rectangle escRect = {(float)btnStartX, (float)btnY, (float)btnW, (float)btnH};
+    if (CheckCollisionPointRec(mouse, escRect)){
+        show_customization = false;
+        active_troop_box = 0;
+    }
+
+    // Botón JUGAR
+    int jugarX = btnStartX + btnW + btnGap;
+    Rectangle jugarRect = { (float)jugarX, (float)btnY, (float)btnW, (float)btnH };
+    if (CheckCollisionPointRec(mouse, jugarRect)){
+        // validar tropas
+        std::size_t pTroops = player_troops_str.empty() ? MIN_PLAYER_TROOPS : std::stoul(player_troops_str);
+        pTroops = std::max(MIN_PLAYER_TROOPS, std::min(MAX_PLAYER_TROOPS, pTroops));
+        config.initial_troops = pTroops;
+
+        std::size_t bTroops = bot_troops_str.empty() ? MIN_BOT_TROOPS : std::stoul(bot_troops_str);
+        bTroops = std::max(MIN_BOT_TROOPS, std::min(MAX_BOT_TROOPS, bTroops));
+        config.bot_troops = bTroops;
+
+        // iniciar partida
+        this->state_machine->add_state(std::make_unique<MainGameState>(player_name, TERRITORY_COLORS[selected_color], config), true);
+    }
 }
 
 // Actualización
