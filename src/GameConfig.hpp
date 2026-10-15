@@ -21,6 +21,6 @@ struct GameConfig {
     MapType map_type = MapType::PROCEDURAL;
     std::string map_filename = ""; // Solo relevante si map_type == FROM_FILE
     BotDifficulty difficulty = BotDifficulty::MEDIUM;
-    float initial_troops = 500.0f; // Tropas iniciales del jugador
-    float bot_troops = 250.0f; // Tropas iniciales de cada bot
+    std::size_t initial_troops = 500; // Tropas iniciales del jugador
+    std::size_t bot_troops = 250; // Tropas iniciales de cada bot
 };
