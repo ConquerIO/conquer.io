@@ -1,6 +1,7 @@
 #pragma once
 #include <GameState.hpp>
 #include <Game.hpp>
+#include <GameConfig.hpp>
 #include <raylib.h>
 #include <string>
 #include <iostream>
@@ -8,7 +9,7 @@
 class MainGameState : public GameState
 {
     public:
-        MainGameState(std::string playerName, Color playerColor);
+        MainGameState(std::string playerName, Color playerColor, const GameConfig &config);
         ~MainGameState() = default;
 
         void init() override;
@@ -28,4 +29,6 @@ class MainGameState : public GameState
         Game game;
         int attack_percent = 100;            // Porcentaje de tropas destinado al ataque.
         bool dragging_attack_slider = false;
+
+        GameConfig config;
 };

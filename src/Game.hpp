@@ -5,6 +5,7 @@
 #include <TerritoryCell.hpp>
 #include <Target.hpp>
 #include <Map.hpp>
+#include <GameConfig.hpp>
 #include <cstddef>
 #include <string>
 #include <vector>
@@ -19,7 +20,7 @@ enum class GamePhase {
 class Game
 {
 public:
-    Game(std::string playerName, Color playerColor);
+    Game(std::string playerName, Color playerColor, const GameConfig &config);
 
     void update(float deltaTime);
     void reset();
@@ -71,4 +72,6 @@ private:
     //Este es para controlar el tema de los ticks de crecimiento
     float tick_timer;
     Entity* winner;
+
+    GameConfig config;
 };

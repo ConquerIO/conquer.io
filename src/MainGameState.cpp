@@ -292,8 +292,8 @@ void separateLabels(std::vector<TerritoryLabel>& labels, const Rectangle& mapBou
 }
 }
 
-MainGameState::MainGameState(std::string playerName, Color playerColor)
-    : game(std::move(playerName), playerColor)
+MainGameState::MainGameState(std::string playerName, Color playerColor, const GameConfig &config)
+    : game(std::move(playerName), playerColor, config), config(config)
 {
 }
 
@@ -406,7 +406,7 @@ void MainGameState::render()
     const int screenHeight = GetScreenHeight();
     const Map& map = game.getMap();
     Player* player = game.getPlayer();
-    Bot* bot = (Bot* )game.getEntities()[1];
+    //Bot* bot = (Bot* )game.getEntities()[1];
     const bool gameOver = game.isOver();
     const auto winner = game.getWinner();
     std::size_t playerCells = 0;
