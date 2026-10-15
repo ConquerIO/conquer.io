@@ -23,4 +23,5 @@ struct GameConfig {
     BotDifficulty difficulty = BotDifficulty::MEDIUM;
     std::size_t initial_troops = 500; // Tropas iniciales del jugador
     std::size_t bot_troops = 250; // Tropas iniciales de cada bot
+    std::size_t numero_bots = 10; //numero de bots en la partida
 };

@@ -38,10 +38,16 @@ class MenuState : public GameState
         std::vector<std::string> available_maps;
         int selected_map_index = -1; // indice del mapa seleccionado en la lista (-1 = procedural)
         
-        // 0 = ninguna caja con foco, 1 = foco en tropas jugador, 2 = foco en tropas bots
+        // 0 = ninguna caja con foco, 1 = foco en tropas jugador, 2 = foco en tropas bots, 3 = foco en nº de bots
         int active_troop_box = 0;
         std::string player_troops_str = "500";
         std::string bot_troops_str    = "250";
+        
+        std::string num_bots_str = "10";                                                                                                                                                                                                
+        
+        //limites para el numero de bots
+        static constexpr std::size_t MIN_BOTS = 1;                                                                                                                                                                                     
+        static constexpr std::size_t MAX_BOTS = 15;   
 
         // límites enteros estrictos
         static constexpr std::size_t MIN_PLAYER_TROOPS = 100;

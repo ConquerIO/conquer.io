@@ -168,13 +168,14 @@ void MenuState::handleCustomizationInput(){
     }
 
     if (active_troop_box != 0){
-        std::string& currentStr = (active_troop_box == 1) ? player_troops_str : bot_troops_str;
-        std::size_t maxLimit = (active_troop_box == 1) ? MAX_PLAYER_TROOPS : MAX_BOT_TROOPS;
+        std::string& currentStr = (active_troop_box == 1) ? player_troops_str : (active_troop_box == 2) ? bot_troops_str : num_bots_str;
+        std::size_t maxLimit = (active_troop_box == 1) ? MAX_PLAYER_TROOPS : (active_troop_box == 2) ? MAX_BOT_TROOPS : MAX_BOTS;
 
         // escribir dígitos
         int key = GetCharPressed();
         while (key > 0){
-            if (key >= '0' && key <= '9' && currentStr.length() < 4) { // solo numeros
+            int maxlen = (active_troop_box == 3) ? 2 : 4;
+            if (key >= '0' && key <= '9' && currentStr.length() < maxlen) { // solo numeros
                 std::string testStr = currentStr + static_cast<char>(key);
                 unsigned long val = std::stoul(testStr);
                 if (val <= maxLimit){
@@ -249,7 +250,7 @@ void MenuState::handleCustomizationInput(){
     }
 
 
-    // Columna 3 - Tropas iniciales del jugador y bots
+    // Columna 3 - Tropas iniciales del jugador y bots, y numero de bots
     int playerRowY = startY + 60;
     Rectangle rectMinusPlayer = {(float)col3X, (float)playerRowY, 45, 40};
     Rectangle rectBoxPlayer = {(float)(col3X + 55), (float)playerRowY, 100, 40};
@@ -259,6 +260,11 @@ void MenuState::handleCustomizationInput(){
     Rectangle rectMinusBot = {(float)col3X, (float)botRowY, 45, 40};
     Rectangle rectBoxBot = {(float)(col3X + 55), (float)botRowY, 100, 40};
     Rectangle rectPlusBot = {(float)(col3X + 165), (float)botRowY, 45, 40};
+
+    int numBotsRowY = startY + 240;                                                                                                                                                       
+    Rectangle rectMinusNumBots = {(float)col3X, (float)numBotsRowY, 45, 40};
+    Rectangle rectBoxNumBots = {(float)(col3X + 55), (float)numBotsRowY, 100, 40};
+    Rectangle rectPlusNumBots = {(float)(col3X + 165), (float)numBotsRowY, 45, 40};
 
     // [-] Jugador
     if (CheckCollisionPointRec(mouse, rectMinusPlayer)){
@@ -294,8 +300,26 @@ void MenuState::handleCustomizationInput(){
         active_troop_box = 2;
     }
 
+    // [-] nº bots
+    if (CheckCollisionPointRec(mouse, rectMinusNumBots)){
+        std::size_t val = num_bots_str.empty() ? 10 : std::stoul(num_bots_str);
+        val = (val <=  MIN_BOTS) ?  MIN_BOTS : val - 1;
+        num_bots_str = std::to_string(val);
+    }
+    // [+] nº bots
+    if (CheckCollisionPointRec(mouse, rectPlusNumBots)){
+        std::size_t val = num_bots_str.empty() ? 10 : std::stoul(num_bots_str);
+        val = std::min(MAX_BOTS, val + 1);
+        num_bots_str = std::to_string(val);
+    }
+    // Foco caja nº bots
+    if (CheckCollisionPointRec(mouse, rectBoxNumBots)){
+        active_troop_box = 3;
+    }
+
+
     // Quitar foco si haces clic fuera de las cajas de texto
-    if (!CheckCollisionPointRec(mouse, rectBoxPlayer) && !CheckCollisionPointRec(mouse, rectBoxBot)){
+    if (!CheckCollisionPointRec(mouse, rectBoxPlayer) && !CheckCollisionPointRec(mouse, rectBoxBot) && !CheckCollisionPointRec(mouse, rectBoxNumBots)){
         active_troop_box = 0;
         // validar tropas del jugador al salir de la caja
         if (player_troops_str.empty()) {
@@ -313,6 +337,15 @@ void MenuState::handleCustomizationInput(){
             std::size_t val = std::stoul(bot_troops_str);
             if (val < MIN_BOT_TROOPS) bot_troops_str = std::to_string(MIN_BOT_TROOPS); // Si puso 10, se sube a 50
             if (val > MAX_BOT_TROOPS) bot_troops_str = std::to_string(MAX_BOT_TROOPS);
+        }
+
+        //validar numero de bots
+        if (num_bots_str.empty()) {
+            num_bots_str = "10";
+        } else {
+            std::size_t val = std::stoul(num_bots_str);
+            if (val < MIN_BOTS) num_bots_str = std::to_string(MIN_BOTS); // Si puso menos de 1, se pone en 1
+            if (val > MAX_BOTS) num_bots_str = std::to_string(MAX_BOTS);
         }
     }
 
@@ -343,6 +376,10 @@ void MenuState::handleCustomizationInput(){
         std::size_t bTroops = bot_troops_str.empty() ? MIN_BOT_TROOPS : std::stoul(bot_troops_str);
         bTroops = std::max(MIN_BOT_TROOPS, std::min(MAX_BOT_TROOPS, bTroops));
         config.bot_troops = bTroops;
+        
+        std::size_t nBots = num_bots_str.empty() ? 10 : std::stoul(num_bots_str);
+        nBots = std::max(MIN_BOTS, std::min(MAX_BOTS, nBots));
+        config.numero_bots = nBots;
 
         // iniciar partida
         this->state_machine->add_state(std::make_unique<MainGameState>(player_name, TERRITORY_COLORS[selected_color], config), true);
@@ -583,6 +620,29 @@ void MenuState::renderCustomizationOverlay(){
     DrawRectangle(col3X + 165, botRowY, 45, 40, Color{ 55, 60, 70, 255 });
     DrawRectangleLines(col3X + 165, botRowY, 45, 40, GRAY);
     DrawText("+", col3X + 165 + 14, botRowY + 6, 28, RAYWHITE);
+
+    // Número de Bots
+    int numBotsY = startY + 215;
+    DrawText("Cantidad de Bots (1 - 15):", col3X, numBotsY, 16, GRAY);
+
+    int numBotsRowY = numBotsY + 25;
+
+    // [-]
+    DrawRectangle(col3X, numBotsRowY, 45, 40, Color{ 55, 60, 70, 255 });
+    DrawRectangleLines(col3X, numBotsRowY, 45, 40, GRAY);
+    DrawText("-", col3X + 16, numBotsRowY + 6, 28, RAYWHITE);
+
+    // Caja del número
+    bool focusNumBots = (active_troop_box == 3);
+    DrawRectangle(col3X + 55, numBotsRowY, 100, 40, focusNumBots ? Color{ 20, 25, 30, 255 } : Color{ 40, 45, 55, 255 });
+    DrawRectangleLines(col3X + 55, numBotsRowY, 100, 40, focusNumBots ? GREEN : GRAY);
+    int nbW = MeasureText(num_bots_str.c_str(), 22);
+    DrawText(num_bots_str.c_str(), col3X + 55 + (100 - nbW) / 2, numBotsRowY + 10, 22, RAYWHITE);
+
+    // [+]
+    DrawRectangle(col3X + 165, numBotsRowY, 45, 40, Color{ 55, 60, 70, 255 });
+    DrawRectangleLines(col3X + 165, numBotsRowY, 45, 40, GRAY);
+    DrawText("+", col3X + 165 + 14, numBotsRowY + 6, 28, RAYWHITE);
 
     // Botones inferiores
     const int btnW = 180;

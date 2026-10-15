@@ -56,29 +56,49 @@ constexpr int NEIGHBOR_Y[4] = {-1, 1, 0, 0};
 constexpr float BOT_ENEMY_TARGET_CHANCE = 0.30f;
 }
 
-Game::Game(std::string playerName, Color playerColor):
+Game::Game(std::string playerName, Color playerColor, const GameConfig &config):
+      config(config),  
       game_time(0.0f),
       tick_timer(0.0f),
       game_over(false),
       winner(nullptr),
-      map(Map::generateMap(200, 200))
+      map(config.map_type == MapType::MAP_FILE && !config.map_filename.empty()
+          ? Map::fromImage(config.map_filename.c_str())
+          : Map::generateMap(200, 200))
 {
    
     createEntities(playerName, playerColor);
 }
 
 void Game::createEntities(std::string playerName, Color playerColor){
-    this->entities.push_back(new Player(std::move(playerName), playerColor));
-    this->entities.push_back(new Bot(contrastingColor(playerColor)));
-    this->entities.push_back(new Bot(Color{255, 215, 0, 255}));
-    this->entities.push_back(new Bot(Color{128, 0, 128, 255}));
-    this->entities.push_back(new Bot(Color{0, 128, 0, 255}));
-    this->entities.push_back(new Bot(Color{65, 215, 0, 255}));
-    this->entities.push_back(new Bot(Color{128, 34, 234, 255}));
-    this->entities.push_back(new Bot(Color{124, 146, 0, 255}));
-    this->entities.push_back(new Bot(Color{255, 215, 0, 255}));
-    this->entities.push_back(new Bot(Color{53, 0, 128, 255}));
-    this->entities.push_back(new Bot(Color{0, 134, 132, 255}));
+    auto* player = new Player(std::move(playerName), playerColor);
+    player->setTroops(config.initial_troops);
+
+    this->entities.push_back(player);
+
+    static const Color BOT_COLORS[15] = {
+        contrastingColor(playerColor),
+            Color{255, 215, 0, 255},
+            Color{128, 0, 128, 255},
+            Color{0, 128, 0, 255},
+            Color{65, 215, 0, 255},
+            Color{128, 34, 234, 255},
+            Color{124, 146, 0, 255},
+            Color{230, 41, 55, 255},
+            Color{53, 0, 128, 255},
+            Color{0, 134, 132, 255},
+            Color{255, 105, 180, 255},
+            Color{0, 191, 255, 255},
+            Color{210, 105, 30, 255},
+            Color{147, 112, 219, 255},
+            Color{0, 250, 154, 255}
+    };
+
+    for (std::size_t i=0; i<config.numero_bots && i < 15; ++i){
+        auto* bot = new Bot(BOT_COLORS[i]);
+        bot->setTroops(config.bot_troops);
+        this->entities.push_back(bot);
+    }
 }
 
 void Game::resetEntities(std::string playerName, Color playerColor){
@@ -506,7 +526,12 @@ void Game::reset()
     game_over = false;
     winner = nullptr;
     getPlayer()->cancelAttack();
-    this->map=Map::generateMap(200,200);
+    if (config.map_type == MapType::MAP_FILE && !config.map_filename.empty()) {
+        this->map = Map::fromImage(config.map_filename.c_str());
+    } else {
+        this->map = Map::generateMap(200, 200);
+    }
+    
     resetEntities(getPlayer()->getName(), getPlayer()->getColor());
 
     for (size_t i = 1; i < entities.size(); ++i) {
