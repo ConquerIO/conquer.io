@@ -9,6 +9,7 @@
 class Entity {
 public:
     explicit Entity(std::string name, Color color);
+    virtual ~Entity() = default;
     
     const std::string& getName() const {return name;}
     const Color getColor() const {return color;}
