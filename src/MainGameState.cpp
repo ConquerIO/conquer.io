@@ -324,6 +324,12 @@ void MainGameState::handleInput()
         return;
     }
 
+    if(game.getWinner() != nullptr) {
+        if (GetCharPressed() != 0) {
+            this->state_machine->add_state(std::make_unique<MenuState>(), true);
+        }
+    }
+
     if (game.getPhase() == GamePhase::SPAWN) {                                                                                      
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {                                                                                       
             const std::pair<int, int> targetCoordinates = getCellCoordinates(GetMousePosition());                                            
