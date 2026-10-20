@@ -21,6 +21,11 @@ class Game
 {
 public:
     Game(std::string playerName, Color playerColor, const GameConfig &config);
+    ~Game();
+    // Game es dueño de las entidades, no se puede copiar.
+    Game(const Game&) = delete;
+    Game& operator=(const Game&) = delete;
+
 
     void update(float deltaTime);
     void reset();
