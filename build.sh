@@ -6,10 +6,7 @@
 #   ./build.sh          # compila
 #   ./build.sh run      # compila y ejecuta el juego
 #   ./build.sh clean    # borra el binario generado
-#
-# Raylib (libreria estatica y cabeceras) esta versionada en vendor/,
-# asi que no hace falta instalarla ni construirla para compilar.
-#
+
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -21,6 +18,15 @@ RAYLIB_LIB="$VENDOR_LIB/libraylib.a"
 GAME_BIN="$ROOT/game"
 
 LINK_FLAGS=(-lraylib -lGL -lm -lpthread -lrt -lX11)
+
+IMGUI_SOURCES=(
+    vendor/imgui/imgui.cpp
+    vendor/imgui/imgui_draw.cpp
+    vendor/imgui/imgui_tables.cpp
+    vendor/imgui/imgui_widgets.cpp
+    vendor/rlImGui/rlImGui.cpp
+)
+IMGUI_FLAGS=(-I vendor/imgui -I vendor/rlImGui -DNO_FONT_AWESOME)
 
 # ---------------------------------------------------------------------------
 # Utilidades
@@ -41,8 +47,8 @@ do_compile() {
     fi
 
     info "Compilando el juego..."
-    g++ -o "$GAME_BIN" src/*.cpp \
-        -I src/ -I vendor/include/ \
+    g++ -o "$GAME_BIN" src/*.cpp "${IMGUI_SOURCES[@]}" \
+        -I src/ -I vendor/include/ "${IMGUI_FLAGS[@]}" \
         -L vendor/lib "${LINK_FLAGS[@]}"
     info "Listo: $GAME_BIN"
 }
