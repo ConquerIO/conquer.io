@@ -1,5 +1,5 @@
 #include "MapGenerator.hpp"
-#include "system/Logger.cpp"
+#include "system/Logger.hpp"
 
 MapGenerator::MapGenerator(int width, int height, int offsetX, int offsetY, float scale){
     this->width=width;

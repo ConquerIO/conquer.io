@@ -36,6 +36,7 @@ jobs:
             libgl1-mesa-dev \
             xorg-dev \
             libasound2-dev
+            libspdlog-dev
 
       - name: Compilar el juego
         run: ./build.sh
