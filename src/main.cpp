@@ -7,6 +7,7 @@
 #include <chrono>
 #include "rlImGui.h"
 #include "imgui.h"
+#include "system/Logger.hpp"
 
 int main()
 {
@@ -19,7 +20,7 @@ int main()
         )
     );
 
-
+    Logger::info("Inicializando ventana (2560x1440)...");
     InitWindow(2560, 1440, "Conquer.io");
 
     {
