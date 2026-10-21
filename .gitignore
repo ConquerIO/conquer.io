@@ -48,3 +48,5 @@
 .vscode
 
 game
+# Estado de ImGui (UI de debug)
+imgui.ini

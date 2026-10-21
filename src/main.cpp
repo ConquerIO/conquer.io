@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <chrono>
 #include "rlImGui.h"
+#include "imgui.h"
 
 int main()
 {
@@ -45,6 +46,8 @@ int main()
 
     //se encarga de inicializar el la libreria de debug
     rlImGuiSetup(true);
+    //esta es para que no cree nada en el directorio de trabajo
+    ImGui::GetIO().IniFilename = nullptr;
     SetTargetFPS(60);
 
     float delta_time = 0.0f;

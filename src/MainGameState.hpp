@@ -2,6 +2,7 @@
 #include <GameState.hpp>
 #include <Game.hpp>
 #include <GameConfig.hpp>
+#include <DebugOverlay.hpp>
 #include <raylib.h>
 #include <string>
 #include <iostream>
@@ -32,4 +33,6 @@ class MainGameState : public GameState
 
         GameConfig config;
         float game_over_timer = 0.0f;        // Tiempo transcurrido en la pantalla de Game Over.
+
+        DebugOverlay debug_overlay;
 };
