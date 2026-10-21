@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <utility>
 #include <iostream>
+#include "system/Logger.hpp"
 
 using namespace std;
 
@@ -65,7 +66,8 @@ Game::Game(std::string playerName, Color playerColor, const GameConfig &config):
           ? Map::fromImage(config.map_filename.c_str())
           : Map::generateMap(200, 200))
 {
-   
+    
+    Logger::info("Creando entidades...");
     createEntities(playerName, playerColor);
 }
 
@@ -115,8 +117,9 @@ void Game::update(float deltaTime)
 {   
     if (current_phase == GamePhase::SPAWN) {                                                                                                     
         spawn_timer -= deltaTime;                                                                                                                
-        if (spawn_timer <= 0.0f) {                                                                                                               
-            placePlayerAndStart();                                                                                                                 
+        if (spawn_timer <= 0.0f) {                                                                                              
+            placePlayerAndStart();     
+            Logger::info("El tiempo de spawn ha terminado, comenzando partida...");                                                                                                             
             current_phase = GamePhase::PLAYING;                                                                                                  
         }                                                                                                                                        
         return; // Evita que se ejecute la lógica de juego mientras tanto                                                                        
@@ -131,6 +134,7 @@ void Game::update(float deltaTime)
 
     const auto player = getPlayer();
     if(getPlayerPixels(player)==0){
+        Logger::info("El jugador tiene 0 píxeles, terminando partida...");
         game_over = true;
     }
 
@@ -146,6 +150,7 @@ void Game::update(float deltaTime)
     for (Entity* entity : entities) {
         if (getPlayerPixels(entity) == 0) continue;
         if (winner != nullptr) { winner = nullptr; break; }
+        Logger::info("Una entidad ha ganado la partida");
         winner = entity;
     }
 
