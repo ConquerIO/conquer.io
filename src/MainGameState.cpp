@@ -4,6 +4,7 @@
 #include <MenuState.hpp>
 #include <Target.hpp>
 #include <raylib.h>
+#include "rlImGui.h"
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
@@ -309,6 +310,11 @@ void MainGameState::init()
 
 void MainGameState::handleInput()
 {
+    //si se le da al F1 se pone el debug
+    if (IsKeyPressed(KEY_F1)) {
+        debug_overlay.toggle();
+    }
+
     if (game.isOver())
     {
         // Margen inicial para que una tecla o clic ya pulsado al perder no salte la pantalla.
@@ -603,6 +609,11 @@ void MainGameState::render()
                  screenHeight / 2 - 60, 54, GOLD);
         const char* restart = "Pulsa cualquier tecla para salir";
     }
+
+    //se dibuja la interfaz de debug
+    rlImGuiBegin();
+    debug_overlay.draw(game, config, GetFrameTime());
+    rlImGuiEnd();
 
     EndDrawing();
 }

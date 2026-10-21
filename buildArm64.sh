@@ -22,6 +22,15 @@ GAME_BIN="$ROOT/game"
 
 LINK_FLAGS=(-lraylib -lGL -lm -lpthread -lrt -lX11)
 
+IMGUI_SOURCES=(
+    vendor/imgui/imgui.cpp
+    vendor/imgui/imgui_draw.cpp
+    vendor/imgui/imgui_tables.cpp
+    vendor/imgui/imgui_widgets.cpp
+    vendor/rlImGui/rlImGui.cpp
+)
+IMGUI_FLAGS=(-I vendor/imgui -I vendor/rlImGui -DNO_FONT_AWESOME)
+
 # ---------------------------------------------------------------------------
 # Utilidades
 # ---------------------------------------------------------------------------
@@ -41,8 +50,8 @@ do_compile() {
     fi
 
     info "Compilando el juego..."
-    g++ -o "$GAME_BIN" src/*.cpp \
-        -I src/ -I vendor/include/ \
+    g++ -o "$GAME_BIN" src/*.cpp "${IMGUI_SOURCES[@]}" \
+        -I src/ -I vendor/include/ "${IMGUI_FLAGS[@]}" \
         -L vendor/lib/arm64 "${LINK_FLAGS[@]}"
     info "Listo: $GAME_BIN"
 }
