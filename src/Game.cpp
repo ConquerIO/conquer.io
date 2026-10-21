@@ -18,7 +18,6 @@ namespace
     constexpr float INITIAL_TROOPS = 500.0f;
     constexpr float INITIAL_INTEREST = 0.10f;
     constexpr float TROOPS_PER_PIXEL = 200.0f;
-    constexpr float TICK_INTERVAL = 1.0f;
 
 
 int colorDistance(Color a, Color b)

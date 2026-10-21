@@ -39,6 +39,17 @@ public:
     Entity* getWinner() const { return winner; }
     std::vector<Entity*> getEntities() const {return entities;}
 
+    //intervalo de ticks
+    static constexpr float TICK_INTERVAL = 1.0f;
+
+    float getTickTimer() const {
+        return tick_timer;
+    }
+    float getInterest(Entity* owner) const;
+    float getTroopLimit(Entity* owner) const;
+    std::size_t getTerritoryCells(Entity* owner) const;
+    std::size_t getLandCellCount() const;
+
     void setSpawnPreview(int targetIndex);
     GamePhase getPhase() const { return current_phase; }
     float getSpawnTimer() const { return spawn_timer; }
@@ -63,14 +74,6 @@ private:
     float calculateTroopLimit(float pixels) const;
     void updateTroopGrowth(Entity* owner);
 
-    float getTickTimer() const { 
-        return tick_timer; 
-    }
-    float getInterest(Entity* owner) const;
-    float getTroopLimit(Entity* owner) const;
-    std::size_t getTerritoryCells(Entity* owner) const;
-    std::size_t getLandCellCount() const;
-    
     void placePlayerAndStart();
     void placeBots();
     
