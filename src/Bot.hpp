@@ -17,6 +17,17 @@ public:
 
     void reset();
 
+    //getters y setters para los datos del bot
+    float getNextAttackDelay() const { 
+        return next_attack_delay; 
+    }
+    float getAttackDecisionTimer() const { 
+        return attack_decision_timer; 
+    }
+    float getExpandTimer() const { 
+        return expand_timer; 
+    }
+
 private:
     float attack_decision_timer; // tiempo acumulado desde el ultimo ataque
     float next_attack_delay;     // espera aleatoria [6, 10] hasta el proximo ataque
