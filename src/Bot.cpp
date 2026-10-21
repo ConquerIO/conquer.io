@@ -14,7 +14,7 @@ float randomRange(float min, float max)
 }
 }
 
-Bot::Bot(Color color) : Entity("Bot", color)
+Bot::Bot(const std::string &name, Color color) : Entity(name, color)
 {
     this->troops = BOT_INITIAL_TROOPS;
     reset();

@@ -6,7 +6,7 @@
 class Bot : public Entity
 {
 public:
-    explicit Bot(Color color);
+    explicit Bot(const std::string &name , Color color);
 
     // Indica si toca empezar un ataque nuevo (cada 6-10 s aleatorios).
     bool shouldStartAttack(float deltaTime);
