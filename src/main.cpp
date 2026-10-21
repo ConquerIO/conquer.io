@@ -5,6 +5,7 @@
 #include <memory>
 #include <cstdlib>
 #include <chrono>
+#include "rlImGui.h"
 
 int main()
 {
@@ -42,6 +43,8 @@ int main()
 
     SetExitKey(KEY_NULL);
 
+    //se encarga de inicializar el la libreria de debug
+    rlImGuiSetup(true);
     SetTargetFPS(60);
 
     float delta_time = 0.0f;
@@ -59,6 +62,9 @@ int main()
         state_machine.getCurrentState()->render();
     }
 
+   
+    //se libera los recursos de la libreria de debug
+    rlImGuiShutdown();
     CloseWindow();
 
     return 0;

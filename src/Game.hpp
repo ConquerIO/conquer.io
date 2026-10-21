@@ -62,6 +62,14 @@ private:
     float calculateInterest(float troops, float pixels) const;
     float calculateTroopLimit(float pixels) const;
     void updateTroopGrowth(Entity* owner);
+
+    float getTickTimer() const { 
+        return tick_timer; 
+    }
+    float getInterest(Entity* owner) const;
+    float getTroopLimit(Entity* owner) const;
+    std::size_t getTerritoryCells(Entity* owner) const;
+    std::size_t getLandCellCount() const;
     
     void placePlayerAndStart();
     void placeBots();

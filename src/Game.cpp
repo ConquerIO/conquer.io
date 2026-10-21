@@ -594,3 +594,33 @@ void Game::cancelPlayerAttack()
 {
     getPlayer()->cancelAttack();
 }
+
+
+//devuelve el total de pixeles
+std::size_t Game::getTerritoryCells(Entity* owner) const {
+    if (owner == nullptr) {
+        return 0;
+    }
+    return getPlayerPixels(owner);
+}
+
+//devuelve el interes 
+float Game::getInterest(Entity* owner) const{
+    return calculateInterest(static_cast<float>(owner->getTroops()), static_cast<float>(getPlayerPixels(owner)));
+}
+
+//devuelve los limites de tropas
+float Game::getTroopLimit(Entity* owner) const {
+    return calculateTroopLimit(static_cast<float>(getPlayerPixels(owner)));
+}
+
+//devuelve las celdas que son tierra en el mapa 
+std::size_t Game::getLandCellCount() const {
+    std::size_t land = 0;
+    for (const TerritoryCell& cell : map.getCells()){
+        if (!cell.isWater) {
+            ++land;
+        }
+    }
+    return land;
+}
