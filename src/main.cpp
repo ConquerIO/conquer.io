@@ -9,9 +9,7 @@
 #include "imgui.h"
 #include "system/Logger.hpp"
 
-int main()
-{
-
+void initializeRandomSeed(){
     std::srand(
         static_cast<unsigned>(
             std::chrono::high_resolution_clock::now()
@@ -19,6 +17,13 @@ int main()
                 .count()
         )
     );
+}
+
+int main()
+{   
+    Logger::debug("Inicializando seed...");
+    initializeRandomSeed();
+    Logger::debug("Seed inicializada correctamente");
 
     Logger::info("Inicializando ventana (2560x1440)...");
     InitWindow(2560, 1440, "Conquer.io");
@@ -45,7 +50,7 @@ int main()
 
     SetExitKey(KEY_NULL);
 
-    //se encarga de inicializar el la libreria de debug
+    Logger::debug("Inicializando librerías de debug");
     rlImGuiSetup(true);
     //esta es para que no cree nada en el directorio de trabajo
     ImGui::GetIO().IniFilename = nullptr;
@@ -53,6 +58,7 @@ int main()
 
     float delta_time = 0.0f;
 
+    Logger::info("Inicializando máquina de estados...");
     StateMachine state_machine = StateMachine();
     state_machine.add_state(std::make_unique<MenuState>(), false);
     state_machine.handle_state_changes(delta_time);
@@ -66,9 +72,10 @@ int main()
         state_machine.getCurrentState()->render();
     }
 
-   
-    //se libera los recursos de la libreria de debug
+    Logger::info("Terminando ejecución...");
+    Logger::debug("Liberando recursos de la memoria debug...");
     rlImGuiShutdown();
+    Logger::debug("Terminando ventana...");
     CloseWindow();
 
     return 0;
