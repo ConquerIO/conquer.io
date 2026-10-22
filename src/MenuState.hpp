@@ -41,7 +41,7 @@ class MenuState : public GameState
         // 0 = ninguna caja con foco, 1 = foco en tropas jugador, 2 = foco en tropas bots, 3 = foco en nº de bots
         int active_troop_box = 0;
         std::string player_troops_str = "500";
-        std::string bot_troops_str    = "250";
+        std::string bot_troops_str    = "350";
         
         std::string num_bots_str = "10";                                                                                                                                                                                                
         

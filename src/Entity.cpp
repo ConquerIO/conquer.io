@@ -30,9 +30,10 @@ void Entity::beginAttack(float ratio){
     if(target.isEnemy() && target.getEntity() !=nullptr){
         const float e= static_cast<float>(target.getEntity()->getTroops());
         //se redondea como en matematicas
+        //r es la resistencia a una celda enemiga
         long r= std::lround(e / static_cast<float>(total));  
-        if (r < 1){
-            r = 1;      
+        if (r < 4){
+            r = 4;      
         }  
         attack_resistence=static_cast<std::size_t>(r);                         
     }
