@@ -50,7 +50,7 @@ do_compile() {
     fi
 
     info "Compilando el juego..."
-    g++ -o "$GAME_BIN" src/*.cpp "${IMGUI_SOURCES[@]}" \
+    g++ -o "$GAME_BIN" src/*.cpp src/system/*.cpp "${IMGUI_SOURCES[@]}" \
         -I src/ -I vendor/include/ "${IMGUI_FLAGS[@]}" \
         -L vendor/lib/arm64 "${LINK_FLAGS[@]}"
     info "Listo: $GAME_BIN"

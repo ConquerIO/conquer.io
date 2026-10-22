@@ -1,4 +1,5 @@
 #include "MapGenerator.hpp"
+#include "system/Logger.hpp"
 
 MapGenerator::MapGenerator(int width, int height, int offsetX, int offsetY, float scale){
     this->width=width;
@@ -10,6 +11,7 @@ MapGenerator::MapGenerator(int width, int height, int offsetX, int offsetY, floa
 
 
 Image MapGenerator::generate() const{
+    Logger::info("Generando mapa...");
     Image noiseMap=GenImagePerlinNoise(width,height,offsetX, offsetY,scale);
     return noiseMap;
 }
