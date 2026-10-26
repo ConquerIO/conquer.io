@@ -159,12 +159,16 @@ void Game::update(float deltaTime)
         }
     }
 
-    winner = nullptr;
-    for (Entity* entity : entities) {
-        if (getPlayerPixels(entity) == 0) continue;
-        if (winner != nullptr) { winner = nullptr; break; }
-        Logger::info("Una entidad ha ganado la partida");
-        winner = entity;
+    if (winner == nullptr) {
+        for (Entity* entity : entities) {
+            if (getPlayerPixels(entity) == 0) continue;
+            if (winner != nullptr) { winner = nullptr; break; }
+            winner = entity;
+        }
+
+        if (winner != nullptr) {
+            Logger::info("Una entidad ha ganado la partida");
+        }
     }
 
     while(tick_timer>=TICK_INTERVAL){
