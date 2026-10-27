@@ -1,10 +1,16 @@
 #pragma once
 #include <GameState.hpp>
+#include <Game.hpp>
+#include <GameConfig.hpp>
+#include <DebugOverlay.hpp>
+#include <raylib.h>
+#include <string>
+#include <iostream>
 
 class MainGameState : public GameState
 {
     public:
-        MainGameState();
+        MainGameState(std::string playerName, Color playerColor, const GameConfig &config);
         ~MainGameState() = default;
 
         void init() override;
@@ -17,5 +23,16 @@ class MainGameState : public GameState
 
     
     private:
-        char entered_key;
+        Rectangle getMapBounds() const;
+        Rectangle getAttackSliderBounds() const;
+        std::pair<int, int> getCellCoordinates(Vector2 position) const;
+
+        Game game;
+        int attack_percent = 100;            // Porcentaje de tropas destinado al ataque.
+        bool dragging_attack_slider = false;
+
+        GameConfig config;
+        float game_over_timer = 0.0f;        // Tiempo transcurrido en la pantalla de Game Over.
+
+        DebugOverlay debug_overlay;
 };

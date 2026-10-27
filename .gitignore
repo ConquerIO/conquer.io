@@ -32,6 +32,10 @@
 *.a
 *.lib
 
+!vendor/lib/libraylib.a
+!vendor/lib/arm64/libraylib.a
+
+
 # Executables
 *.exe
 *.out
@@ -39,3 +43,10 @@
 
 # debug information files
 *.dwo
+
+# Ide files
+.vscode
+
+game
+# Estado de ImGui (UI de debug)
+imgui.ini

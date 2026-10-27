@@ -1,23 +1,82 @@
 #include <StateMachine.hpp>
-#include <MainGameState.hpp>
+#include <MenuState.hpp>
+#include <raylib.h>
+#include <algorithm>
 #include <memory>
+#include <cstdlib>
 #include <chrono>
+#include "rlImGui.h"
+#include "imgui.h"
+#include "system/Logger.hpp"
+
+void initializeRandomSeed(){
+    std::srand(
+        static_cast<unsigned>(
+            std::chrono::high_resolution_clock::now()
+                .time_since_epoch()
+                .count()
+        )
+    );
+}
 
 int main()
-{ 
+{   
+    Logger::debug("Inicializando seed...");
+    initializeRandomSeed();
+    Logger::debug("Seed inicializada correctamente");
+
+    Logger::info("Inicializando ventana (2560x1440)...");
+    InitWindow(2560, 1440, "Conquer.io");
+
+    {
+        const int monitor = GetCurrentMonitor();
+        const int monitorWidth = GetMonitorWidth(monitor);
+        const int monitorHeight = GetMonitorHeight(monitor);
+        if (monitorWidth > 0 && monitorHeight > 0)
+        {
+            constexpr float designWidth = 2560.0f;
+            constexpr float designHeight = 1440.0f;
+            const float maxWidth = monitorWidth * 0.95f;
+            const float maxHeight = monitorHeight * 0.90f;
+            const float scale = std::min(1.0f, std::min(maxWidth / designWidth,
+                                                        maxHeight / designHeight));
+            if (scale < 1.0f)
+            {
+                SetWindowSize(static_cast<int>(designWidth * scale),
+                              static_cast<int>(designHeight * scale));
+            }
+        }
+    }
+
+    SetExitKey(KEY_NULL);
+
+    Logger::debug("Inicializando librerías de debug");
+    rlImGuiSetup(true);
+    //esta es para que no cree nada en el directorio de trabajo
+    ImGui::GetIO().IniFilename = nullptr;
+    SetTargetFPS(60);
+
     float delta_time = 0.0f;
 
+    Logger::info("Inicializando máquina de estados...");
     StateMachine state_machine = StateMachine();
-    state_machine.add_state(std::make_unique<MainGameState>(), false);
+    state_machine.add_state(std::make_unique<MenuState>(), false);
     state_machine.handle_state_changes(delta_time);
 
-    while (!state_machine.is_game_ending())
+    while (!state_machine.is_game_ending() && !WindowShouldClose())
     {
+        delta_time = GetFrameTime();
         state_machine.handle_state_changes(delta_time);
         state_machine.getCurrentState()->handleInput();
         state_machine.getCurrentState()->update(delta_time);
-        state_machine.getCurrentState()->render();       
+        state_machine.getCurrentState()->render();
     }
+
+    Logger::info("Terminando ejecución...");
+    Logger::debug("Liberando recursos de la memoria debug...");
+    rlImGuiShutdown();
+    Logger::debug("Terminando ventana...");
+    CloseWindow();
 
     return 0;
 }
