@@ -1,185 +1,120 @@
 # Conquer.io
 
-Conquer.io es un juego de estrategia en tiempo real inspirado en los juegos de conquista territorial. El jugador y el bot se expanden sobre casillas neutrales en oleadas; el objetivo es controlar la mayor parte del mapa.
+**Conquer.io** es un juego 2D de estrategia en tiempo real (RTS) en el que cada píxel de tierra puede convertirse en parte de tu territorio. Expándete, administra tus tropas y compite contra rivales controlados por inteligencia artificial hasta dominar el mapa.
 
-## Arquitectura general
+---
 
-El proyecto sigue una arquitectura muy sencilla basada en:
+## Sobre el juego
 
-- Estado del juego (menú y partida) gestionado por una máquina de estados.
-- Lógica de mapa y expansión territorial centralizada en una clase `Game`.
-- Entidades `Player`, `Bot` y `TerritoryCell` que representan las tropas y el territorio.
-- Raylib como motor gráfico y de entrada para la ventana, dibujo y eventos.
+Conquer.io es un juego de estrategia en tiempo real inspirado en [Territorial.io](https://territorial.io). La partida se desarrolla sobre un mapa formado por píxeles: el agua no se puede conquistar, la tierra libre ofrece una expansión sencilla y los territorios enemigos requieren tropas para ser capturados.
 
-La estructura principal es:
+El objetivo es conquistar el **100 % de la tierra ocupable** o ser el último jugador que permanezca en pie.
 
-```text
-conquer.io/
-├── src/               # Código fuente del juego
-├── vendor/            # Librerías y cabeceras de Raylib
-├── game               # Binario generado tras compilar
-├── README.md          # Documentación del proyecto
-└── .gitignore
-```
+## Características
 
-## Qué hace cada parte
+- **Mapas territoriales:** mapas representados mediante una cuadrícula de píxeles, con tierra, agua y territorios controlados por jugadores.
+- **Conquista y combate:** expande tu territorio en las cuatro direcciones cardinales y ataca zonas rivales.
+- **Gestión de tropas:** administra tus tropas y decide cuánto invertir en cada ataque.
+- **Crecimiento de tropas:** sistema de crecimiento mediante interés decreciente y un límite relacionado con el territorio conquistado.
+- **Rivales con IA:** bots con distintos niveles de dificultad y comportamientos estratégicos.
+- **Interfaz minimalista:** el mapa y la información esencial son el centro de la experiencia.
+- **Overlay de depuración:** panel de información técnica y de partida activable con `F1`.
 
-### `src/main.cpp`
-Es el punto de entrada del programa. Aquí se crea la ventana con Raylib, se inicializa la máquina de estados y se ejecuta el bucle principal del juego:
+## Cómo jugar
 
-- `InitWindow(...)` crea la ventana.
-- `StateMachine` decide qué estado está activo.
-- El bucle mientras la aplicación no termine:
-  - calcula el `deltaTime`,
-  - actualiza el estado actual,
-  - procesa la entrada,
-  - renderiza el frame.
+1. Inicia una partida y selecciona las opciones disponibles.
+2. Elige dónde establecer tu territorio inicial durante la fase de colocación.
+3. Cuando comience la partida, amplía tu dominio y acumula tropas.
+4. Selecciona una zona y ataca cuando la acción esté disponible.
+5. Equilibra la expansión con la reserva de tropas necesaria para enfrentarte a tus rivales.
+6. Conquista toda la tierra ocupable para ganar.
 
-### `src/StateMachine.hpp` / `src/StateMachine.cpp`
-Implementa la máquina de estados del juego. Permite:
+### Territorio y ataques
 
-- añadir un estado nuevo,
-- reemplazar el estado actual,
-- retirar estados,
-- cambiar entre menús y partidas,
-- saber si la aplicación debe cerrarse.
+- **Agua:** no se puede conquistar y no cuenta para el porcentaje total de territorio ocupable.
+- **Tierra libre:** no ofrece resistencia, por lo que resulta más sencilla de capturar.
+- **Territorio enemigo:** puede oponer resistencia y consumir tropas durante el ataque.
+- **Fronteras:** la expansión se realiza arriba, abajo, a izquierda y derecha; las diagonales no cuentan como adyacencia.
 
-Esto es importante porque el juego se compone de varios "escenarios": menú principal y partida principal.
+### Tropas y crecimiento
 
-### `src/GameState.hpp`
-Define la interfaz base de un estado del juego. Todos los estados deben implementar:
+Las tropas aumentan con el paso del tiempo mediante un sistema de interés que disminuye a medida que el jugador se aproxima a su límite de tropas. Ese límite depende de la cantidad de territorio conquistado. Atacar consume tropas, así que elegir cuándo expandirse forma parte de la estrategia.
 
-- `init()`
-- `handleInput()`
-- `update(float deltaTime)`
-- `render()`
-- `pause()`
-- `resume()`
+## Inteligencia artificial
 
-Es la base común para que cualquier pantalla del juego pueda comportarse igual.
+El diseño contempla varios niveles de dificultad para los bots. Los comportamientos previstos varían en agresividad, gestión de tropas, alianzas y coordinación de ataques.
 
-### `src/MenuState.hpp` / `src/MenuState.cpp`
-Representa la pantalla principal del menú.
+La dificultad y las estrategias disponibles dependen de la implementación actual del juego.
 
-Hace lo siguiente:
+## Overlay de depuración
 
-- permite escribir el nombre del jugador,
-- valida el largo máximo del texto,
-- borra texto con retroceso continuo,
-- selecciona un color para el territorio,
-- al pulsar Enter con un nombre válido, cambia al estado de juego principal.
+Con `F1` se puede mostrar u ocultar una capa de depuración sobre la partida. Está pensada para consultar información de la simulación y del rendimiento sin abandonar el juego.
 
-La interfaz dibuja el título, el campo de nombre, la paleta de colores y mensajes de ayuda.
+Entre los datos contemplados se encuentran:
 
-### `src/MainGameState.hpp` / `src/MainGameState.cpp`
-Es la pantalla de juego real. Aquí se construye y se controla la partida:
+- Entidades y dimensiones del mapa.
+- Tropas, interés y porcentaje de territorio.
+- Información de los bots.
+- FPS y tiempo por frame.
+- Datos técnicos del entorno gráfico y de ejecución.
 
-- obtiene el puntero del mouse para seleccionar una celda,
-- procesa clic izquierdo para iniciar una expansión en oleadas desde el territorio del jugador,
-- procesa clic derecho o ESC para cancelar la orden,
-- detecta victoria/derrota y reinicio con `R`,
-- dibuja el mapa, la UI, estadísticas del territorio, contador y mensajes finales.
+## Tecnologías
 
-### `src/Game.hpp` / `src/Game.cpp`
-Es el núcleo de la lógica del juego. Esta clase contiene:
+| Tecnología | Uso |
+|---|---|
+| **C++** | Lógica y sistemas del juego |
+| **raylib** | Ventana, gráficos, entrada y renderizado |
+| **ImGui** | Interfaz del overlay de depuración |
+| **rlImGui** | Integración de ImGui con raylib |
+| **spdlog** | Logging estructurado |
+| **Git y GitHub** | Control de versiones y colaboración |
+| **GitHub Issues y Pull Requests** | Seguimiento de tareas, incidencias y revisión de cambios |
 
-- el mapa de casillas (`std::vector<TerritoryCell>`),
-- el jugador humano (`Player`),
-- el bot enemigo (`Bot`),
-- el tiempo de partida,
-- estado de fin de partida (`winner`, `game_over`).
+## Instalación y ejecución
 
-Su ciclo de actualización:
+### Requisitos
 
-- hace crecer tropas de casillas controladas con el tiempo,
-- expande en cada intervalo a todas las celdas neutrales que tocan el territorio del jugador o del bot por sus cuatro lados,
-- inicia automáticamente las oleadas del bot,
-- detiene cada oleada al encontrar agua o territorio del otro jugador.
+Para compilar el proyecto desde el código fuente, necesitarás:
 
-### `src/Player.hpp` / `src/Player.cpp`
-Representa al jugador humano.
+- Git.
+- Un compilador compatible con C++.
+- raylib y las dependencias necesarias para tu sistema operativo.
+- Las dependencias adicionales incluidas o configuradas en el proyecto, como ImGui, rlImGui y spdlog.
 
-Tiene:
-
-- nombre,
-- color del territorio,
-- objetivo de expansión actual,
-- temporizador de expansión,
-- temporizador para marcar el intervalo entre oleadas de expansión.
-
-Cuando el usuario hace clic en una casilla neutral, el jugador inicia oleadas que ocupan todas las casillas neutrales que tocan su territorio por los cuatro lados. Cada rama se detiene ante el agua o el territorio de otro dueño. La expansión no consume tropas y continúa hasta que ya no quedan casillas neutrales adyacentes.
-
-### `src/Bot.hpp` / `src/Bot.cpp`
-Representa la IA enemiga del bot.
-
-Su comportamiento:
-
-- se expande automáticamente en intervalos temporales,
-- ocupa todas las celdas neutrales que tocan su territorio por sus cuatro lados,
-- detiene cada rama al encontrar agua o territorio del jugador.
-
-### `src/TerritoryCell.hpp`
-Define la estructura de cada celda del mapa.
-
-Cada casilla guarda:
-
-- `owner`: quién la controla (`Neutral`, `Player`, `Bot`),
-- `troops`: número de tropas que tiene,
-- `capture_protection`: protección temporal tras ser capturada,
-- `combat_timer`: tiempo de conflicto tras un ataque,
-- `protected_from`: quien está protegido para evitar retomas inmediatas,
-- `is_base`: si esa casilla es la base de una facción.
-
-La lógica del mapa se basa en estas casillas para calcular expansión, defensa y captura.
-
-### `src/vendor/`
-Contiene las bibliotecas y cabeceras de Raylib que usa el proyecto para renderizar gráficos, entrada de teclado/mouse y audio. Gracias a esto, no hace falta instalar Raylib en el sistema para compilar.
-
-### `game`
-Es el ejecutable compilado del juego. Se genera al compilar el proyecto con `g++` y se usa para lanzarlo desde la terminal.
-
-## Compilación y ejecución (Linux)
-
-Este proyecto utiliza Raylib. Las librerías estáticas y cabeceras ya están incluidas en `vendor/`, así que no es necesario instalar Raylib en el sistema para compilar.
-
-### 1. Compilar
+### Descargar el repositorio
 
 ```bash
-./build.sh        # compila
-./build.sh run    # compila y ejecuta
-./build.sh clean  # borra el binario generado
+git clone https://github.com/ConquerIO/conquer.io.git
+cd conquer.io
 ```
 
-Equivale a este comando manual:
+### Compilar y ejecutar
 
+Para arquitecturas x86 utilzar:
 ```bash
-g++ -o game src/*.cpp -I src/ -I vendor/include/ -L vendor/lib -lraylib -lGL -lm -lpthread -lrt -lX11
+./build.sh
 ```
 
-### 2. Ejecutar
+Para arquitecturas ARM utilizar:
+```bash
+./buildArm64.sh
+```
 
+Y para ejecutar lanza el ejecutable:
 ```bash
 ./game
 ```
 
-## Cómo se juega
+## Desarrollo y contribuciones
 
-- Introduce un nombre y elige un color en el menú.
-- Haz clic en una casilla neutral para expandirte en oleadas por los cuatro costados.
-- Haz clic derecho o pulsa `ESC` para cancelar la orden.
-- Las tropas crecen con el tiempo.
-- La expansión del jugador se detiene al tocar territorio enemigo; no captura la base del bot.
-- Pulsa `R` al terminar una partida para empezar otra.
+El proyecto organiza el trabajo mediante ramas y Pull Requests para revisar los cambios antes de integrarlos en las ramas principales. Los mensajes de commit siguen la convención **Conventional Commits**.
 
-## Resumen de la arquitectura
+Prefijos habituales:
 
-El proyecto está organizado como un juego pequeño de escritorio con un patrón clásico de máquina de estados:
+- `feat:` nueva funcionalidad.
+- `fix:` corrección de errores.
+- `refactor:` mejora interna sin cambiar el comportamiento esperado.
+- `docs:` cambios en documentación.
 
-- `MenuState` gestiona la introducción del nombre y la elección de color.
-- `MainGameState` ejecuta la partida.
-- `Game` resuelve la lógica de mapa y expansión territorial.
-- `Player` y `Bot` representan a los actores del juego.
-- `TerritoryCell` describe cada una de las piezas del mapa.
-- `Raylib` se encarga de la ventana, renderizado y entrada del usuario.
+---
 
-Esta estructura hace que el juego sea fácil de extender: se puede añadir más pantallas, cambiar el comportamiento del bot o mejorar la lógica de expansión sin reescribir todo el proyecto.
