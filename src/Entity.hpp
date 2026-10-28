@@ -25,7 +25,7 @@ public:
     void setTarget(const Target& target);
     void setTroops(std::size_t troops);
     void setAttackFuel(std::size_t fuel);
-    void beginAttack(float ratio);
+    void beginAttack(float ratio, std::size_t resistance);
     void endAttack();
 protected:
     std::string name;

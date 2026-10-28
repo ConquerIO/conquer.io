@@ -62,7 +62,7 @@ private:
     void resetEntities(string playerName, Color playerColor);
     void spawnEntity(Entity* entity, int x, int y);
     bool expandTerritory(Entity* owner);
-    // Indica si (x, y) es una celda de la frontera de `owner` (toca tierra o enemigo).
+    std::size_t computeAttackResistance(const Target& target) const;
     bool isFrontierCell(int x, int y, Entity* owner) const;
     void rebuildFrontier(Entity* owner);
     void addExposedFrontier(Entity* victim, int x, int y);
