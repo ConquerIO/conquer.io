@@ -20,6 +20,10 @@ namespace
     constexpr float INITIAL_INTEREST = 0.07f;
     constexpr float TROOPS_PER_PIXEL = 150.0f;
 
+    //constantes para resistencias
+    constexpr std::size_t LAND_RESISTANCE = 1;
+    constexpr double ENEMY_RESISTANCE_FACTOR = 1.5;
+
 
 int colorDistance(Color a, Color b)
 {
@@ -193,8 +197,9 @@ void Game::update(float deltaTime)
         {
             if (bot->shouldStartAttack(deltaTime))
             {
-                bot->setTarget(chooseBotTarget(bot));
-                bot->beginAttack(bot->getAttackRatio());
+                const Target target = chooseBotTarget(bot);
+                bot->setTarget(target);
+                bot->beginAttack(bot->getAttackRatio(), computeAttackResistance(target));
             }
         }
         else if (bot->shouldExpand(deltaTime, ATTACK_INTERVAL)
@@ -608,7 +613,7 @@ void Game::setPlayerTarget(const Target& target, float ratio)
     Player* player = getPlayer();
     player->setTarget(target);
     // Destina al ataque la fraccion de tropas elegida (porcentaje del slider).
-    player->beginAttack(ratio);
+    player->beginAttack(ratio,  computeAttackResistance(target));
 }
 
 void Game::cancelPlayerAttack()
@@ -644,4 +649,28 @@ std::size_t Game::getLandCellCount() const {
         }
     }
     return land;
+}
+
+//esta funcion es para que la resistencia sea escalable segun aumenta el transcurso de la partida
+std::size_t Game::computeAttackResistance(const Target& target) const
+{
+    if (!target.isEnemy() || target.getEntity() == nullptr) {
+        return LAND_RESISTANCE;
+    }
+
+
+    Entity* defender = target.getEntity();
+    const std::size_t cells =std::max<std::size_t>(1, getTerritoryCells(defender));
+
+    //densidad de tropas por celda
+    const double density =static_cast<double>(defender->getTroops()) / static_cast<double>(cells);
+
+    //la densidad redondeada pero aplicandole el factor
+    const double raw = std::ceil(density * ENEMY_RESISTANCE_FACTOR);
+
+    //coste del ataque 
+    return std::max<std::size_t>(
+        LAND_RESISTANCE,
+        static_cast<std::size_t>(raw)
+    );
 }
