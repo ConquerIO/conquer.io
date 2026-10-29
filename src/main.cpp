@@ -8,6 +8,7 @@
 #include "rlImGui.h"
 #include "imgui.h"
 #include "system/Logger.hpp"
+#include "system/ResourceManager.hpp"
 
 void initializeRandomSeed(){
     std::srand(
