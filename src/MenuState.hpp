@@ -20,6 +20,11 @@ class MenuState : public GameState
         void resume() override {}
 
     private:
+        // funciones para sacar la textura del logotipo y fuente para el menu (desde resourcemanager)
+        bool loadLogo();
+        bool loadMenuFont();
+        std::string assetPath(const std::string& relativePath) const;
+
         std::string player_name;        // Nombre introducido por el jugador
         int selected_color;             // Índice del color seleccionado
         int frame_counter;              // Contador de frames (para el cursor parpadeante)

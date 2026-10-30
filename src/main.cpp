@@ -27,7 +27,9 @@ int main()
     Logger::debug("Seed inicializada correctamente");
 
     Logger::info("Inicializando ventana (2560x1440)...");
-    InitWindow(2560, 1440, "Conquer.io");
+    InitWindow(2560, 1440, "Conquer.io v0.1.0-alpha");
+    ResourceManager::initialize();
+
 
     {
         const int monitor = GetCurrentMonitor();
@@ -77,6 +79,7 @@ int main()
     Logger::debug("Liberando recursos de la memoria debug...");
     rlImGuiShutdown();
     Logger::debug("Terminando ventana...");
+    ResourceManager::clear();
     CloseWindow();
 
     return 0;

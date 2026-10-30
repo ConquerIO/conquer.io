@@ -4,8 +4,14 @@
 #include <raylib.h>
 #include <memory>
 #include <algorithm>
+#include "system/ResourceManager.hpp"
+#include <vector>
 
-// Colores disponibles para el territorio
+// para cargar siempre el mismo logo y fuente
+static const char* const LOGO_IMAGE_KEY = "menu.logo";
+static const char* const MENU_FONT_KEY  = "menu.font";
+
+// colores disponibles para el territorio
 static const Color TERRITORY_COLORS[] = {
     RED, BLUE, GREEN, YELLOW, PURPLE, ORANGE
 };
@@ -13,16 +19,25 @@ static const char* COLOR_NAMES[] = {
     "Rojo", "Azul", "Verde", "Amarillo", "Morado", "Naranja"
 };
 
+// funcion auxiliar que añade robustez si se ejecuta el juego en otro directorio
+std::string MenuState::assetPath(const std::string& relativePath) const{
+    std::string base = GetApplicationDirectory();
+    if (!base.empty() && base.back() != '/') {
+        base += '/';
+    }
+    return base + relativePath;
+}
 
 void MenuState::scanAvailableMaps(){
     available_maps.clear();
-
+    
+    const std::string mapsDir = assetPath("maps");
     //utilizamos las funciones de la libreria de raylib para ver los mapas creados
-    if (!DirectoryExists("maps")) {
+    if (!DirectoryExists(mapsDir.c_str())) {
         return;
     }
 
-    FilePathList files = LoadDirectoryFiles("maps");
+    FilePathList files = LoadDirectoryFiles(mapsDir.c_str());
 
     for (unsigned int i=0; i<files.count; i++){
         if (IsFileExtension(files.paths[i], ".png")){
@@ -33,6 +48,68 @@ void MenuState::scanAvailableMaps(){
     UnloadDirectoryFiles(files);
     std::sort(available_maps.begin(), available_maps.end());
 }
+
+// cargar la imagen del logo, y cargar la textura en el ResourceManager
+bool MenuState::loadLogo(){
+    if (ResourceManager::getTexture(LOGO_IMAGE_KEY) != nullptr) return true;
+
+    if (ResourceManager::getInstance() == nullptr) { //no se ha inicializado el resource manager
+        return false;
+    }
+
+    const std::string path = assetPath("assets/images/logotipo-conquer.png"); //ruta del logotipo
+    if (!FileExists(path.c_str())) { //si no existe el logo
+        return false;
+    }
+
+    //cargamos la textura para poder pintarla a partir de la imagen y la guardamos en el resourcemanager
+    Image image = LoadImage(path.c_str());
+    if (image.data == nullptr) {
+        return false;
+    }
+    Texture2D texture = LoadTextureFromImage(image);
+    UnloadImage(image);
+    if (texture.id == 0) {
+        return false;
+    }
+
+    SetTextureFilter(texture, TEXTURE_FILTER_POINT);
+    ResourceManager::loadTexture(LOGO_IMAGE_KEY, texture);
+    return true;
+}
+
+// cargar la fuente del menu y guardarla en el resource manager si no existe
+bool MenuState::loadMenuFont(){
+    if (ResourceManager::getFont(MENU_FONT_KEY) != nullptr) return true;
+
+    if (ResourceManager::getInstance() == nullptr) {
+        return false;
+    }
+
+    const std::string path = assetPath("assets/fonts/Pixelify_Sans/static/PixelifySans-Regular.ttf");
+    if (!FileExists(path.c_str())) {
+        return false;
+    }
+
+    // para incluir caracteres por defecto, con acentos, ñ, etc.
+    std::vector<int> codepoints;
+    for (int c = 32; c <= 126; ++c) codepoints.push_back(c);
+    for (int c : {0x00A1, 0x00BF, 0x00C1, 0x00C9, 0x00CD, 0x00D3, 0x00DA,
+                  0x00DC, 0x00D1, 0x00E1, 0x00E9, 0x00ED, 0x00F3, 0x00FA,
+                  0x00FC, 0x00F1}) {
+        codepoints.push_back(c);
+    }
+
+    Font font = LoadFontEx(path.c_str(), 64, codepoints.data(), static_cast<int>(codepoints.size()));
+    if (font.texture.id == 0) {
+        return false;
+    }
+
+    SetTextureFilter(font.texture, TEXTURE_FILTER_POINT);
+    ResourceManager::loadFont(MENU_FONT_KEY, font);
+    return true;
+}
+
 
 // Dibuja una checkbox con texto al lado y devuelve el Rectangle de la checkbox (para detectar clics después).
 Rectangle MenuState::drawCheckbox(int x, int y, const char* label, bool checked){
@@ -58,10 +135,9 @@ MenuState::MenuState(): player_name("player_"+std::to_string(GetRandomValue(100,
 // Inicialización
 void MenuState::init()
 {
-    // La ventana ya está inicializada en main.cpp.
-    // Aquí se puede añadir inicialización específica del menú
     // (cargar fuentes, texturas, audio, etc.)
-
+    loadLogo();
+    loadMenuFont();
     scanAvailableMaps();
 }
 
@@ -410,18 +486,38 @@ void MenuState::render()
 
 void MenuState::renderMainMenu(){
     const int screenW = GetScreenWidth();
-
+    
     // Título 
-    const char* title = "Conquer.io";
-    const int titleSize = 100;
-    const int titleW = MeasureText(title, titleSize);
-    DrawText(title, (screenW - titleW) / 2, 140, titleSize, DARKGRAY);
+    Texture2D* logo = ResourceManager::getTexture(LOGO_IMAGE_KEY);
+    if (logo != nullptr){
+        //logo escalado *2 (tienen que ser numeros enteros para que lo dibuje bien)
+        const float logoWidth  = logo->width * 2.0f;
+        const float logoHeight = logo->height * 2.0f;
+        Rectangle source{ 0.0f, 0.0f, static_cast<float>(logo->width), static_cast<float>(logo->height) };
+        Rectangle dest{ (screenW - logoWidth) / 2.0f, 80.0f, logoWidth, logoHeight };
 
-    // Subtítulo
-    const char* subtitle = "Conquista el mapa. Domina el territorio.";
+        DrawTexturePro(*logo, source, dest,Vector2{0.0f, 0.0f}, 0.0f, WHITE);
+    } else {
+        const char* title = "Conquer.io";
+        const int titleSize = 100;
+        const int titleW = MeasureText(title, titleSize);
+        DrawText(title, (screenW - titleW) / 2, 140, titleSize, DARKGRAY);
+    }
+
+    // fuente de prueba
+    Font* menuFont = ResourceManager::getFont(MENU_FONT_KEY);
+    const char* subtitle = "Conquista el mapa. Domina el territorio. - ñññ á é ó";
     const int subSize = 24;
-    const int subW = MeasureText(subtitle, subSize);
-    DrawText(subtitle, (screenW - subW) / 2, 240, subSize, GRAY);
+
+    if (menuFont != nullptr) {
+        const Vector2 subW = MeasureTextEx(*menuFont, subtitle, subSize, 1.0f);
+        DrawTextEx(*menuFont, subtitle,
+                Vector2{(screenW - subW.x) / 2.0f, 240.0f},
+                subSize, 1.0f, GRAY);
+    } else {
+        const int subW = MeasureText(subtitle, subSize);
+        DrawText(subtitle, (screenW - subW) / 2, 240, subSize, GRAY);
+    }
 
     // Caja de texto
     const int boxW = 460;
