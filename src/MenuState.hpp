@@ -4,6 +4,9 @@
 #include <GameConfig.hpp>
 #include <string>
 #include <vector>
+#include "ui/UiLayout.hpp"
+#include "ui/UiTheme.hpp"
+#include "ui/UiWidgets.hpp"
 
 class MenuState : public GameState
 {
@@ -25,19 +28,24 @@ class MenuState : public GameState
         bool loadMenuFont();
         std::string assetPath(const std::string& relativePath) const;
 
-        std::string player_name;        // Nombre introducido por el jugador
-        int selected_color;             // Índice del color seleccionado
-        int frame_counter;              // Contador de frames (para el cursor parpadeante)
+        UiLayout ui_layout;
+        UiTheme ui_theme;
+        Button create_button;
+
+        void updateLayout();
+
+        std::string player_name; // Nombre introducido por el jugador
+        int selected_color; // Índice del color seleccionado
+        int frame_counter; // Contador de frames (para el cursor parpadeante)
 
         static constexpr int MAX_NAME_LENGTH = 15;
         static constexpr int NUM_COLORS      = 6;
 
-        float backspace_timer;              // Temporizador para borrado continuo
-        bool  backspace_repeating;          // Estamos en fase de repetición?
+        float backspace_timer; // Temporizador para borrado continuo
+        bool  backspace_repeating; // Estamos en fase de repetición?
 
 
-        // VARIABLES para el panel de personalizacion
-
+        // -- variables para el panel de personalizacion --
         bool show_customization = false;
         GameConfig config;
         std::vector<std::string> available_maps;

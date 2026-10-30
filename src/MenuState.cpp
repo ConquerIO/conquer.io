@@ -86,7 +86,7 @@ bool MenuState::loadMenuFont(){
         return false;
     }
 
-    const std::string path = assetPath("assets/fonts/Pixelify_Sans/static/PixelifySans-Regular.ttf");
+    const std::string path = assetPath("assets/fonts/Silkscreen/Silkscreen-Bold.ttf");
     if (!FileExists(path.c_str())) {
         return false;
     }
@@ -128,9 +128,16 @@ Rectangle MenuState::drawCheckbox(int x, int y, const char* label, bool checked)
     return Rectangle{ (float)x, (float)y, (float)(boxSize + 10 + MeasureText(label, 18)), (float)boxSize };
 }
 
-
 // Constructor
 MenuState::MenuState(): player_name("player_"+std::to_string(GetRandomValue(100, 999))), selected_color(0), frame_counter(0), backspace_timer(0.0f), backspace_repeating(false){}
+
+
+void MenuState::updateLayout(){
+    ui_layout.update(GetScreenWidth(), GetScreenHeight());
+
+    create_button.bounds = ui_layout.rect(730.0f, 380.0f, 460.0f, 55.0f);
+    create_button.enabled = !player_name.empty();
+}
 
 // Inicialización
 void MenuState::init()
@@ -139,6 +146,8 @@ void MenuState::init()
     loadLogo();
     loadMenuFont();
     scanAvailableMaps();
+
+    create_button.label = "CREAR PARTIDA";
 }
 
 // Entrada
@@ -159,80 +168,53 @@ void MenuState::handleMainMenuInput(){
 
     // Entrada de texto para el nombre del jugador
     int key = GetCharPressed();
-    while (key > 0)
-    {
+    while (key > 0){
         // Solo caracteres imprimibles ASCII (espacio...'~')
-        if (key >= 32 && key <= 125
-            && static_cast<int>(player_name.length()) < MAX_NAME_LENGTH)
-        {
+        if (key >= 32 && key <= 125 && static_cast<int>(player_name.length()) < MAX_NAME_LENGTH) {
             player_name += static_cast<char>(key);
         }
         key = GetCharPressed();
     }
 
     // Borrado: mantener pulsado para borrar continuamente
-    if (IsKeyDown(KEY_BACKSPACE) && !player_name.empty())
-    {
-        if (IsKeyPressed(KEY_BACKSPACE))
-        {
+    if (IsKeyDown(KEY_BACKSPACE) && !player_name.empty()) {
+        if (IsKeyPressed(KEY_BACKSPACE)){
             // Primera pulsación: borrar inmediatamente
             player_name.pop_back();
             backspace_timer = 0.0f;
             backspace_repeating = false;
-        }
-        else
-        {
+        } else {
             backspace_timer += GetFrameTime();
-            if (!backspace_repeating && backspace_timer >= 0.4f)
-            {
+            if (!backspace_repeating && backspace_timer >= 0.4f){
                 // Pasó el retardo inicial → empezar a repetir
                 backspace_repeating = true;
                 backspace_timer = 0.0f;
                 if (!player_name.empty()) player_name.pop_back();
-            }
-            else if (backspace_repeating && backspace_timer >= 0.05f)
-            {
+            } else if (backspace_repeating && backspace_timer >= 0.05f){
                 // Repetición rápida cada 50ms
                 backspace_timer = 0.0f;
                 if (!player_name.empty()) player_name.pop_back();
             }
         }
-    }
-    else
-    {
+    } else{
         backspace_timer = 0.0f;
         backspace_repeating = false;
     }
 
     // Selección de color con flechas izquierda/derecha
-    if (IsKeyPressed(KEY_UP))
-    {
+    if (IsKeyPressed(KEY_UP)){
         selected_color = (selected_color - 1 + NUM_COLORS) % NUM_COLORS;   
     }
-    if (IsKeyPressed(KEY_DOWN))
-    {
+    if (IsKeyPressed(KEY_DOWN)){
         selected_color = (selected_color + 1) % NUM_COLORS;
     }
     
-    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && !player_name.empty())
-    {
-        const int screenW = GetScreenWidth();
-        const int buttonW = 460;
-        const int buttonH = 55;
-        const int buttonX = (screenW - buttonW) / 2;
-        const int buttonY = 405;
+    updateLayout();
+    create_button.update(GetMousePosition()); //comprueba si hay raton encima o se ha pulsado
 
-        Vector2 mouse = GetMousePosition();
-        Rectangle buttonRect = {
-            static_cast<float>(buttonX), static_cast<float>(buttonY),
-            static_cast<float>(buttonW), static_cast<float>(buttonH)
-        };
-
-        if (CheckCollisionPointRec(mouse, buttonRect))
-        {
-            show_customization = true;
-        }
-    }
+    if (create_button.clicked) {
+        show_customization = true; //si se ha clicado muestra pantalla de personalizacion
+    }    
 }
 
 void MenuState::handleCustomizationInput(){
@@ -486,7 +468,7 @@ void MenuState::render()
 
 void MenuState::renderMainMenu(){
     const int screenW = GetScreenWidth();
-    
+    updateLayout(); //calcula factores de escalado
     // Título 
     Texture2D* logo = ResourceManager::getTexture(LOGO_IMAGE_KEY);
     if (logo != nullptr){
@@ -571,34 +553,7 @@ void MenuState::renderMainMenu(){
     );
 
     // Botón JUGAR
-    const int buttonW = 460;
-    const int buttonH = 55;
-    const int buttonX = (screenW - buttonW) / 2;
-    const int buttonY = 380;
-    Rectangle buttonRect = {(float)buttonX, (float)buttonY, (float)buttonW, (float)buttonH};
-    Color colorFondoBoton;
-    Color colorTextoBoton;
-
-    if (player_name.empty()) {
-        colorFondoBoton = Fade(DARKGREEN, 0.75f);
-        colorTextoBoton = Fade(RAYWHITE, 0.7f);
-    } else if (CheckCollisionPointRec(GetMousePosition(), buttonRect)){
-        colorFondoBoton = Color{ 0, 135, 0, 255 };                                                                                                                                                                             
-        colorTextoBoton = RAYWHITE;
-    } else {
-        colorFondoBoton = DARKGREEN;
-        colorTextoBoton = RAYWHITE;
-    }
-
-    DrawRectangleRec(buttonRect, colorFondoBoton);
-    const char* btnText = "PERSONALIZAR PARTIDA";
-    const int btnTextW = MeasureText(btnText, 26);
-    DrawText(btnText,
-                buttonX + (buttonW - btnTextW) / 2,
-                buttonY + (buttonH - 26) / 2,
-                26, colorTextoBoton);
-
-    DrawRectangleLines(buttonX, buttonY, buttonW, buttonH, DARKGRAY);
+    create_button.draw(ui_theme, ui_layout.scale, ResourceManager::getFont(MENU_FONT_KEY)); //dibuja el boton
 }
 
 
