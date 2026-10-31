@@ -12,6 +12,7 @@ struct MainMenuLayout { //elementos de la pantalla de menu
     Rectangle logo{};
     Rectangle nameField{};
     Rectangle colorSelector{};
+    Rectangle colorHint{};
     Rectangle primaryButton{};
     Rectangle settingsButton{};
     Rectangle exitButton{};

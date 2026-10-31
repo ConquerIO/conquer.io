@@ -93,7 +93,7 @@ bool MenuState::loadFontResource(const char* key, const char* relativePath){
     for (int c = 32; c <= 126; ++c) codepoints.push_back(c);
     for (int c : {0x00A1, 0x00A9, 0x00BF, 0x00C1, 0x00C9, 0x00CD, 0x00D3,
                   0x00DA, 0x00DC, 0x00D1, 0x00E1, 0x00E9, 0x00ED, 0x00F3,
-                  0x00FA, 0x00FC, 0x00F1}) {
+                  0x00FA, 0x00FC, 0x00F1, 0x2191, 0x2193}) {
         codepoints.push_back(c);
     }
 
@@ -138,6 +138,7 @@ void MenuState::updateLayout(){
     menu_layout.logo = ui_layout.rect(612.0f,  80.0f, 696.0f, 220.0f); //logo *2
     menu_layout.nameField = ui_layout.rect(690.0f, 436.0f, 460.0f,  64.0f);
     menu_layout.colorSelector = ui_layout.rect(1166.0f, 436.0f,  64.0f, 64.0f);
+    menu_layout.colorHint = ui_layout.rect(1246.0f, 456.0f, 260.0f, 24.0f);
     menu_layout.primaryButton = ui_layout.rect(700.0f, 510.0f, 520.0f,  76.0f);
     menu_layout.settingsButton = ui_layout.rect(860.0f, 630.0f, 200.0f,  56.0f);
     menu_layout.exitButton = ui_layout.rect(860.0f, 710.0f, 200.0f,  56.0f);
@@ -497,7 +498,7 @@ void MenuState::renderMainMenu(){
 
         Rectangle source{0.0f, 0.0f, static_cast<float>(logo->width), static_cast<float>(logo->height)}; //la textura del logo
         
-        const float nudgeLeft = 50.0f * ui_layout.scale; //para tirar el logo un poco a la izq
+        const float nudgeLeft = 72.0f * ui_layout.scale; //para tirar el logo un poco a la izq
         Rectangle dest{ //donde y a que tamaño se dibuja
             menu_layout.logo.x + (menu_layout.logo.width  - logoWidth)  * 0.5f - nudgeLeft,
             menu_layout.logo.y + (menu_layout.logo.height - logoHeight) * 0.5f, logoWidth, logoHeight};
@@ -508,16 +509,19 @@ void MenuState::renderMainMenu(){
     //pinta la caja texto para escribir el nombre
     name_field.draw(ui_theme, ui_layout.scale, regular);
 
-    // logica del selector del color
+    // selector del color
     DrawRectangleRec(menu_layout.colorSelector, TERRITORY_COLORS[selected_color]);
     DrawRectangleLinesEx(menu_layout.colorSelector, std::max(1.0f, ui_layout.scale), ui_theme.border);
 
-    const float centerX = menu_layout.colorSelector.x + menu_layout.colorSelector.width * 0.5f;
-    const float topY = menu_layout.colorSelector.y;
-    const float bottomY = menu_layout.colorSelector.y + menu_layout.colorSelector.height;
-    const float arrowOffset = 14.0f * ui_layout.scale;
-    const float arrowHalf = 8.0f * ui_layout.scale;
-    
+    if (!name_field.focused && regular != nullptr) {
+        const float hintSize = ui_theme.smallFontSize * ui_layout.scale;
+        const char* hint = "↑/↓ cambiar color";
+
+        const Vector2 hintTextSize = MeasureTextEx(*regular, hint, hintSize, 1.0f);
+        const Vector2 hintPos{menu_layout.colorHint.x, menu_layout.colorHint.y + (menu_layout.colorHint.height - hintTextSize.y) * 0.5f};
+        DrawTextEx(*regular, hint, hintPos,hintSize, 1.0f, ui_theme.textMuted);
+    }
+
     // pinta los botones
     create_button.draw(ui_theme, ui_layout.scale, bold);
     settings_button.draw(ui_theme, ui_layout.scale, bold);
