@@ -7,9 +7,10 @@
 #include "system/ResourceManager.hpp"
 #include <vector>
 
-// para cargar siempre el mismo logo y fuente
+// para cargar siempre el mismo logo y fuentes
 static const char* const LOGO_IMAGE_KEY = "menu.logo";
-static const char* const MENU_FONT_KEY  = "menu.font";
+static const char* const MENU_FONT_REGULAR_KEY = "menu.font.regular";
+static const char* const MENU_FONT_BOLD_KEY    = "menu.font.bold";
 
 // colores disponibles para el territorio
 static const Color TERRITORY_COLORS[] = {
@@ -78,20 +79,13 @@ bool MenuState::loadLogo(){
     return true;
 }
 
-// cargar la fuente del menu y guardarla en el resource manager si no existe
-bool MenuState::loadMenuFont(){
-    if (ResourceManager::getFont(MENU_FONT_KEY) != nullptr) return true;
+// funcion auxiliar para cargar las fuentes del menu y guardarla en el resource manager si no existe
+bool MenuState::loadFontResource(const char* key, const char* relativePath){
+    if (ResourceManager::getFont(key) != nullptr) return true;
 
-    if (ResourceManager::getInstance() == nullptr) {
-        return false;
-    }
+    const std::string path = assetPath(relativePath);
+    if (!FileExists(path.c_str())) return false;
 
-    const std::string path = assetPath("assets/fonts/Silkscreen/Silkscreen-Bold.ttf");
-    if (!FileExists(path.c_str())) {
-        return false;
-    }
-
-    // para incluir caracteres por defecto, con acentos, ñ, etc.
     std::vector<int> codepoints;
     for (int c = 32; c <= 126; ++c) codepoints.push_back(c);
     for (int c : {0x00A1, 0x00BF, 0x00C1, 0x00C9, 0x00CD, 0x00D3, 0x00DA,
@@ -101,13 +95,17 @@ bool MenuState::loadMenuFont(){
     }
 
     Font font = LoadFontEx(path.c_str(), 64, codepoints.data(), static_cast<int>(codepoints.size()));
-    if (font.texture.id == 0) {
-        return false;
-    }
+
+    if (font.texture.id == 0) return false;
 
     SetTextureFilter(font.texture, TEXTURE_FILTER_POINT);
-    ResourceManager::loadFont(MENU_FONT_KEY, font);
+    ResourceManager::loadFont(key, font);
     return true;
+}
+bool MenuState::loadMenuFonts(){
+    const bool regular = loadFontResource(MENU_FONT_REGULAR_KEY, "assets/fonts/Silkscreen/Silkscreen-Regular.ttf");
+    const bool bold = loadFontResource(MENU_FONT_BOLD_KEY, "assets/fonts/Silkscreen/Silkscreen-Bold.ttf");
+    return regular && bold;
 }
 
 
@@ -144,7 +142,7 @@ void MenuState::init()
 {
     // (cargar fuentes, texturas, audio, etc.)
     loadLogo();
-    loadMenuFont();
+    loadMenuFonts();
     scanAvailableMaps();
 
     create_button.label = "CREAR PARTIDA";
@@ -487,7 +485,7 @@ void MenuState::renderMainMenu(){
     }
 
     // fuente de prueba
-    Font* menuFont = ResourceManager::getFont(MENU_FONT_KEY);
+    Font* menuFont = ResourceManager::getFont(MENU_FONT_BOLD_KEY);
     const char* subtitle = "Conquista el mapa. Domina el territorio. - ñññ á é ó";
     const int subSize = 24;
 
@@ -553,7 +551,7 @@ void MenuState::renderMainMenu(){
     );
 
     // Botón JUGAR
-    create_button.draw(ui_theme, ui_layout.scale, ResourceManager::getFont(MENU_FONT_KEY)); //dibuja el boton
+    create_button.draw(ui_theme, ui_layout.scale, ResourceManager::getFont(MENU_FONT_BOLD_KEY)); //dibuja el boton
 }
 
 

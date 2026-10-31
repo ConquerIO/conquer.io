@@ -2,8 +2,8 @@
 #include <algorithm>
 
 void Button::update(Vector2 mouse) {
-    hovered = enabled && CheckCollisionPointRec(mouse, bounds);
-    clicked = hovered && IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
+    hovered = enabled && CheckCollisionPointRec(mouse, bounds); //si esta activo (nombre de jugador puesto) y raton por encima
+    clicked = hovered && IsMouseButtonPressed(MOUSE_BUTTON_LEFT); //si esta activo, raton encima y se pulsa clic izq
 }
 
 void Button::draw(const UiTheme& theme, float scale, const Font* font) const{

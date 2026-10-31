@@ -25,7 +25,8 @@ class MenuState : public GameState
     private:
         // funciones para sacar la textura del logotipo y fuente para el menu (desde resourcemanager)
         bool loadLogo();
-        bool loadMenuFont();
+        bool loadFontResource(const char* key, const char* relativePath);
+        bool loadMenuFonts();
         std::string assetPath(const std::string& relativePath) const;
 
         UiLayout ui_layout;
