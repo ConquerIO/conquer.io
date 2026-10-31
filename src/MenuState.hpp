@@ -8,6 +8,17 @@
 #include "ui/UiTheme.hpp"
 #include "ui/UiWidgets.hpp"
 
+struct MainMenuLayout { //elementos de la pantalla de menu
+    Rectangle logo{};
+    Rectangle nameField{};
+    Rectangle colorSelector{};
+    Rectangle primaryButton{};
+    Rectangle settingsButton{};
+    Rectangle exitButton{};
+    Rectangle credits{};
+    Rectangle version{};
+};
+
 class MenuState : public GameState
 {
     public:
@@ -23,31 +34,37 @@ class MenuState : public GameState
         void resume() override {}
 
     private:
+        UiLayout ui_layout;
+        UiTheme ui_theme;
+        MainMenuLayout menu_layout;
+
+        //elementos del menu
+        TextField name_field;
+        Button create_button;
+        Button settings_button;
+        Button exit_button;
+        Button settings_back_button;
+
+        // para saber que mostrar en cada momento
+        bool show_customization = false;
+        bool show_settings = false;
+
         // funciones para sacar la textura del logotipo y fuente para el menu (desde resourcemanager)
         bool loadLogo();
         bool loadFontResource(const char* key, const char* relativePath);
         bool loadMenuFonts();
+        
+        // escanear la carpeta maps/ para encontrar PNGs
         std::string assetPath(const std::string& relativePath) const;
-
-        UiLayout ui_layout;
-        UiTheme ui_theme;
-        Button create_button;
-
+        void scanAvailableMaps();
+        
+        //actualiza los valores de escalado y atributos de los elementos
         void updateLayout();
-
-        std::string player_name; // Nombre introducido por el jugador
-        int selected_color; // Índice del color seleccionado
-        int frame_counter; // Contador de frames (para el cursor parpadeante)
-
-        static constexpr int MAX_NAME_LENGTH = 15;
-        static constexpr int NUM_COLORS      = 6;
-
-        float backspace_timer; // Temporizador para borrado continuo
-        bool  backspace_repeating; // Estamos en fase de repetición?
-
+        
+        int selected_color;
+        static constexpr int NUM_COLORS = 6;
 
         // -- variables para el panel de personalizacion --
-        bool show_customization = false;
         GameConfig config;
         std::vector<std::string> available_maps;
         int selected_map_index = -1; // indice del mapa seleccionado en la lista (-1 = procedural)
@@ -74,7 +91,8 @@ class MenuState : public GameState
         void handleCustomizationInput();
         void renderMainMenu();
         void renderCustomizationOverlay();
-        // escanear la carpeta maps/ para encontrar PNGs
-        void scanAvailableMaps();
+        void handleSettingsInput();
+        void renderSettingsOverlay();
+        
         Rectangle drawCheckbox(int x, int y, const char* label, bool checked);
 };

@@ -88,9 +88,9 @@ bool MenuState::loadFontResource(const char* key, const char* relativePath){
 
     std::vector<int> codepoints;
     for (int c = 32; c <= 126; ++c) codepoints.push_back(c);
-    for (int c : {0x00A1, 0x00BF, 0x00C1, 0x00C9, 0x00CD, 0x00D3, 0x00DA,
-                  0x00DC, 0x00D1, 0x00E1, 0x00E9, 0x00ED, 0x00F3, 0x00FA,
-                  0x00FC, 0x00F1}) {
+    for (int c : {0x00A1, 0x00A9, 0x00BF, 0x00C1, 0x00C9, 0x00CD, 0x00D3,
+                  0x00DA, 0x00DC, 0x00D1, 0x00E1, 0x00E9, 0x00ED, 0x00F3,
+                  0x00FA, 0x00FC, 0x00F1}) {
         codepoints.push_back(c);
     }
 
@@ -126,15 +126,32 @@ Rectangle MenuState::drawCheckbox(int x, int y, const char* label, bool checked)
     return Rectangle{ (float)x, (float)y, (float)(boxSize + 10 + MeasureText(label, 18)), (float)boxSize };
 }
 
-// Constructor
-MenuState::MenuState(): player_name("player_"+std::to_string(GetRandomValue(100, 999))), selected_color(0), frame_counter(0), backspace_timer(0.0f), backspace_repeating(false){}
-
-
 void MenuState::updateLayout(){
     ui_layout.update(GetScreenWidth(), GetScreenHeight());
 
-    create_button.bounds = ui_layout.rect(730.0f, 380.0f, 460.0f, 55.0f);
-    create_button.enabled = !player_name.empty();
+    //calcula donde se colocan los rectangulos en la pantalla real
+    menu_layout.logo = ui_layout.rect(612.0f,  80.0f, 696.0f, 220.0f); //logo *2
+    menu_layout.nameField = ui_layout.rect(690.0f, 400.0f, 460.0f,  64.0f);
+    menu_layout.colorSelector = ui_layout.rect(1166.0f, 400.0f,  64.0f, 64.0f);
+    menu_layout.primaryButton = ui_layout.rect(700.0f, 510.0f, 520.0f,  76.0f);
+    menu_layout.settingsButton = ui_layout.rect(860.0f, 630.0f, 200.0f,  56.0f);
+    menu_layout.exitButton = ui_layout.rect(860.0f, 710.0f, 200.0f,  56.0f);
+    menu_layout.credits = ui_layout.rect(48.0f, 1020.0f, 500.0f, 30.0f);
+    menu_layout.version = ui_layout.rect(1372.0f, 1020.0f, 500.0f, 30.0f);
+
+    //le pasa los atributos a los elementos del menu
+    name_field.bounds = menu_layout.nameField;
+    create_button.bounds = menu_layout.primaryButton;
+    settings_button.bounds = menu_layout.settingsButton;
+    exit_button.bounds = menu_layout.exitButton;
+    settings_back_button.bounds = ui_layout.rect(860.0f, 620.0f, 200.0f, 56.0f);
+}
+
+// Constructor
+MenuState::MenuState(): selected_color(0){
+    name_field.text = "player_" + std::to_string(GetRandomValue(100, 999));
+    name_field.placeholder = "Introduce un nombre";
+    name_field.maxLength = 15;
 }
 
 // Inicialización
@@ -146,73 +163,55 @@ void MenuState::init()
     scanAvailableMaps();
 
     create_button.label = "CREAR PARTIDA";
+    create_button.style = ButtonStyle::Primary;
+
+    settings_button.label = "AJUSTES";
+    settings_button.style = ButtonStyle::Text;
+
+    exit_button.label = "SALIR";
+    exit_button.style = ButtonStyle::Text;
+
+    settings_back_button.label = "VOLVER";
+    settings_back_button.style = ButtonStyle::Secondary;
 }
 
-// Entrada
-void MenuState::handleInput()
-{
-    if (show_customization){
-        handleCustomizationInput();
-    } else{
-        handleMainMenuInput();
-    }
-}
+
+//--- handelinputs de menu, personalizacion y settings ---
 
 void MenuState::handleMainMenuInput(){
-
-    if (IsKeyPressed(KEY_ESCAPE)){
-        this->state_machine->remove_state(true); // termina la ejecucion
-    }
-
-    // Entrada de texto para el nombre del jugador
-    int key = GetCharPressed();
-    while (key > 0){
-        // Solo caracteres imprimibles ASCII (espacio...'~')
-        if (key >= 32 && key <= 125 && static_cast<int>(player_name.length()) < MAX_NAME_LENGTH) {
-            player_name += static_cast<char>(key);
-        }
-        key = GetCharPressed();
-    }
-
-    // Borrado: mantener pulsado para borrar continuamente
-    if (IsKeyDown(KEY_BACKSPACE) && !player_name.empty()) {
-        if (IsKeyPressed(KEY_BACKSPACE)){
-            // Primera pulsación: borrar inmediatamente
-            player_name.pop_back();
-            backspace_timer = 0.0f;
-            backspace_repeating = false;
-        } else {
-            backspace_timer += GetFrameTime();
-            if (!backspace_repeating && backspace_timer >= 0.4f){
-                // Pasó el retardo inicial → empezar a repetir
-                backspace_repeating = true;
-                backspace_timer = 0.0f;
-                if (!player_name.empty()) player_name.pop_back();
-            } else if (backspace_repeating && backspace_timer >= 0.05f){
-                // Repetición rápida cada 50ms
-                backspace_timer = 0.0f;
-                if (!player_name.empty()) player_name.pop_back();
-            }
-        }
-    } else{
-        backspace_timer = 0.0f;
-        backspace_repeating = false;
-    }
-
-    // Selección de color con flechas izquierda/derecha
-    if (IsKeyPressed(KEY_UP)){
-        selected_color = (selected_color - 1 + NUM_COLORS) % NUM_COLORS;   
-    }
-    if (IsKeyPressed(KEY_DOWN)){
-        selected_color = (selected_color + 1) % NUM_COLORS;
-    }
-    
     updateLayout();
-    create_button.update(GetMousePosition()); //comprueba si hay raton encima o se ha pulsado
+
+    const Vector2 mouse = GetMousePosition();
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) { //comprobacion para mantener el foco en la caja de texto
+        name_field.focused = CheckCollisionPointRec(mouse, name_field.bounds);
+    }
+
+    name_field.handleInput(GetFrameTime()); //nombre del jugador
+    create_button.enabled = !name_field.text.empty();
+
+    //update comprueba si esta hovered y clicado
+    create_button.update(mouse);
+    settings_button.update(mouse);
+    exit_button.update(mouse);
 
     if (create_button.clicked) {
-        show_customization = true; //si se ha clicado muestra pantalla de personalizacion
-    }    
+        show_customization = true;
+    }
+    if (settings_button.clicked) {
+        show_settings = true;
+    }
+    if (exit_button.clicked) {
+        state_machine->remove_state(true);
+    }
+
+    if (!name_field.focused) { //logica del selector de color
+        if (IsKeyPressed(KEY_UP)) {
+            selected_color = (selected_color - 1 + NUM_COLORS) % NUM_COLORS;
+        }
+        if (IsKeyPressed(KEY_DOWN)) {
+            selected_color = (selected_color + 1) % NUM_COLORS;
+        }
+    }
 }
 
 void MenuState::handleCustomizationInput(){
@@ -438,120 +437,97 @@ void MenuState::handleCustomizationInput(){
         config.numero_bots = nBots;
 
         // iniciar partida
-        this->state_machine->add_state(std::make_unique<MainGameState>(player_name, TERRITORY_COLORS[selected_color], config), true);
+        this->state_machine->add_state(std::make_unique<MainGameState>(name_field.text, TERRITORY_COLORS[selected_color], config), true);
+    }
+}
+
+void MenuState::handleSettingsInput(){
+    updateLayout();
+
+    if (IsKeyPressed(KEY_ESCAPE)) {
+        show_settings = false;
+        return;
+    }
+
+    settings_back_button.update(GetMousePosition());
+
+    if (settings_back_button.clicked) {
+        show_settings = false;
+    }
+}
+
+// Entrada
+void MenuState::handleInput()
+{
+    if (show_customization){
+        handleCustomizationInput();
+    } else if (show_settings){
+        handleSettingsInput();
+    } else{
+        handleMainMenuInput();
     }
 }
 
 // Actualización
-void MenuState::update(float deltaTime)
-{
-    frame_counter++;
+void MenuState::update(float deltaTime){
+    (void)deltaTime;
 }
 
-// Renderizado
-void MenuState::render()
-{
-    BeginDrawing();
-    ClearBackground(RAYWHITE);
-
-    renderMainMenu();
-
-    if (show_customization)
-    {
-        renderCustomizationOverlay();
-    }
-
-    EndDrawing();
-}
+// --- renderizado de menu, personalizacion y settings ---
 
 void MenuState::renderMainMenu(){
-    const int screenW = GetScreenWidth();
-    updateLayout(); //calcula factores de escalado
-    // Título 
+    updateLayout();
+
+    //carga las fuentes
+    Font* bold = ResourceManager::getFont(MENU_FONT_BOLD_KEY);
+    Font* regular = ResourceManager::getFont(MENU_FONT_REGULAR_KEY);
+    //carga y pinta el logo
     Texture2D* logo = ResourceManager::getTexture(LOGO_IMAGE_KEY);
-    if (logo != nullptr){
-        //logo escalado *2 (tienen que ser numeros enteros para que lo dibuje bien)
-        const float logoWidth  = logo->width * 2.0f;
-        const float logoHeight = logo->height * 2.0f;
+    if (logo != nullptr) {
         Rectangle source{ 0.0f, 0.0f, static_cast<float>(logo->width), static_cast<float>(logo->height) };
-        Rectangle dest{ (screenW - logoWidth) / 2.0f, 80.0f, logoWidth, logoHeight };
-
-        DrawTexturePro(*logo, source, dest,Vector2{0.0f, 0.0f}, 0.0f, WHITE);
-    } else {
-        const char* title = "Conquer.io";
-        const int titleSize = 100;
-        const int titleW = MeasureText(title, titleSize);
-        DrawText(title, (screenW - titleW) / 2, 140, titleSize, DARKGRAY);
+        DrawTexturePro(*logo, source, menu_layout.logo, Vector2{0.0f, 0.0f}, 0.0f, WHITE);
     }
 
-    // fuente de prueba
-    Font* menuFont = ResourceManager::getFont(MENU_FONT_BOLD_KEY);
-    const char* subtitle = "Conquista el mapa. Domina el territorio. - ñññ á é ó";
-    const int subSize = 24;
+    //pinta la caja texto para escribir el nombre
+    name_field.draw(ui_theme, ui_layout.scale, regular);
 
-    if (menuFont != nullptr) {
-        const Vector2 subW = MeasureTextEx(*menuFont, subtitle, subSize, 1.0f);
-        DrawTextEx(*menuFont, subtitle,
-                Vector2{(screenW - subW.x) / 2.0f, 240.0f},
-                subSize, 1.0f, GRAY);
-    } else {
-        const int subW = MeasureText(subtitle, subSize);
-        DrawText(subtitle, (screenW - subW) / 2, 240, subSize, GRAY);
-    }
+    // logica del selector del color
+    DrawRectangleRec(menu_layout.colorSelector, TERRITORY_COLORS[selected_color]);
+    DrawRectangleLinesEx(menu_layout.colorSelector, std::max(1.0f, ui_layout.scale), ui_theme.border);
 
-    // Caja de texto
-    const int boxW = 460;
-    const int boxH = 60;
-    const int boxX = (screenW - boxW) / 2;
-    const int boxY = 315;
+    const float centerX = menu_layout.colorSelector.x + menu_layout.colorSelector.width * 0.5f;
+    const float topY = menu_layout.colorSelector.y;
+    const float bottomY = menu_layout.colorSelector.y + menu_layout.colorSelector.height;
+    const float arrowOffset = 14.0f * ui_layout.scale;
+    const float arrowHalf = 8.0f * ui_layout.scale;
 
-    DrawRectangle(boxX, boxY, boxW, boxH, LIGHTGRAY);
-    DrawRectangleLines(boxX, boxY, boxW, boxH, DARKGRAY);
-
-    if (player_name.empty()){
-        DrawText("Introduce un nombre", boxX + 15, boxY + 16, 26, GRAY);
-    } else {
-        // Texto introducido + cursor parpadeante
-        std::string displayText = player_name;
-        if ((frame_counter / 30) % 2 == 0)
-        {
-            displayText += "|";
-        }
-        DrawText(displayText.c_str(), boxX + 12, boxY + 15, 28, DARKGRAY);
-    }
-
-    // Selector de color
-    const int colorBoxSize = boxH;  // mismo alto que la caja de texto (60px)
-    const int colorGap = 6;        // separación entre caja de nombre y cuadrado de color
-    const int colorBoxX = boxX + boxW + colorGap;
-    const int colorBoxY = boxY;
-
-    // cuadrado del color actual
-    DrawRectangle(colorBoxX, colorBoxY, colorBoxSize, colorBoxSize, TERRITORY_COLORS[selected_color]);
-    DrawRectangleLines(colorBoxX, colorBoxY, colorBoxSize, colorBoxSize, DARKGRAY);
-
-    float centroX = colorBoxX + (colorBoxSize / 2.0f);
-    float parteArriba = colorBoxY;
-    float parteAbajo  = colorBoxY + colorBoxSize;
-
-    // flechita arriba
     DrawTriangle(
-        Vector2{ centroX, parteArriba - 14.0f },        // Punta
-        Vector2{ centroX - 8.0f, parteArriba - 8.0f },  // Base izquierda
-        Vector2{ centroX + 8.0f, parteArriba - 8.0f },  // Base derecha
-        DARKGRAY
-    );
+        Vector2{centerX, topY - arrowOffset},
+        Vector2{centerX - arrowHalf, topY - arrowOffset + 6.0f * ui_layout.scale},
+        Vector2{centerX + arrowHalf, topY - arrowOffset + 6.0f * ui_layout.scale},
+        ui_theme.textMuted);
 
-    // flechita abajo
     DrawTriangle(
-        Vector2{ centroX, parteAbajo + 14.0f },         // Punta
-        Vector2{ centroX + 8.0f, parteAbajo + 8.0f },   // Base derecha (antihorario)
-        Vector2{ centroX - 8.0f, parteAbajo + 8.0f },   // Base izquierda
-        DARKGRAY
-    );
+        Vector2{centerX, bottomY + arrowOffset},
+        Vector2{centerX + arrowHalf, bottomY + arrowOffset - 6.0f * ui_layout.scale},
+        Vector2{centerX - arrowHalf, bottomY + arrowOffset - 6.0f * ui_layout.scale},
+        ui_theme.textMuted);
+    
+    
+    // pinta los botones
+    create_button.draw(ui_theme, ui_layout.scale, bold);
+    settings_button.draw(ui_theme, ui_layout.scale, bold);
+    exit_button.draw(ui_theme, ui_layout.scale, bold);
 
-    // Botón JUGAR
-    create_button.draw(ui_theme, ui_layout.scale, ResourceManager::getFont(MENU_FONT_BOLD_KEY)); //dibuja el boton
+    if (regular != nullptr) {
+        const float small = ui_theme.smallFontSize * ui_layout.scale;
+
+        DrawTextEx(*regular, "Desarrollado por WarGames ©", Vector2{menu_layout.credits.x, menu_layout.credits.y}, small, 1.0f, ui_theme.textMuted);
+
+        const char* version = "v0.1.0-alpha";
+        const Vector2 versionSize = MeasureTextEx(*regular, version, small, 1.0f);
+        DrawTextEx(*regular, version, Vector2{menu_layout.version.x + menu_layout.version.width - versionSize.x, menu_layout.version.y}, small, 1.0f, ui_theme.textMuted);
+    }
 }
 
 
@@ -717,4 +693,51 @@ void MenuState::renderCustomizationOverlay(){
     DrawRectangleLines(jugarX, btnY, btnW, btnH, RAYWHITE);
     const char* jugarText = "JUGAR";
     DrawText(jugarText, jugarX + (btnW - MeasureText(jugarText, 22)) / 2, btnY + 14, 22, RAYWHITE);
+}
+
+void MenuState::renderSettingsOverlay (){
+    updateLayout();
+
+    DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(BLACK, 0.65f));
+
+    const Rectangle panel = ui_layout.rect(660.0f, 300.0f, 600.0f, 400.0f);
+    DrawRectangleRec(panel, ui_theme.panel);
+    DrawRectangleLinesEx(panel, std::max(1.0f, ui_layout.scale), ui_theme.border);
+
+    Font* bold = ResourceManager::getFont(MENU_FONT_BOLD_KEY);
+    Font* regular = ResourceManager::getFont(MENU_FONT_REGULAR_KEY);
+
+    if (bold != nullptr) {
+        const float titleSize = 32.0f * ui_layout.scale;
+        const Vector2 titleW = MeasureTextEx(*bold, "AJUSTES", titleSize, 1.0f);
+        DrawTextEx(*bold, "AJUSTES", Vector2{panel.x + (panel.width - titleW.x) * 0.5f, panel.y + 40.0f * ui_layout.scale}, titleSize, 1.0f, ui_theme.text);
+    }
+
+    if (regular != nullptr) {
+        const float textSize = 22.0f * ui_layout.scale;
+        const char* line1 = "EN DESARROLLO";
+        
+        const Vector2 w1 = MeasureTextEx(*regular, line1, textSize, 1.0f);
+        
+        DrawTextEx(*regular, line1, Vector2{panel.x + (panel.width - w1.x) * 0.5f, panel.y + 140.0f * ui_layout.scale}, textSize, 1.0f, ui_theme.textMuted);
+    }
+
+    settings_back_button.draw(ui_theme, ui_layout.scale, bold);
+}
+
+// Renderizado
+void MenuState::render()
+{
+    BeginDrawing();
+    ClearBackground(ui_theme.background);
+
+    renderMainMenu();
+
+    if (show_customization){
+        renderCustomizationOverlay();
+    } else if (show_settings){
+        renderSettingsOverlay();
+    }
+
+    EndDrawing();
 }

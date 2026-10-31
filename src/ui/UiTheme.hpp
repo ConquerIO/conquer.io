@@ -14,6 +14,11 @@ struct UiTheme {
     Color danger{ 231, 76, 60, 255 };
     Color disabled{ 80, 90, 100, 255 };
 
+    Color secondary{ 30, 38, 48, 255 };
+    Color secondaryHover{ 42, 52, 64, 255 };
+    Color textHover{ 255, 255, 255, 255 };
+    
+    int fieldFontSize = 26;
     int buttonFontSize = 28;
     int smallFontSize = 20;
     float spacing = 24.0f;
