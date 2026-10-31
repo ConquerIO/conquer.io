@@ -79,7 +79,7 @@ void TextField::draw(const UiTheme& theme, float scale, const Font* font) const{
     const float fontSize = theme.fieldFontSize * scale;
 
     DrawRectangleRec(bounds, theme.panel);
-    DrawRectangleLinesEx(bounds, focused ? std::max(2.0f, scale) : std::max(1.0f, scale), focused ? theme.primary : theme.border);
+    DrawRectangleLinesEx(bounds, focused ? std::max(2.0f, scale) : std::max(1.0f, scale), focused ? theme.borderFocus : theme.border);
 
     const char* shown = text.empty() ? placeholder.c_str() : text.c_str();
     const Color color = text.empty() ? theme.textMuted : theme.text;

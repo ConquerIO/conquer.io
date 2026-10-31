@@ -6,11 +6,14 @@
 #include <algorithm>
 #include "system/ResourceManager.hpp"
 #include <vector>
+#include <cmath>
 
 // para cargar siempre el mismo logo y fuentes
 static const char* const LOGO_IMAGE_KEY = "menu.logo";
 static const char* const MENU_FONT_REGULAR_KEY = "menu.font.regular";
-static const char* const MENU_FONT_BOLD_KEY    = "menu.font.bold";
+static const char* const MENU_FONT_BOLD_KEY = "menu.font.bold";
+static const char* const MENU_FONT_P_REGULAR_KEY = "menu.font.p.regular";
+static const char* const MENU_FONT_PRESS_REGULAR_KEY = "menu.font.press.regular";
 
 // colores disponibles para el territorio
 static const Color TERRITORY_COLORS[] = {
@@ -105,7 +108,9 @@ bool MenuState::loadFontResource(const char* key, const char* relativePath){
 bool MenuState::loadMenuFonts(){
     const bool regular = loadFontResource(MENU_FONT_REGULAR_KEY, "assets/fonts/Silkscreen/Silkscreen-Regular.ttf");
     const bool bold = loadFontResource(MENU_FONT_BOLD_KEY, "assets/fonts/Silkscreen/Silkscreen-Bold.ttf");
-    return regular && bold;
+    const bool regular_p = loadFontResource(MENU_FONT_P_REGULAR_KEY, "assets/fonts/Pixelify_Sans/static/PixelifySans-SemiBold.ttf");
+    const bool regular_press2p = loadFontResource(MENU_FONT_PRESS_REGULAR_KEY, "assets/fonts/Press_Start_2P/PressStart2P-Regular.ttf");
+    return regular && bold && regular_p && regular_press2p;
 }
 
 
@@ -131,8 +136,8 @@ void MenuState::updateLayout(){
 
     //calcula donde se colocan los rectangulos en la pantalla real
     menu_layout.logo = ui_layout.rect(612.0f,  80.0f, 696.0f, 220.0f); //logo *2
-    menu_layout.nameField = ui_layout.rect(690.0f, 400.0f, 460.0f,  64.0f);
-    menu_layout.colorSelector = ui_layout.rect(1166.0f, 400.0f,  64.0f, 64.0f);
+    menu_layout.nameField = ui_layout.rect(690.0f, 436.0f, 460.0f,  64.0f);
+    menu_layout.colorSelector = ui_layout.rect(1166.0f, 436.0f,  64.0f, 64.0f);
     menu_layout.primaryButton = ui_layout.rect(700.0f, 510.0f, 520.0f,  76.0f);
     menu_layout.settingsButton = ui_layout.rect(860.0f, 630.0f, 200.0f,  56.0f);
     menu_layout.exitButton = ui_layout.rect(860.0f, 710.0f, 200.0f,  56.0f);
@@ -480,12 +485,24 @@ void MenuState::renderMainMenu(){
 
     //carga las fuentes
     Font* bold = ResourceManager::getFont(MENU_FONT_BOLD_KEY);
-    Font* regular = ResourceManager::getFont(MENU_FONT_REGULAR_KEY);
+    Font* regular = ResourceManager::getFont(MENU_FONT_PRESS_REGULAR_KEY);
     //carga y pinta el logo
     Texture2D* logo = ResourceManager::getTexture(LOGO_IMAGE_KEY);
     if (logo != nullptr) {
-        Rectangle source{ 0.0f, 0.0f, static_cast<float>(logo->width), static_cast<float>(logo->height) };
-        DrawTexturePro(*logo, source, menu_layout.logo, Vector2{0.0f, 0.0f}, 0.0f, WHITE);
+        // escala entera para no romper el logo
+        const int logoScale = std::max(1, static_cast<int>(std::lround(GetScreenHeight() / 540.0f)));
+
+        const float logoWidth = logo->width * logoScale;
+        const float logoHeight = logo->height * logoScale;
+
+        Rectangle source{0.0f, 0.0f, static_cast<float>(logo->width), static_cast<float>(logo->height)}; //la textura del logo
+        
+        const float nudgeLeft = 50.0f * ui_layout.scale; //para tirar el logo un poco a la izq
+        Rectangle dest{ //donde y a que tamaño se dibuja
+            menu_layout.logo.x + (menu_layout.logo.width  - logoWidth)  * 0.5f - nudgeLeft,
+            menu_layout.logo.y + (menu_layout.logo.height - logoHeight) * 0.5f, logoWidth, logoHeight};
+
+        DrawTexturePro(*logo, source, dest, Vector2{0.0f, 0.0f}, 0.0f, WHITE);
     }
 
     //pinta la caja texto para escribir el nombre
@@ -500,19 +517,6 @@ void MenuState::renderMainMenu(){
     const float bottomY = menu_layout.colorSelector.y + menu_layout.colorSelector.height;
     const float arrowOffset = 14.0f * ui_layout.scale;
     const float arrowHalf = 8.0f * ui_layout.scale;
-
-    DrawTriangle(
-        Vector2{centerX, topY - arrowOffset},
-        Vector2{centerX - arrowHalf, topY - arrowOffset + 6.0f * ui_layout.scale},
-        Vector2{centerX + arrowHalf, topY - arrowOffset + 6.0f * ui_layout.scale},
-        ui_theme.textMuted);
-
-    DrawTriangle(
-        Vector2{centerX, bottomY + arrowOffset},
-        Vector2{centerX + arrowHalf, bottomY + arrowOffset - 6.0f * ui_layout.scale},
-        Vector2{centerX - arrowHalf, bottomY + arrowOffset - 6.0f * ui_layout.scale},
-        ui_theme.textMuted);
-    
     
     // pinta los botones
     create_button.draw(ui_theme, ui_layout.scale, bold);

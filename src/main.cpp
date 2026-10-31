@@ -50,6 +50,19 @@ int main()
             }
         }
     }
+    //para centrar la ventana en la pantalla
+    const int monitor = GetCurrentMonitor();
+    const Vector2 monitorPos = GetMonitorPosition(monitor);
+    const int monitorW = GetMonitorWidth(monitor);
+    const int monitorH = GetMonitorHeight(monitor);
+
+    const int winW = GetScreenWidth();
+    const int winH = GetScreenHeight();
+
+    SetWindowPosition(
+        static_cast<int>(monitorPos.x) + (monitorW - winW) / 2,
+        static_cast<int>(monitorPos.y) + (monitorH - winH) / 2
+    );
 
     SetExitKey(KEY_NULL);
 
