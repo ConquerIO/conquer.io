@@ -19,6 +19,30 @@ struct MainMenuLayout { //elementos de la pantalla de menu
     Rectangle credits{};
     Rectangle version{};
 };
+struct CustomizationLayout { //elementos de la pantalla de personalizacion
+    Rectangle panel{};
+    Rectangle title{};
+
+    Rectangle mapLabel{};
+    Rectangle mapProcedural{};
+    Rectangle mapFile{};
+    Rectangle mapsLabel{};
+    Rectangle mapFiles[6]{};
+
+    Rectangle difficultyLabel{};
+    Rectangle difficultyRows[5]{};
+
+    Rectangle troopsLabel{};
+    Rectangle playerLabel{};
+    Rectangle playerStepper{};
+    Rectangle botsLabel{};
+    Rectangle botsStepper{};
+    Rectangle numBotsLabel{};
+    Rectangle numBotsStepper{};
+
+    Rectangle backButton{};
+    Rectangle playButton{};
+};
 
 class MenuState : public GameState
 {
@@ -46,6 +70,9 @@ class MenuState : public GameState
         Button exit_button;
         Button settings_back_button;
 
+        int selected_color;
+        static constexpr int NUM_COLORS = 6;
+
         // para saber que mostrar en cada momento
         bool show_customization = false;
         bool show_settings = false;
@@ -61,31 +88,35 @@ class MenuState : public GameState
         
         //actualiza los valores de escalado y atributos de los elementos
         void updateLayout();
-        
-        int selected_color;
-        static constexpr int NUM_COLORS = 6;
 
         // -- variables para el panel de personalizacion --
         GameConfig config;
         std::vector<std::string> available_maps;
         int selected_map_index = -1; // indice del mapa seleccionado en la lista (-1 = procedural)
         
-        // 0 = ninguna caja con foco, 1 = foco en tropas jugador, 2 = foco en tropas bots, 3 = foco en nº de bots
-        int active_troop_box = 0;
-        std::string player_troops_str = "500";
-        std::string bot_troops_str    = "350";
-        
-        std::string num_bots_str = "10";                                                                                                                                                                                                
+        //elementos de la pantalla de personalizacion
+        CustomizationLayout customization_layout;
+        Panel customization_panel;
+        Checkbox map_procedural_checkbox;
+        Checkbox map_file_checkbox;
+        Checkbox map_file_checkboxes[6];
+        Checkbox difficulty_checkboxes[5];
+        NumberStepper player_troops_stepper;
+        NumberStepper bots_troops_stepper;
+        NumberStepper num_bots_stepper;
+        Button customization_back_button;
+        Button customization_play_button;
         
         //limites para el numero de bots
         static constexpr std::size_t MIN_BOTS = 1;                                                                                                                                                                                     
         static constexpr std::size_t MAX_BOTS = 15;   
-
         // límites enteros estrictos
         static constexpr std::size_t MIN_PLAYER_TROOPS = 100;
         static constexpr std::size_t MAX_PLAYER_TROOPS = 2000;
         static constexpr std::size_t MIN_BOT_TROOPS = 50;
         static constexpr std::size_t MAX_BOT_TROOPS = 1000;
+        
+        void updateCustomizationLayout();
 
         // submetodos para organizar el código
         void handleMainMenuInput();
@@ -94,6 +125,4 @@ class MenuState : public GameState
         void renderCustomizationOverlay();
         void handleSettingsInput();
         void renderSettingsOverlay();
-        
-        Rectangle drawCheckbox(int x, int y, const char* label, bool checked);
 };

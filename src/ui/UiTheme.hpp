@@ -22,5 +22,9 @@ struct UiTheme {
     int fieldFontSize = 16;
     int buttonFontSize = 28;
     int smallFontSize = 10;
+    int sectionFontSize = 30;
+    int checkboxFontSize = 20;
+    int valueFontSize = 30;
+    int smallButtonFontSize = 22;
     float spacing = 24.0f;
 };
