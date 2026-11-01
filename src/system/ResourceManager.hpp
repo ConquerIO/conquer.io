@@ -3,10 +3,11 @@
 #include "raylib.h"
 
 struct Resource {
-    enum Type { IMAGE, FONT } type;
+    enum Type { IMAGE, FONT, TEXTURE } type;
     union {
         Image image;
         Font font;
+        Texture2D texture;
     };
 };
 
@@ -24,6 +25,10 @@ public:
     static void loadFont(const char* name, Font font);
     static void unloadFont(const char* name);
     static Font* getFont(const char* name);
+
+    static void loadTexture(const char* name, Texture2D texture);
+    static void unloadTexture(const char* name);
+    static Texture2D* getTexture(const char* name);
 
 private:
     ResourceManager();
