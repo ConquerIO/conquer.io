@@ -90,17 +90,16 @@ cd conquer.io
 
 ### Compilar y ejecutar
 
-Para arquitecturas x86 utilzar:
+El `Makefile` detecta la arquitectura (x86 o ARM64) automáticamente:
 ```bash
-./build.sh
+make          # all: compila (por defecto)
+make run      # compila y ejecuta
+make clean    # limpia la compilación
 ```
 
-Para arquitecturas ARM utilizar:
-```bash
-./buildArm64.sh
-```
+Para forzar una arquitectura: `make ARCH=x86` o `make ARCH=arm64`.
 
-Y para ejecutar lanza el ejecutable:
+Y para ejecutar manualmente lanza el ejecutable:
 ```bash
 ./game
 ```

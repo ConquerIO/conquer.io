@@ -39,7 +39,7 @@ jobs:
             libspdlog-dev
 
       - name: Compilar el juego
-        run: ./build.sh
+        run: make
 
       - name: Comprobar warnings (informativo)
         continue-on-error: true
