@@ -312,9 +312,23 @@ MainGameState::MainGameState(std::string playerName, Color playerColor, const Ga
 {
 }
 
+MainGameState::~MainGameState()
+{
+    if (map_texture_ready && IsWindowReady())
+    {
+        UnloadRenderTexture(map_texture);
+    }
+}
+
 void MainGameState::init()
 {
     game.reset();
+    if (map_texture_ready && IsWindowReady())
+    {
+        UnloadRenderTexture(map_texture);
+    }
+    map_texture_ready = false;
+    map_cell_owners.clear();
     camera_zoom = 1.0f;
     camera_pan = Vector2{0.0f, 0.0f};
     dragging_camera = false;
@@ -491,27 +505,7 @@ void MainGameState::render()
     const int botPercent = landCells == 0 ? 0
         : static_cast<int>(100.0 * static_cast<double>(botCells) / landCells);
 
-    map_camera = buildMapCamera();
-    BeginMode2D(map_camera);
-    DrawRectangleRec(
-        Rectangle{0.0f, 0.0f,
-                  static_cast<float>(map.getWidth()),
-                  static_cast<float>(map.getHeight())},
-        Color{38, 45, 54, 255});
-    for(std::size_t row = 0; row < map.getHeight(); row++){
-        for(std::size_t column = 0; column < map.getWidth(); column++){
-
-            const Rectangle cellBounds{
-                static_cast<float>(column),
-                static_cast<float>(row),
-                1.0f,
-                1.0f
-            };
-            const TerritoryCell& cell = map.getCell(column, row);
-            DrawRectangleRec(cellBounds, cellColor(cell));
-        }
-    }
-    EndMode2D();
+    renderMap();
 
     {
         const std::vector<Entity*> entities = game.getEntities();
@@ -679,6 +673,100 @@ void MainGameState::render()
     rlImGuiEnd();
 
     EndDrawing();
+}
+
+void MainGameState::renderMap()
+{
+    const Map& map = game.getMap();
+    const int columns = static_cast<int>(map.getWidth());
+    const int rows = static_cast<int>(map.getHeight());
+    const std::vector<TerritoryCell>& cells = map.getCells();
+
+    const bool requires_rebuild = !map_texture_ready
+        || map_texture.texture.width != columns
+        || map_texture.texture.height != rows;
+
+    if (requires_rebuild)
+    {
+        if (map_texture_ready)
+        {
+            UnloadRenderTexture(map_texture);
+        }
+
+        map_texture = LoadRenderTexture(columns, rows);
+        SetTextureFilter(map_texture.texture, TEXTURE_FILTER_POINT);
+        map_texture_ready = true;
+        map_cell_owners.assign(cells.size(), nullptr);
+
+        BeginTextureMode(map_texture);
+        ClearBackground(Color{38, 45, 54, 255});
+        for (int row = 0; row < rows; ++row)
+        {
+            for (int column = 0; column < columns; ++column)
+            {
+                const std::size_t index =
+                    static_cast<std::size_t>(row) * map.getWidth()
+                    + static_cast<std::size_t>(column);
+
+                DrawRectangle(column, row, 1, 1, cellColor(cells[index]));
+                map_cell_owners[index] = cells[index].owner;
+            }
+        }
+        EndTextureMode();
+    }
+    else
+    {
+        /*
+            Detección de cambios en el mapa
+
+            Repinta la textura si alguna TerritoryCell ha cambiado
+            de owner
+        */
+        bool hasChanges = false;
+        for (std::size_t i = 0; i < cells.size(); ++i)
+        {
+            if (cells[i].owner != map_cell_owners[i])
+            {
+                hasChanges = true;
+                break;
+            }
+        }
+
+        if (hasChanges)
+        {
+            BeginTextureMode(map_texture);
+            for (int row = 0; row < rows; ++row)
+            {
+                for (int column = 0; column < columns; ++column)
+                {
+                    const std::size_t index =
+                        static_cast<std::size_t>(row) * map.getWidth()
+                        + static_cast<std::size_t>(column);
+
+                    if (cells[index].owner == map_cell_owners[index]) continue;
+
+                    DrawRectangle(column, row, 1, 1, cellColor(cells[index]));
+                    map_cell_owners[index] = cells[index].owner;
+                }
+            }
+            EndTextureMode();
+        }
+    }
+
+    map_camera = buildMapCamera();
+    BeginMode2D(map_camera);
+    DrawTexturePro(
+        map_texture.texture,
+        Rectangle{0.0f, 0.0f,
+                  static_cast<float>(columns),
+                  static_cast<float>(-rows)},
+        Rectangle{0.0f, 0.0f,
+                  static_cast<float>(columns),
+                  static_cast<float>(rows)},
+        Vector2{0.0f, 0.0f},
+        0.0f,
+        WHITE);
+    EndMode2D();
 }
 
 Rectangle MainGameState::getMapBounds() const
