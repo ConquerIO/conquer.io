@@ -107,7 +107,7 @@ void Game::createEntities(std::string playerName, Color playerColor){
     }
 
     size_t colorIndex = 0;
-    for (std::size_t i=0; i<config.numero_bots && i < 15; ++i){
+    for (std::size_t i=0; i<config.numero_bots; ++i){
         if (colorIndex < colors.size() && colors[colorIndex].r == playerColor.r && colors[colorIndex].g == playerColor.g && colors[colorIndex].b == playerColor.b) { // si es exactamente el mismo color que el del jugador se pasa al siguiente color
             colorIndex++; //pasamos al siguiente
         }

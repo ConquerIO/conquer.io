@@ -109,7 +109,7 @@ class MenuState : public GameState
         
         //limites para el numero de bots
         static constexpr std::size_t MIN_BOTS = 1;                                                                                                                                                                                     
-        static constexpr std::size_t MAX_BOTS = 15;   
+        static constexpr std::size_t MAX_BOTS = 40;   
         // límites enteros estrictos
         static constexpr std::size_t MIN_PLAYER_TROOPS = 100;
         static constexpr std::size_t MAX_PLAYER_TROOPS = 2000;

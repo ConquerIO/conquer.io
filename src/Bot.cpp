@@ -26,8 +26,8 @@ bool Bot::shouldStartAttack(float deltaTime)
     if (attack_decision_timer < next_attack_delay) return false;
 
     attack_decision_timer = 0.0f;
-    next_attack_delay = randomRange(3.0f, 4.0f);
-    attack_ratio = randomRange(0.15f, 0.20f);
+    next_attack_delay = randomRange(12.0f, 18.0f);
+    attack_ratio = randomRange(0.17f, 0.28f);
     expand_timer = 0.0f;
     return true;
 }
@@ -43,9 +43,9 @@ bool Bot::shouldExpand(float deltaTime, float interval)
 void Bot::reset()
 {
     attack_decision_timer = 0.0f;
-    next_attack_delay = randomRange(3.0f, 4.0f);
+    next_attack_delay = randomRange(5.5f, 7.0f);
     expand_timer = 0.0f;
-    attack_ratio = randomRange(0.15f, 0.20f);
+    attack_ratio = randomRange(0.15f, 0.23f);
     target = Target::none();
     attack_fuel = 0;
     attack_resistence=1;

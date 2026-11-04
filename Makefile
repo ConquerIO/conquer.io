@@ -13,7 +13,7 @@
 # ---- Configuración editable -------------------------------------------------
 TARGET   := game
 CXX      ?= g++
-CXXFLAGS := -std=c++17 -O2 -Wall
+CXXFLAGS := -std=c++17 -O3 -Wall
 DEFS     := -DNO_FONT_AWESOME
 LIBS     := -lraylib -lGL -lm -lpthread -lrt -lX11
 
