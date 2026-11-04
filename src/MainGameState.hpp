@@ -31,6 +31,9 @@ class MainGameState : public GameState
         Game game;
         Camera2D map_camera{};
         float camera_zoom = 1.0f;
+        Vector2 camera_pan{0.0f, 0.0f};
+        bool dragging_camera = false;
+        float camera_drag_distance = 0.0f;
         int attack_percent = 100;
         bool dragging_attack_slider = false;
 

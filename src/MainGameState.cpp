@@ -23,6 +23,7 @@ constexpr float GAME_OVER_INPUT_DELAY = 1.0f;
 constexpr float CAMERA_ZOOM_STEP = 1.15f;
 constexpr float CAMERA_MIN_ZOOM = 0.5f;
 constexpr float CAMERA_MAX_ZOOM = 10.0f;
+constexpr float CAMERA_DRAG_THRESHOLD = 4.0f;
 
 Color cellColor(const TerritoryCell& cell)
 {
@@ -314,6 +315,10 @@ MainGameState::MainGameState(std::string playerName, Color playerColor, const Ga
 void MainGameState::init()
 {
     game.reset();
+    camera_zoom = 1.0f;
+    camera_pan = Vector2{0.0f, 0.0f};
+    dragging_camera = false;
+    camera_drag_distance = 0.0f;
 }
 
 void MainGameState::handleInput()
@@ -349,6 +354,33 @@ void MainGameState::handleInput()
     {
         camera_zoom *= std::pow(CAMERA_ZOOM_STEP, wheel);
         camera_zoom = std::clamp(camera_zoom, CAMERA_MIN_ZOOM, CAMERA_MAX_ZOOM);
+    }
+
+    if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT))
+    {
+        dragging_camera = true;
+        camera_drag_distance = 0.0f;
+    }
+
+    if (dragging_camera && IsMouseButtonDown(MOUSE_BUTTON_RIGHT))
+    {
+        const Vector2 delta = GetMouseDelta();
+        const float zoom = buildMapCamera().zoom;
+        if (zoom > 0.0f)
+        {
+            camera_pan.x -= delta.x / zoom;
+            camera_pan.y -= delta.y / zoom;
+        }
+        camera_drag_distance += std::sqrt(delta.x * delta.x + delta.y * delta.y);
+    }
+
+    if (dragging_camera && IsMouseButtonReleased(MOUSE_BUTTON_RIGHT))
+    {
+        dragging_camera = false;
+        if (camera_drag_distance < CAMERA_DRAG_THRESHOLD)
+        {
+            game.cancelPlayerAttack();
+        }
     }
 
     if (game.getPhase() == GamePhase::SPAWN) {                                                                                      
@@ -387,7 +419,7 @@ void MainGameState::handleInput()
         dragging_attack_slider = false;
     }
 
-    if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT) || IsKeyPressed(KEY_ESCAPE))
+    if (IsKeyPressed(KEY_ESCAPE))
     {
         game.cancelPlayerAttack();
     }
@@ -459,12 +491,13 @@ void MainGameState::render()
     const int botPercent = landCells == 0 ? 0
         : static_cast<int>(100.0 * static_cast<double>(botCells) / landCells);
 
-    const Rectangle bounds = getMapBounds();
-    DrawRectangleRec(bounds, Color{38, 45, 54, 255});
-    const Vector2 mousePosition = GetMousePosition();
-
     map_camera = buildMapCamera();
     BeginMode2D(map_camera);
+    DrawRectangleRec(
+        Rectangle{0.0f, 0.0f,
+                  static_cast<float>(map.getWidth()),
+                  static_cast<float>(map.getHeight())},
+        Color{38, 45, 54, 255});
     for(std::size_t row = 0; row < map.getHeight(); row++){
         for(std::size_t column = 0; column < map.getWidth(); column++){
 
@@ -679,8 +712,8 @@ Camera2D MainGameState::buildMapCamera() const
         bounds.y + bounds.height / 2.0f
     };
     camera.target = Vector2{
-        static_cast<float>(map.getWidth()) / 2.0f,
-        static_cast<float>(map.getHeight()) / 2.0f
+        static_cast<float>(map.getWidth()) / 2.0f + camera_pan.x,
+        static_cast<float>(map.getHeight()) / 2.0f + camera_pan.y
     };
     camera.rotation = 0.0f;
     const float fitZoom = std::min(
