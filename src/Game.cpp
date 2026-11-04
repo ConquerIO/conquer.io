@@ -68,7 +68,7 @@ Game::Game(std::string playerName, Color playerColor, const GameConfig &config):
       winner(nullptr),
       map(config.map_type == MapType::MAP_FILE && !config.map_filename.empty()
           ? Map::fromImage(config.map_filename.c_str())
-          : Map::generateMap(200, 200))
+          : Map::generateMap(500, 500))
 {
     
     Logger::info("Creando entidades...");
@@ -591,7 +591,7 @@ void Game::reset()
     if (config.map_type == MapType::MAP_FILE && !config.map_filename.empty()) {
         this->map = Map::fromImage(config.map_filename.c_str());
     } else {
-        this->map = Map::generateMap(200, 200);
+        this->map = Map::generateMap(500, 500);
     }
     
     resetEntities(getPlayer()->getName(), getPlayer()->getColor());

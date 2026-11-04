@@ -125,11 +125,16 @@ Map Map::generateMap(int width, int height){
     int offsetX = std::rand() % 10000;
     int offsetY = std::rand() % 10000;
 
-    float scale=10.0f;
+    //escala menor los bloques de tierra son mas grande 
+    float scale=2.5f;
+    int octaves= 5;
+    float diff=2.0f;
+    //para mas detalle subir este valor
+    float weight= 0.56f;
     //esto cuanto mas grande sea mas agua hay sobre tierra (0.5 -> 50% agua y 50% tierra)
     float threshold=0.375f;
 
-    MapGenerator generator(width, height, offsetX, offsetY, scale);
+    MapGenerator generator(width, height, offsetX, offsetY, scale, octaves, diff, weight);
     Image noise=generator.generate();
     Map map= Map::fromPerlinImage(noise, threshold);
     UnloadImage(noise);
