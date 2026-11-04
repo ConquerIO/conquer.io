@@ -3,6 +3,7 @@
 #include <Game.hpp>
 #include <GameConfig.hpp>
 #include <DebugOverlay.hpp>
+#include <ContextMenu.hpp>
 #include <raylib.h>
 #include <string>
 #include <iostream>
@@ -20,6 +21,7 @@ class MainGameState : public GameState
 
         void pause(){};
         void resume(){};
+        
 
     
     private:
@@ -28,11 +30,18 @@ class MainGameState : public GameState
         std::pair<int, int> getCellCoordinates(Vector2 position) const;
 
         Game game;
-        int attack_percent = 100;            // Porcentaje de tropas destinado al ataque.
+        int attack_percent = 100;  
         bool dragging_attack_slider = false;
 
         GameConfig config;
-        float game_over_timer = 0.0f;        // Tiempo transcurrido en la pantalla de Game Over.
+        float game_over_timer = 0.0f; 
 
         DebugOverlay debug_overlay;
+
+        //funciones aux para el menu
+        bool isCellAttackable(int column, int row) const;
+        bool playerHasNeutralFrontier() const;
+        bool playerIsAdjacentTo(Entity* enemy) const;
+        void executeContextAttack();
+        ContextMenu context_menu;
 };

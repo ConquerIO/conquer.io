@@ -112,7 +112,7 @@ void ContextMenu::render(const char* title,int attackPercent,int attackTroops,bo
     //atacar
     const bool hoverAttack =canAttack && CheckCollisionPointRec(mouse, attackItem);
     DrawRectangleRec(attackItem,hoverAttack ? Color{45, 120, 60, 255} : Color{40, 46, 56, 255});
-    const char* attackLabel = canAttack? TextFormat("Atacar  %d %% · %d tropas", attackPercent, attackTroops): "Atacar (no disponible)";
+    const char* attackLabel = "Atacar";
     DrawText(attackLabel,static_cast<int>(attackItem.x + 10.0f),static_cast<int>(attackItem.y + 8.0f),20,canAttack ? RAYWHITE : Fade(RAYWHITE, 0.35f));
 
     //donar
