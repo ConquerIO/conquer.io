@@ -272,15 +272,15 @@ void MenuState::init()
     player_troops_stepper.step = 50;
     player_troops_stepper.maxDigits = 4;
 
-    bots_troops_stepper.value = "250";
-    bots_troops_stepper.defaultValue = 250;
+    bots_troops_stepper.value = "450";
+    bots_troops_stepper.defaultValue = 450;
     bots_troops_stepper.minValue = MIN_BOT_TROOPS;
     bots_troops_stepper.maxValue = MAX_BOT_TROOPS;
     bots_troops_stepper.step = 25;
     bots_troops_stepper.maxDigits = 4;
 
-    num_bots_stepper.value = "10";
-    num_bots_stepper.defaultValue = 10;
+    num_bots_stepper.value = "40";
+    num_bots_stepper.defaultValue = 40;
     num_bots_stepper.minValue = MIN_BOTS;
     num_bots_stepper.maxValue = MAX_BOTS;
     num_bots_stepper.step = 1;
@@ -574,7 +574,7 @@ void MenuState::renderCustomizationOverlay(){
     DrawTextEx(regularFont, "Bots (50 - 1000):", { customization_layout.botsLabel.x, customization_layout.botsLabel.y }, labelSize, 1.0f, ui_theme.textMuted);
     bots_troops_stepper.draw(ui_theme, scale, regular);
 
-    DrawTextEx(regularFont, "Nº Bots (1 - 15):", { customization_layout.numBotsLabel.x, customization_layout.numBotsLabel.y }, labelSize, 1.0f, ui_theme.textMuted);
+    DrawTextEx(regularFont, "Nº Bots (1 - 40):", { customization_layout.numBotsLabel.x, customization_layout.numBotsLabel.y }, labelSize, 1.0f, ui_theme.textMuted);
     num_bots_stepper.draw(ui_theme, scale, regular);
 
     // Botones inferiores
