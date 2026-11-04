@@ -30,11 +30,12 @@ class MainGameState : public GameState
 
         Game game;
         Camera2D map_camera{};
-        int attack_percent = 100;            // Porcentaje de tropas destinado al ataque.
+        float camera_zoom = 1.0f;
+        int attack_percent = 100;
         bool dragging_attack_slider = false;
 
         GameConfig config;
-        float game_over_timer = 0.0f;        // Tiempo transcurrido en la pantalla de Game Over.
+        float game_over_timer = 0.0f;
 
         DebugOverlay debug_overlay;
 };

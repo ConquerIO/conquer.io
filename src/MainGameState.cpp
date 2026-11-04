@@ -20,6 +20,10 @@ namespace
 // Segundos en la pantalla de Game Over antes de aceptar teclas para volver al menú.
 constexpr float GAME_OVER_INPUT_DELAY = 1.0f;
 
+constexpr float CAMERA_ZOOM_STEP = 1.15f;
+constexpr float CAMERA_MIN_ZOOM = 0.5f;
+constexpr float CAMERA_MAX_ZOOM = 10.0f;
+
 Color cellColor(const TerritoryCell& cell)
 {
     if (cell.owner != nullptr) return cell.owner->getColor();
@@ -139,7 +143,7 @@ std::unordered_map<Entity*, TerritoryStats> collectTerritoryStats(
 
 
 //esta lo que haces es ir calculando el tamaño del territiorio para ajustar el texto cada vez que se aumenta o disminuye el territorio
-TerritoryLabel buildLabel(const Map& map, Entity* owner, const TerritoryStats& stats, const Rectangle& mapBounds){
+TerritoryLabel buildLabel(const Map& map, Entity* owner, const TerritoryStats& stats, const Camera2D& camera){
     TerritoryLabel label;
     label.owner = owner;
     label.cells = stats.cells;
@@ -159,15 +163,17 @@ TerritoryLabel buildLabel(const Map& map, Entity* owner, const TerritoryStats& s
     if (map.getCell(static_cast<std::size_t>(anchorColumn), static_cast<std::size_t>(anchorRow)).owner != owner){
         findOwnedCellNear(map, owner, centroidColumn, centroidRow, anchorColumn, anchorRow);
     }
-    const float cellWidth = mapBounds.width / static_cast<float>(map.getWidth());
-    const float cellHeight = mapBounds.height / static_cast<float>(map.getHeight());
-    
+    const Vector2 boxTopLeft = GetWorldToScreen2D(
+        Vector2{static_cast<float>(stats.minColumn), static_cast<float>(stats.minRow)}, camera);
+    const Vector2 boxBottomRight = GetWorldToScreen2D(
+        Vector2{static_cast<float>(stats.maxColumn + 1), static_cast<float>(stats.maxRow + 1)}, camera);
+
     //este es el rectangulo donde se muestran el nombre y las tropas
     const Rectangle box{
-        mapBounds.x + stats.minColumn * cellWidth,
-        mapBounds.y + stats.minRow * cellHeight,
-        (stats.maxColumn - stats.minColumn + 1) * cellWidth,
-        (stats.maxRow - stats.minRow + 1) * cellHeight
+        boxTopLeft.x,
+        boxTopLeft.y,
+        boxBottomRight.x - boxTopLeft.x,
+        boxBottomRight.y - boxTopLeft.y
     };
 
     label.name = owner->getName();
@@ -200,8 +206,10 @@ TerritoryLabel buildLabel(const Map& map, Entity* owner, const TerritoryStats& s
     }
 
     const int textWidth =std::max(MeasureText(label.name.c_str(), nameFontSize),MeasureText(label.troops.c_str(), troopsFontSize));
-    const float anchorX = mapBounds.x + (anchorColumn + 0.5f) * cellWidth;
-    const float anchorY = mapBounds.y + (anchorRow + 0.5f) * cellHeight;
+    const Vector2 anchor = GetWorldToScreen2D(
+        Vector2{static_cast<float>(anchorColumn) + 0.5f, static_cast<float>(anchorRow) + 0.5f}, camera);
+    const float anchorX = anchor.x;
+    const float anchorY = anchor.y;
 
     //lo centra y lo marca visible
     label.nameFontSize = nameFontSize;
@@ -336,6 +344,13 @@ void MainGameState::handleInput()
         }
     }
 
+    const float wheel = GetMouseWheelMove();
+    if (wheel != 0.0f)
+    {
+        camera_zoom *= std::pow(CAMERA_ZOOM_STEP, wheel);
+        camera_zoom = std::clamp(camera_zoom, CAMERA_MIN_ZOOM, CAMERA_MAX_ZOOM);
+    }
+
     if (game.getPhase() == GamePhase::SPAWN) {                                                                                      
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {                                                                                       
             const std::pair<int, int> targetCoordinates = getCellCoordinates(GetMousePosition());                                            
@@ -444,30 +459,8 @@ void MainGameState::render()
     const int botPercent = landCells == 0 ? 0
         : static_cast<int>(100.0 * static_cast<double>(botCells) / landCells);
 
-    DrawRectangle(0, 0, screenWidth, 108, Color{31, 38, 47, 255});
-    if (game.getPhase() == GamePhase::SPAWN) {
-        float timer = game.getSpawnTimer();
-
-        const char* title = "ELIGE TU PUNTO DE PARTIDA";
-        DrawText(title, (screenWidth - MeasureText(title, 30)) / 2, 20, 30, RAYWHITE);
-        if (timer>=11.0f){
-        } else{
-            int timeLeft = static_cast<int>(timer);
-            std::string clock = TextFormat("El juego comienza en: %d s", timeLeft);
-            DrawText(clock.c_str(), (screenWidth - MeasureText(clock.c_str(), 24)) / 2, 60, 24, LIGHTGRAY);
-        }
-    } else{
-        const char* title = "CONQUISTA EL MAPA";
-        DrawText(title, (screenWidth - MeasureText(title, 30)) / 2, 10, 30, RAYWHITE);
-        const int totalSeconds = static_cast<int>(game.getTime());
-        const std::string clock = TextFormat("%02d:%02d", totalSeconds / 60, totalSeconds % 60);
-        DrawText(clock.c_str(), (screenWidth - MeasureText(clock.c_str(), 24)) / 2, 55, 24, LIGHTGRAY);
-    }
-
     const Rectangle bounds = getMapBounds();
     DrawRectangleRec(bounds, Color{38, 45, 54, 255});
-    const float cellWidth = bounds.width / static_cast<float>(map.getWidth());
-    const float cellHeight = bounds.height / static_cast<float>(map.getHeight());
     const Vector2 mousePosition = GetMousePosition();
 
     map_camera = buildMapCamera();
@@ -499,47 +492,84 @@ void MainGameState::render()
         {
             const auto it = stats.find(entity);
             labels.push_back(buildLabel(map, entity,
-                                        it != stats.end() ? it->second : empty, bounds));
+                                        it != stats.end() ? it->second : empty, map_camera));
         }
 
-        separateLabels(labels, bounds);
+        // Solo se muestran las etiquetas que caen dentro de la pantalla.
+        const Rectangle screenBounds{
+            0.0f, 0.0f,
+            static_cast<float>(screenWidth),
+            static_cast<float>(screenHeight)
+        };
+        for (TerritoryLabel& label : labels)
+        {
+            if (label.visible && !CheckCollisionRecs(label.rect, screenBounds))
+            {
+                label.visible = false;
+            }
+        }
+
+        separateLabels(labels, screenBounds);
         for (const TerritoryLabel& label : labels)
         {
             drawTerritoryLabel(label);
         }
     }
 
-    if (game.getPhase() == GamePhase::SPAWN) {                                                                                               
-        int previewIdx = game.getSpawnPreview();                                                                                             
-        if (previewIdx >= 0) {                                                                                                               
-            int cx = previewIdx % map.getWidth();                                                                                            
-            int cy = previewIdx / map.getWidth();                                                                                            
-                                                                                                                                                
-            Color previewColor = player->getColor();                                                                                         
-            previewColor.a = 150;                                                                              
-                                                                                                                                                
-            for (int dy = -1; dy <= 1; ++dy) {                                                                                               
-                for (int dx = -1; dx <= 1; ++dx) {                                                                                           
-                    int px = cx + dx;                                                                                                        
-                    int py = cy + dy;                                                                                                        
-                    if (px >= 0 && px < map.getWidth() && py >= 0 && py < map.getHeight()) {                                                 
+    if (game.getPhase() == GamePhase::SPAWN) {
+        int previewIdx = game.getSpawnPreview();
+        if (previewIdx >= 0) {
+            int cx = previewIdx % map.getWidth();
+            int cy = previewIdx / map.getWidth();
+
+            Color previewColor = player->getColor();
+            previewColor.a = 150;
+
+            BeginMode2D(map_camera);
+            for (int dy = -1; dy <= 1; ++dy) {
+                for (int dx = -1; dx <= 1; ++dx) {
+                    int px = cx + dx;
+                    int py = cy + dy;
+                    if (px >= 0 && px < map.getWidth() && py >= 0 && py < map.getHeight()) {
                         const TerritoryCell& cell = map.getCell(px, py);
-                        
-                        if (!cell.isWater && cell.owner == nullptr) { 
-                            Rectangle cellBounds{                                                                                                
-                                bounds.x + px * cellWidth,                                                                                       
-                                bounds.y + py * cellHeight,                                                                                      
-                                cellWidth,                                                                                                       
-                                cellHeight                                                                                                       
-                            };                                                                                                                   
-                            DrawRectangleRec(cellBounds, previewColor);                                                                          
+
+                        if (!cell.isWater && cell.owner == nullptr) {
+                            const Rectangle cellBounds{
+                                static_cast<float>(px),
+                                static_cast<float>(py),
+                                1.0f,
+                                1.0f
+                            };
+                            DrawRectangleRec(cellBounds, previewColor);
                         }
-                    }                                                                                                                        
-                }                                                                                                                            
-            }                                                                                                                                
-        }                                                                                                                                    
+                    }
+                }
+            }
+            EndMode2D();
+        }
     }
-               
+
+    // El HUD se dibuja después del mapa para quedar siempre por encima de la cámara.
+    DrawRectangle(0, 0, screenWidth, 108, Color{31, 38, 47, 255});
+    if (game.getPhase() == GamePhase::SPAWN) {
+        float timer = game.getSpawnTimer();
+
+        const char* title = "ELIGE TU PUNTO DE PARTIDA";
+        DrawText(title, (screenWidth - MeasureText(title, 30)) / 2, 20, 30, RAYWHITE);
+        if (timer>=11.0f){
+        } else{
+            int timeLeft = static_cast<int>(timer);
+            std::string clock = TextFormat("El juego comienza en: %d s", timeLeft);
+            DrawText(clock.c_str(), (screenWidth - MeasureText(clock.c_str(), 24)) / 2, 60, 24, LIGHTGRAY);
+        }
+    } else{
+        const char* title = "CONQUISTA EL MAPA";
+        DrawText(title, (screenWidth - MeasureText(title, 30)) / 2, 10, 30, RAYWHITE);
+        const int totalSeconds = static_cast<int>(game.getTime());
+        const std::string clock = TextFormat("%02d:%02d", totalSeconds / 60, totalSeconds % 60);
+        DrawText(clock.c_str(), (screenWidth - MeasureText(clock.c_str(), 24)) / 2, 55, 24, LIGHTGRAY);
+    }
+
     if (game.getPhase() == GamePhase::PLAYING) {
         const Rectangle slider = getAttackSliderBounds();
         const float sliderRatio = static_cast<float>(attack_percent) / 100.0f;
@@ -593,7 +623,6 @@ void MainGameState::render()
         DrawText(survived, (screenWidth - MeasureText(survived, 30)) / 2,
                  screenHeight / 2 - 4, 30, LIGHTGRAY);
 
-        // El aviso aparece tras el margen inicial y parpadea (0.5 s visible / 0.5 s oculto).
         if (game_over_timer >= GAME_OVER_INPUT_DELAY
             && std::fmod(game_over_timer, 1.0f) < 0.5f)
         {
@@ -654,7 +683,10 @@ Camera2D MainGameState::buildMapCamera() const
         static_cast<float>(map.getHeight()) / 2.0f
     };
     camera.rotation = 0.0f;
-    camera.zoom = bounds.width / static_cast<float>(map.getWidth());
+    const float fitZoom = std::min(
+        bounds.width / static_cast<float>(map.getWidth()),
+        bounds.height / static_cast<float>(map.getHeight()));
+    camera.zoom = fitZoom * camera_zoom;
     return camera;
 }
 
@@ -672,15 +704,16 @@ Rectangle MainGameState::getAttackSliderBounds() const
 
 std::pair<int, int> MainGameState::getCellCoordinates(Vector2 position) const
 {
-    const Rectangle bounds = getMapBounds();
-    if (position.x < bounds.x || position.y < bounds.y
-        || position.x >= bounds.x + bounds.width
-        || position.y >= bounds.y + bounds.height)
+    // La cámara del mapa define la conversión de pantalla a celdas.
+    const Vector2 world = GetScreenToWorld2D(position, buildMapCamera());
+    const Map& map = game.getMap();
+
+    if (world.x < 0.0f || world.y < 0.0f
+        || world.x >= static_cast<float>(map.getWidth())
+        || world.y >= static_cast<float>(map.getHeight()))
     {
         return {-1, -1};
     }
-
-    const Vector2 world = GetScreenToWorld2D(position, buildMapCamera());
 
     return {static_cast<int>(world.x), static_cast<int>(world.y)};
 }
