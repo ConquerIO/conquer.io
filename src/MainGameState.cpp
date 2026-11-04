@@ -470,21 +470,22 @@ void MainGameState::render()
     const float cellHeight = bounds.height / static_cast<float>(map.getHeight());
     const Vector2 mousePosition = GetMousePosition();
 
+    map_camera = buildMapCamera();
+    BeginMode2D(map_camera);
     for(std::size_t row = 0; row < map.getHeight(); row++){
         for(std::size_t column = 0; column < map.getWidth(); column++){
 
             const Rectangle cellBounds{
-                bounds.x + column * cellWidth,
-                bounds.y + row * cellHeight,
-                cellWidth,
-                cellHeight
+                static_cast<float>(column),
+                static_cast<float>(row),
+                1.0f,
+                1.0f
             };
             const TerritoryCell& cell = map.getCell(column, row);
-            const std::size_t cellIndex = row * map.getWidth() + column;
             DrawRectangleRec(cellBounds, cellColor(cell));
-            const Color ownershipColor = cell.owner == player ? player->getColor(): Color{31, 37, 45, 255};
         }
     }
+    EndMode2D();
 
     {
         const std::vector<Entity*> entities = game.getEntities();
@@ -638,6 +639,25 @@ Rectangle MainGameState::getMapBounds() const
     };
 }
 
+Camera2D MainGameState::buildMapCamera() const
+{
+    const Rectangle bounds = getMapBounds();
+    const Map& map = game.getMap();
+
+    Camera2D camera{};
+    camera.offset = Vector2{
+        bounds.x + bounds.width / 2.0f,
+        bounds.y + bounds.height / 2.0f
+    };
+    camera.target = Vector2{
+        static_cast<float>(map.getWidth()) / 2.0f,
+        static_cast<float>(map.getHeight()) / 2.0f
+    };
+    camera.rotation = 0.0f;
+    camera.zoom = bounds.width / static_cast<float>(map.getWidth());
+    return camera;
+}
+
 Rectangle MainGameState::getAttackSliderBounds() const
 {
     const float width = std::min(460.0f, static_cast<float>(GetScreenWidth()) - 96.0f);
@@ -652,7 +672,6 @@ Rectangle MainGameState::getAttackSliderBounds() const
 
 std::pair<int, int> MainGameState::getCellCoordinates(Vector2 position) const
 {
-    const Map& map = game.getMap();
     const Rectangle bounds = getMapBounds();
     if (position.x < bounds.x || position.y < bounds.y
         || position.x >= bounds.x + bounds.width
@@ -661,10 +680,7 @@ std::pair<int, int> MainGameState::getCellCoordinates(Vector2 position) const
         return {-1, -1};
     }
 
-    const std::size_t column = static_cast<std::size_t>(
-        (position.x - bounds.x) / bounds.width * map.getWidth());
-    const std::size_t row = static_cast<std::size_t>(
-        (position.y - bounds.y) / bounds.height * map.getHeight());
+    const Vector2 world = GetScreenToWorld2D(position, buildMapCamera());
 
-    return {column, row};
+    return {static_cast<int>(world.x), static_cast<int>(world.y)};
 }

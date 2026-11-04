@@ -26,8 +26,10 @@ class MainGameState : public GameState
         Rectangle getMapBounds() const;
         Rectangle getAttackSliderBounds() const;
         std::pair<int, int> getCellCoordinates(Vector2 position) const;
+        Camera2D buildMapCamera() const;
 
         Game game;
+        Camera2D map_camera{};
         int attack_percent = 100;            // Porcentaje de tropas destinado al ataque.
         bool dragging_attack_slider = false;
 
