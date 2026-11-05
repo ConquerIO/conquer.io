@@ -8,11 +8,16 @@ void ContextMenu::open(int cellIndex, Vector2 mouse, int screenWidth, int screen
     origin = mouse;
     hoveredItem = -1;
 
-    constexpr float W = 210.0f;
-    constexpr float ITEM_H = 36.0f;
-    constexpr float PADDING = 8.0f;
-    constexpr float OFFSET = 14.0f;
-    constexpr float HEADER_H = 26.0f;
+    //ancho panel
+    constexpr float W = 140.0f;
+    //alto de cada boton
+    constexpr float ITEM_H = 22.0f;
+    //margen
+    constexpr float PADDING = 4.0f;
+    //distancia del click a la esquina
+    constexpr float OFFSET = 4.0f;
+    //alto cabecera
+    constexpr float HEADER_H = 16.0f;
 
     const float height = PADDING * 2.0f + HEADER_H + ITEM_H * 3.0f;
 
@@ -105,22 +110,21 @@ void ContextMenu::render(const char* title,int attackPercent,int attackTroops,bo
     DrawRectangleRounded(bounds, 0.08f, 8, Color{30, 34, 42, 245});
     DrawRectangleRoundedLines(bounds, 0.08f, 8, GRAY);
     //cabecera
-    DrawText(title != nullptr ? title : "",static_cast<int>(bounds.x + 10.0f),static_cast<int>(bounds.y + 8.0f),18, LIGHTGRAY);
+    DrawText(title != nullptr ? title : "",static_cast<int>(bounds.x + 7.0f),static_cast<int>(bounds.y + 6.0f),14, LIGHTGRAY);
     //linea que separa los items del titulo
-    DrawLine(static_cast<int>(bounds.x + 8.0f),static_cast<int>(bounds.y + 8.0f + 26.0f - 4.0f),static_cast<int>(bounds.x + bounds.width - 8.0f),static_cast<int>(bounds.y + 8.0f + 26.0f - 4.0f),Color{70, 76, 86, 255});
+    DrawLine(static_cast<int>(bounds.x + 6.0f),static_cast<int>(bounds.y + 5.0f + 18.0f - 3.0f),static_cast<int>(bounds.x + bounds.width - 6.0f),static_cast<int>(bounds.y + 5.0f + 18.0f - 3.0f),Color{70, 76, 86, 255});
     
     //atacar
     const bool hoverAttack =canAttack && CheckCollisionPointRec(mouse, attackItem);
     DrawRectangleRec(attackItem,hoverAttack ? Color{45, 120, 60, 255} : Color{40, 46, 56, 255});
-    const char* attackLabel = "Atacar";
-    DrawText(attackLabel,static_cast<int>(attackItem.x + 10.0f),static_cast<int>(attackItem.y + 8.0f),20,canAttack ? RAYWHITE : Fade(RAYWHITE, 0.35f));
+    DrawText("Atacar",static_cast<int>(attackItem.x + 7.0f),static_cast<int>(attackItem.y + 6.0f),16,canAttack ? RAYWHITE : Fade(RAYWHITE, 0.35f));
 
     //donar
     DrawRectangleRec(donateItem, Color{40, 46, 56, 255});
-    DrawText("Donar",static_cast<int>(donateItem.x + 10.0f),static_cast<int>(donateItem.y + 8.0f),18, Fade(RAYWHITE, 0.35f));
+    DrawText("Donar",static_cast<int>(donateItem.x + 7.0f),static_cast<int>(donateItem.y + 6.0f),18, Fade(RAYWHITE, 0.35f));
 
     //alianza
     DrawRectangleRec(allianceItem, Color{40, 46, 56, 255});
-    DrawText("Alianza",static_cast<int>(allianceItem.x + 10.0f),static_cast<int>(allianceItem.y + 8.0f),18, Fade(RAYWHITE, 0.35f));
+    DrawText("Alianza",static_cast<int>(allianceItem.x + 7.0f),static_cast<int>(allianceItem.y + 6.0f),18, Fade(RAYWHITE, 0.35f));
 
 }
