@@ -937,6 +937,18 @@ void MainGameState::renderMap()
         Vector2{0.0f, 0.0f},
         0.0f,
         WHITE);
+
+    for (Entity* entity : game.getEntities()){
+        const Color base = entity->getColor();
+        const Color border{static_cast<unsigned char>(base.r * 0.75f), static_cast<unsigned char>(base.g * 0.75f), static_cast<unsigned char>(base.b * 0.75f), 255};
+
+        for (const auto& cell : entity->getFrontier()){
+            if (map.getCell(cell.first, cell.second).owner != entity) {
+                continue;
+            }
+            DrawRectangle(cell.first, cell.second, 1, 1, border);
+        }
+    }
     EndMode2D();
 }
 

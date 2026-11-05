@@ -78,41 +78,13 @@ Game::Game(std::string playerName, Color playerColor, const GameConfig &config):
 void Game::createEntities(std::string playerName, Color playerColor){
     auto* player = new Player(std::move(playerName), playerColor);
     player->setTroops(config.initial_troops);
-
     this->entities.push_back(player);
 
-    std::vector<Color> colors = {
-        Color{235, 65, 75, 255},
-        Color{45, 205, 220, 255},
-        Color{255, 215, 0, 255},
-        Color{128, 0, 128, 255},
-        Color{0, 128, 0, 255},
-        Color{65, 215, 0, 255},
-        Color{128, 34, 234, 255},
-        Color{124, 146, 0, 255},
-        Color{230, 41, 55, 255},
-        Color{53, 0, 128, 255},
-        Color{0, 134, 132, 255},
-        Color{255, 105, 180, 255},
-        Color{0, 191, 255, 255},
-        Color{210, 105, 30, 255},
-        Color{147, 112, 219, 255},
-        Color{0, 250, 154, 255}
-    };
-
-    //aleatoriedad de la lista por si se juegan partidas contra 3 bots que no sean siempre los mismo 3 colores
-    for (size_t i=0; i<colors.size(); i++) {
-        int r = GetRandomValue(0, colors.size() - 1);
-        std::swap(colors[i], colors[r]);
-    }
-
-    size_t colorIndex = 0;
     for (std::size_t i=0; i<config.numero_bots; ++i){
-        if (colorIndex < colors.size() && colors[colorIndex].r == playerColor.r && colors[colorIndex].g == playerColor.g && colors[colorIndex].b == playerColor.b) { // si es exactamente el mismo color que el del jugador se pasa al siguiente color
-            colorIndex++; //pasamos al siguiente
-        }
-        Color botColor = (colorIndex < colors.size()) ? colors[colorIndex++] : GRAY;
         std::string botName = "bot_" +  std::to_string(GetRandomValue(100, 999));
+        
+        Color botColor = {static_cast<unsigned char>(GetRandomValue(50, 230)), static_cast<unsigned char>(GetRandomValue(50, 230)), static_cast<unsigned char>(GetRandomValue(50, 230)), 255};
+        
         auto* bot = new Bot(botName, botColor);
         bot->setTroops(config.bot_troops);
         this->entities.push_back(bot);
