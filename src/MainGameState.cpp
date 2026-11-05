@@ -333,12 +333,13 @@ void MainGameState::init()
     camera_pan = Vector2{0.0f, 0.0f};
     dragging_camera = false;
     camera_drag_distance = 0.0f;
+    context_menu.close();
 }
 
 void MainGameState::handleInput()
 {
-    //si se le da al F1 se pone el debug
-    if (IsKeyPressed(KEY_F1)) {
+    // Se puede abrir el debug con F1 o con P.
+    if (IsKeyPressed(KEY_F1) || IsKeyPressed(KEY_P)) {
         debug_overlay.toggle();
     }
 
@@ -370,7 +371,7 @@ void MainGameState::handleInput()
         camera_zoom = std::clamp(camera_zoom, CAMERA_MIN_ZOOM, CAMERA_MAX_ZOOM);
     }
 
-    if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT))
+    if (!context_menu.isOpen() && IsMouseButtonPressed(MOUSE_BUTTON_RIGHT))
     {
         dragging_camera = true;
         camera_drag_distance = 0.0f;
@@ -433,6 +434,28 @@ void MainGameState::handleInput()
         dragging_attack_slider = false;
     }
 
+    if (context_menu.isOpen()){
+        const int index = context_menu.getCellIndex();
+        const int width = static_cast<int>(game.getMap().getWidth());
+
+        const int column = index % width;
+        const int row = index / width;
+
+        const bool canAttack =(attack_percent > 0) && isCellAttackable(column, row);
+
+        const ContextMenu::Action action =context_menu.handleInput(canAttack);
+
+        if (action == ContextMenu::Action::Attack){
+            executeContextAttack();
+        }
+        else if (action == ContextMenu::Action::Donate|| action == ContextMenu::Action::Alliance){
+            //hay que implementarlas, por lo que por ahora se cierra
+            context_menu.close();
+        }
+
+        return;
+    }
+
     if (IsKeyPressed(KEY_ESCAPE))
     {
         game.cancelPlayerAttack();
@@ -443,29 +466,161 @@ void MainGameState::handleInput()
         const std::pair<int, int> targetCoordinates = getCellCoordinates(GetMousePosition());
         const int column = targetCoordinates.first;
         const int row = targetCoordinates.second;
-        if (column < 0 || row < 0) return; // Clic fuera del tablero.
+        if (column < 0 || row < 0) return;
 
         const TerritoryCell& cell = game.getMap().getCell(
             static_cast<std::size_t>(column), static_cast<std::size_t>(row));
 
         if (cell.isWater) return;
-
-        const float ratio = static_cast<float>(attack_percent) / 100.0f;
-
-        if (cell.owner == nullptr)
-        {
-            game.setPlayerTarget(Target::land(), ratio);
+        //para que no se abra si se le da a él mismo
+        if(cell.owner==game.getPlayer()){
+            return;
         }
-        else if (cell.owner != game.getPlayer())
-        {
-            game.setPlayerTarget(Target::enemy(cell.owner), ratio);
+
+        //para la tierra normal nos expandimos solo con el click
+        if (cell.owner == nullptr){
+            if (!playerHasNeutralFrontier()){
+                return;
+            }
+            const float ratio =static_cast<float>(attack_percent) / 100.0f;
+            game.setPlayerTarget(Target::land(), ratio);
+            return;
+        }
+
+        const int index =column + row * static_cast<int>(game.getMap().getWidth());
+        context_menu.open(index, GetMousePosition(),GetScreenWidth(), GetScreenHeight());
+        
+        return;
+    }
+}
+
+bool MainGameState::playerHasNeutralFrontier() const
+{
+    const Map& map = game.getMap();
+    const Entity* player = game.getPlayer();
+
+    const int width = static_cast<int>(map.getWidth());
+    const int height = static_cast<int>(map.getHeight());
+
+    const int dx[4] = { 0, 0, -1, 1 };
+    const int dy[4] = { -1, 1, 0, 0 };
+
+    for (const auto& cell : player->getFrontier()){
+        for (int i = 0; i < 4; ++i){
+            const int nx = cell.first + dx[i];
+            const int ny = cell.second + dy[i];
+
+            if (nx < 0 || ny < 0 || nx >= width || ny >= height){
+                continue;
+            }
+
+            const TerritoryCell& neighbor = map.getCell(nx, ny);
+
+            if (!neighbor.isWater && neighbor.owner == nullptr){
+                return true;
+            }
         }
     }
+
+    return false;
+}
+
+bool MainGameState::playerIsAdjacentTo(Entity* enemy) const
+{
+    if (enemy == nullptr) {
+        return false;
+    }
+
+    const Map& map = game.getMap();
+    const Entity* player = game.getPlayer();
+
+    const int width = static_cast<int>(map.getWidth());
+    const int height = static_cast<int>(map.getHeight());
+
+    const int dx[4] = { 0, 0, -1, 1 };
+    const int dy[4] = { -1, 1, 0, 0 };
+
+    for (const auto& cell : player->getFrontier()){
+        for (int i = 0; i < 4; ++i){
+            const int nx = cell.first + dx[i];
+            const int ny = cell.second + dy[i];
+
+            if (nx < 0 || ny < 0 || nx >= width || ny >= height){
+                continue;
+            }
+
+            if (map.getCell(nx, ny).owner == enemy){
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+bool MainGameState::isCellAttackable(int column, int row) const
+{
+    const Map& map = game.getMap();
+    const int width = static_cast<int>(map.getWidth());
+    const int height = static_cast<int>(map.getHeight());
+
+    if (column < 0 || row < 0 || column >= width || row >= height){
+        return false;
+    }
+
+    const TerritoryCell& cell = map.getCell(column, row);
+    const Entity* player = game.getPlayer();
+
+    if (cell.isWater || cell.owner == player){
+        return false;
+    }
+
+    //tierra
+    if (cell.owner == nullptr){
+        return playerHasNeutralFrontier();
+    }
+
+    //enemigo
+    return playerIsAdjacentTo(cell.owner);
+}
+
+void MainGameState::executeContextAttack()
+{
+    const int index = context_menu.getCellIndex();
+    if (index < 0) {
+        context_menu.close();
+        return;
+    }
+
+    const int width = static_cast<int>(game.getMap().getWidth());
+    const int column = index % width;
+    const int row = index / width;
+
+    if (attack_percent <= 0 || !isCellAttackable(column, row)){
+        context_menu.close();
+        return;
+    }
+
+    const TerritoryCell& cell = game.getMap().getCell(column, row);
+    const float ratio = static_cast<float>(attack_percent) / 100.0f;
+
+    //si ya hay un ataque en curso se cancela
+    if (!game.getPlayer()->getTarget().isNone()){
+        game.cancelPlayerAttack();
+    }
+
+    if (cell.owner == nullptr){
+        game.setPlayerTarget(Target::land(), ratio);
+    }
+    else if (cell.owner != game.getPlayer()){
+        game.setPlayerTarget(Target::enemy(cell.owner), ratio);
+    }
+
+    context_menu.close();
 }
 
 void MainGameState::update(float deltaTime)
 {
-    // El estado de presentación delega toda la simulación en Game.
     game.update(deltaTime);
     if (game.isOver()) game_over_timer += deltaTime;
 }
@@ -633,6 +788,22 @@ void MainGameState::render()
                 static_cast<int>(slider.x + (slider.width - labelWidth) / 2.0f),
                 static_cast<int>(slider.y + (slider.height - labelFontSize) / 2.0f),
                 labelFontSize, labelColor);
+    }
+
+   
+    if (game.getPhase() == GamePhase::PLAYING && !gameOver && winner == nullptr && context_menu.isOpen()){
+        const int index = context_menu.getCellIndex();
+        const int width = static_cast<int>(map.getWidth());
+        const int column = index % width;
+        const int row = index / width;
+
+        if (column >= 0 && row >= 0 && column < static_cast<int>(map.getWidth()) && row < static_cast<int>(map.getHeight())){
+            const TerritoryCell& cell = map.getCell(column, row);
+            const std::string title =(cell.owner == nullptr) ? "Tierra": cell.owner->getName();
+            const bool canAttack =(attack_percent > 0) && isCellAttackable(column, row);
+            const int attackTroops = static_cast<int>(static_cast<float>(player->getTroops()) * attack_percent / 100.0f);
+            context_menu.render(title.c_str(),attack_percent,attackTroops,canAttack);
+        }
     }
 
     if (gameOver)
