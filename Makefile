@@ -12,7 +12,11 @@
 
 # ---- Configuración editable -------------------------------------------------
 TARGET   := game
-CXX      ?= g++
+
+# Comprobar si ccache está disponible en el sistema
+CCACHE := $(shell which ccache 2>/dev/null)
+# Si ccache existe, se usa como prefijo; si no, queda vacío
+CXX      := $(CCACHE) g++
 CXXFLAGS := -std=c++17 -O3 -Wall
 DEFS     := -DNO_FONT_AWESOME
 LIBS     := -lraylib -lGL -lm -lpthread -lrt -lX11
@@ -44,7 +48,7 @@ INCS    := -I $(SRC_DIR) $(addprefix -I ,$(patsubst %/,%,$(wildcard vendor/*/)))
 LDFLAGS := $(addprefix -L ,$(LIBDIRS))
 
 # ---- Reglas -----------------------------------------------------------------
-.PHONY: all clean run
+.PHONY: all clean run clean-ccache-stats clean-ccache ccache-stats
 .DEFAULT_GOAL := all
 
 all: $(TARGET)
@@ -63,5 +67,18 @@ run: all
 
 clean:
 	rm -rf build $(TARGET)
+
+# (-z) Borra las estadísticas de ccache; la caché se conserva
+clean-ccache-stats:
+	@$(if $(CCACHE),ccache --zero-stats,echo "ccache no está instalado")
+
+# (-C) Borra la caché de ccache; las estadísticas se conservan
+clean-ccache:
+	@$(if $(CCACHE),ccache --clear,echo "ccache no está instalado")
+	        
+# Muestra las estadísticas de ccache
+ccache-stats:
+	@$(if $(CCACHE),ccache -s,echo "ccache no está instalado")
+	
 
 -include $(DEPS)
