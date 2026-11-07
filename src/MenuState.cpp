@@ -5,6 +5,7 @@
 #include <memory>
 #include <algorithm>
 #include "system/ResourceManager.hpp"
+#include "system/AudioManager.hpp"
 #include <vector>
 #include <cmath>
 
@@ -327,9 +328,11 @@ void MenuState::handleMainMenuInput(){
     if (!name_field.focused) { //logica del selector de color
         if (IsKeyPressed(KEY_UP)) {
             selected_color = (selected_color - 1 + NUM_COLORS) % NUM_COLORS;
+            AudioManager::play(Sfx::UiChange);
         }
         if (IsKeyPressed(KEY_DOWN)) {
             selected_color = (selected_color + 1) % NUM_COLORS;
+            AudioManager::play(Sfx::UiChange);
         }
     }
 }
