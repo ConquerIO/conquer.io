@@ -442,10 +442,11 @@ void MainGameState::handleInput()
         const TerritoryCell& cell = game.getMap().getCell(column, row);
 
         //la donacion es lo mismo destinado al ataque
-        const std::size_t donation = static_cast<std::size_t>(static_cast<float>(game.getPlayer()->getTroops())* attack_percent / 100.0f);
+        const std::size_t donadorTroops = game.getPlayer()->getTroops();
+        const std::size_t donation = static_cast<std::size_t>(static_cast<float>(donadorTroops)* attack_percent / 100.0f);
 
         const bool canAttack =(attack_percent > 0) && isCellAttackable(column, row);
-        const bool canDonate =cell.owner != nullptr && cell.owner != game.getPlayer()&& donation > 0;
+        const bool canDonate =cell.owner != nullptr && cell.owner != game.getPlayer()&& donadorTroops > 1 && donation > 0;
 
         const ContextMenu::Action action =context_menu.handleInput(canAttack, canDonate);
 
@@ -613,9 +614,11 @@ void MainGameState::executeContextDonation(){
     }
 
     //la cantidad donada es la misma destinada al ataque
-    const std::size_t amount = static_cast<std::size_t>(static_cast<float>(donador->getTroops())* attack_percent / 100.0f);
+    const std::size_t donadorTroops = donador->getTroops();
+    const std::size_t amount = static_cast<std::size_t>(static_cast<float>(donadorTroops)* attack_percent / 100.0f);
 
-    if (amount == 0 || amount > donador->getTroops()) {
+    //con una tropa no se puede donar para no morir
+    if (donadorTroops <= 1 || amount == 0 || amount > donadorTroops) {
         context_menu.close();
         return;
     }
@@ -842,8 +845,10 @@ void MainGameState::render()
         if (column >= 0 && row >= 0 && column < static_cast<int>(map.getWidth()) && row < static_cast<int>(map.getHeight())){
             const TerritoryCell& cell = map.getCell(column, row);
             const std::string title =(cell.owner == nullptr) ? "Tierra": cell.owner->getName();
-            const std::size_t donation = static_cast<std::size_t>(static_cast<float>(player->getTroops())* attack_percent / 100.0f);
-            const bool canDonate =cell.owner != nullptr&& cell.owner != player&& donation > 0;
+            const std::size_t donadorTroops = player->getTroops();
+            const std::size_t donation = static_cast<std::size_t>(static_cast<float>(donadorTroops)* attack_percent / 100.0f);
+            //con una tropa no se puede donar para no morir
+            const bool canDonate =cell.owner != nullptr && cell.owner != player&& donadorTroops > 1 && donation > 0;
             const bool canAttack =(attack_percent > 0) && isCellAttackable(column, row);
             const int attackTroops = static_cast<int>(static_cast<float>(player->getTroops()) * attack_percent / 100.0f);
             context_menu.render(title.c_str(),attack_percent,attackTroops,canAttack,

@@ -104,7 +104,6 @@ void ContextMenu::render(const char* title,int attackPercent,int attackTroops,bo
         return;
     }
 
-    const bool canDonate = donateTroops > 0;
     const Vector2 mouse = GetMousePosition();
 
     //se pinta la sombra
@@ -123,6 +122,7 @@ void ContextMenu::render(const char* title,int attackPercent,int attackTroops,bo
     DrawText("Atacar",static_cast<int>(attackItem.x + 7.0f),static_cast<int>(attackItem.y + 3.0f),15,canAttack ? RAYWHITE : Fade(RAYWHITE, 0.35f));
 
     //donar
+    const bool canDonate = donateTroops > 0;
     const bool hoverDonate =canDonate && CheckCollisionPointRec(mouse, donateItem);
     DrawRectangleRec(donateItem, hoverDonate ? Color{45, 90, 140, 255} : Color{40, 46, 56, 255});
     DrawText("Donar",static_cast<int>(donateItem.x + 7.0f),static_cast<int>(donateItem.y + 4.0f),13, canDonate ? RAYWHITE : Fade(RAYWHITE, 0.35f));
