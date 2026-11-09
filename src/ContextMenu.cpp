@@ -56,7 +56,7 @@ void ContextMenu::close(){
 }
 
 //dice la accion del menu que se pulsa
-ContextMenu::Action ContextMenu::handleInput(bool canAttack){
+ContextMenu::Action ContextMenu::handleInput(bool canAttack, bool canDonate){
     if(!is_open){
         return Action::None;
     }
@@ -71,7 +71,9 @@ ContextMenu::Action ContextMenu::handleInput(bool canAttack){
         }
 
         if(CheckCollisionPointRec(mouse, donateItem)){
-            return Action::Donate;
+            if(canDonate){
+                return Action::Donate;
+            }
         }
 
         if(CheckCollisionPointRec(mouse, allianceItem)){
@@ -120,8 +122,9 @@ void ContextMenu::render(const char* title,int attackPercent,int attackTroops,bo
     DrawText("Atacar",static_cast<int>(attackItem.x + 7.0f),static_cast<int>(attackItem.y + 3.0f),15,canAttack ? RAYWHITE : Fade(RAYWHITE, 0.35f));
 
     //donar
-    DrawRectangleRec(donateItem, Color{40, 46, 56, 255});
-    DrawText("Donar",static_cast<int>(donateItem.x + 7.0f),static_cast<int>(donateItem.y + 4.0f),13, Fade(RAYWHITE, 0.35f));
+    const bool hoverDonate =canDonate && CheckCollisionPointRec(mouse, donateItem);
+    DrawRectangleRec(donateItem, hoverDonate ? Color{45, 90, 140, 255} : Color{40, 46, 56, 255});
+    DrawText("Donar",static_cast<int>(donateItem.x + 7.0f),static_cast<int>(donateItem.y + 4.0f),13, canDonate ? RAYWHITE : Fade(RAYWHITE, 0.35f));
 
     //alianza
     DrawRectangleRec(allianceItem, Color{40, 46, 56, 255});

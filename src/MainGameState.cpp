@@ -338,8 +338,7 @@ void MainGameState::init()
 
 void MainGameState::handleInput()
 {
-    // Se puede abrir el debug con F1 o con P.
-    if (IsKeyPressed(KEY_F1) || IsKeyPressed(KEY_P)) {
+    if (IsKeyPressed(KEY_F1)) {
         debug_overlay.toggle();
     }
 
