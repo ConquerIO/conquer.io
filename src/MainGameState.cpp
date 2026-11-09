@@ -5,6 +5,7 @@
 #include <Target.hpp>
 #include <raylib.h>
 #include "rlImGui.h"
+#include "system/AudioManager.hpp"
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
@@ -334,6 +335,8 @@ void MainGameState::init()
     dragging_camera = false;
     camera_drag_distance = 0.0f;
     context_menu.close();
+    end_sound_played = false;
+    AudioManager::play(Sfx::GameStart);
 }
 
 void MainGameState::handleInput()
@@ -484,11 +487,13 @@ void MainGameState::handleInput()
             }
             const float ratio =static_cast<float>(attack_percent) / 100.0f;
             game.setPlayerTarget(Target::land(), ratio);
+            AudioManager::play(Sfx::Attack);
             return;
         }
 
         const int index =column + row * static_cast<int>(game.getMap().getWidth());
         context_menu.open(index, GetMousePosition(),GetScreenWidth(), GetScreenHeight());
+        AudioManager::play(Sfx::ContextMenu);
         
         return;
     }
@@ -611,9 +616,11 @@ void MainGameState::executeContextAttack()
 
     if (cell.owner == nullptr){
         game.setPlayerTarget(Target::land(), ratio);
+        AudioManager::play(Sfx::Attack);
     }
     else if (cell.owner != game.getPlayer()){
         game.setPlayerTarget(Target::enemy(cell.owner), ratio);
+        AudioManager::play(Sfx::Attack);
     }
 
     context_menu.close();
@@ -623,6 +630,17 @@ void MainGameState::update(float deltaTime)
 {
     game.update(deltaTime);
     if (game.isOver()) game_over_timer += deltaTime;
+
+    //el sonido de fin de partida suena una sola vez al aparecer la pantalla
+    if (!end_sound_played) {
+        if (game.isOver()) {
+            AudioManager::play(Sfx::GameOver);
+            end_sound_played = true;
+        } else if (game.getWinner() != nullptr) {
+            AudioManager::play(Sfx::Winner);
+            end_sound_played = true;
+        }
+    }
 }
 
 void MainGameState::render()

@@ -1,0 +1,10 @@
+# Variante (1-5) que suena en cada evento. Reinicia el juego tras cambiarla.
+ui_click=1
+ui_hover=1
+ui_change=2
+ui_type=1
+game_start=1
+attack=1
+context_menu=1
+game_over=1
+winner=1

@@ -5,10 +5,13 @@
 #include <memory>
 #include <cstdlib>
 #include <chrono>
+#include <atomic>
+#include <thread>
 #include "rlImGui.h"
 #include "imgui.h"
 #include "system/Logger.hpp"
 #include "system/ResourceManager.hpp"
+#include "system/AudioManager.hpp"
 
 void initializeRandomSeed(){
     std::srand(
@@ -30,6 +33,9 @@ int main()
     InitWindow(2560, 1440, "Conquer.io v0.1.0-alpha");
     ResourceManager::initialize();
 
+    Logger::info("Inicializando audio...");
+    InitAudioDevice();
+    AudioManager::initialize();
 
     {
         const int monitor = GetCurrentMonitor();
@@ -83,6 +89,7 @@ int main()
     {
         delta_time = GetFrameTime();
         state_machine.handle_state_changes(delta_time);
+        if (IsKeyPressed(KEY_F2)) AudioManager::toggleMute();
         state_machine.getCurrentState()->handleInput();
         state_machine.getCurrentState()->update(delta_time);
         state_machine.getCurrentState()->render();
@@ -93,7 +100,30 @@ int main()
     rlImGuiShutdown();
     Logger::debug("Terminando ventana...");
     ResourceManager::clear();
+    // La ventana se cierra antes que el audio, para que la X responda al instante
     CloseWindow();
+
+    // Cerrar el dispositivo de audio puede bloquearse si el sistema de sonido esta
+    // atascado, asi que se hace en un hilo con tiempo maximo para no dejar el proceso colgado
+    Logger::debug("Liberando audio...");
+    std::atomic<bool> audio_cerrado{false};
+    std::thread audio_thread([&audio_cerrado] {
+        AudioManager::clear();
+        CloseAudioDevice();
+        audio_cerrado = true;
+    });
+
+    const auto limite = std::chrono::steady_clock::now() + std::chrono::seconds(1);
+    while (!audio_cerrado && std::chrono::steady_clock::now() < limite) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+
+    if (audio_cerrado) {
+        audio_thread.join();
+    } else {
+        Logger::warn("El audio tarda demasiado en cerrarse: se fuerza la salida");
+        std::_Exit(0);
+    }
 
     return 0;
 }

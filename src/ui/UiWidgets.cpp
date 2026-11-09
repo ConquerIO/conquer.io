@@ -1,10 +1,18 @@
 #include "UiWidgets.hpp"
+#include "system/AudioManager.hpp"
 #include <algorithm>
 #include <cmath>
 
 void Button::update(Vector2 mouse) {
+    const bool wasHovered = hovered;
     hovered = enabled && CheckCollisionPointRec(mouse, bounds); //si esta activo (nombre de jugador puesto) y raton por encima
     clicked = hovered && IsMouseButtonPressed(MOUSE_BUTTON_LEFT); //si esta activo, raton encima y se pulsa clic izq
+
+    if (clicked) {
+        AudioManager::play(Sfx::UiClick);
+    } else if (hovered && !wasHovered) { //solo suena al entrar en el boton, no cada frame
+        AudioManager::play(Sfx::UiHover);
+    }
 }
 
 void Button::draw(const UiTheme& theme, float scale, const Font* font) const{
@@ -46,6 +54,7 @@ void TextField::handleInput(float deltaTime){
     while (key > 0) {
         if (key >= 32 && key <= 125 && text.size() < maxLength) {
             text.push_back(static_cast<char>(key));
+            AudioManager::play(Sfx::UiType);
         }
         key = GetCharPressed();
     }
@@ -53,6 +62,7 @@ void TextField::handleInput(float deltaTime){
     if (IsKeyDown(KEY_BACKSPACE) && !text.empty()) { //borrado del texto
         if (IsKeyPressed(KEY_BACKSPACE)) {
             text.pop_back();
+            AudioManager::play(Sfx::UiType);
             backspaceTimer = 0.0f;
             backspaceRepeating = false;
         } else {
@@ -104,6 +114,7 @@ void Panel::draw(const UiTheme& theme, float scale) const {
 
 void Checkbox::update(Vector2 mouse) {
     clicked = CheckCollisionPointRec(mouse, bounds) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
+    if (clicked) AudioManager::play(Sfx::UiChange);
 }
 
 void Checkbox::draw(const UiTheme& theme, float scale, const Font* font) const {
@@ -141,6 +152,8 @@ bool NumberStepper::update(Vector2 mouse){
     const bool minus = CheckCollisionPointRec(mouse, stepperMinus(bounds)) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
     const bool plus = CheckCollisionPointRec(mouse, stepperPlus(bounds)) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
 
+    if (minus || plus) AudioManager::play(Sfx::UiChange);
+
     if (minus) {
         std::size_t v = numericValue();
         v = (v <= minValue + step) ? minValue : v - step;
@@ -164,12 +177,14 @@ void NumberStepper::handleInput(float deltaTime){
     while (key > 0) {
         if (key >= '0' && key <= '9' && value.size() < maxDigits) {
             value.push_back(static_cast<char>(key));
+            AudioManager::play(Sfx::UiType);
         }
         key = GetCharPressed();
     }
 
     if (IsKeyPressed(KEY_BACKSPACE) && !value.empty()) {
         value.pop_back();
+        AudioManager::play(Sfx::UiType);
     }
 }
 

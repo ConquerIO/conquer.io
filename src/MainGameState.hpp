@@ -46,6 +46,7 @@ class MainGameState : public GameState
 
         GameConfig config;
         float game_over_timer = 0.0f;
+        bool end_sound_played = false; //para que Game Over / Winner suenen una sola vez
 
         DebugOverlay debug_overlay;
 
