@@ -55,5 +55,6 @@ class MainGameState : public GameState
         bool playerHasNeutralFrontier() const;
         bool playerIsAdjacentTo(Entity* enemy) const;
         void executeContextAttack();
+        void executeContextDonation();
         ContextMenu context_menu;
 };

@@ -22,9 +22,9 @@ public:
     }
 
     //dice la accion del menu que se pulsa
-    Action handleInput(bool canAttack);
+    Action handleInput(bool canAttack, bool canDonate);
     //datos para dibujar el menu
-    void render(const char* title,int attackPercent,int attackTroops,bool canAttack) const;
+    void render(const char* title,int attackPercent,int attackTroops,bool canAttack, int donateTroops) const;
 
 private:
     bool is_open = false;
