@@ -439,16 +439,24 @@ void MainGameState::handleInput()
 
         const int column = index % width;
         const int row = index / width;
+        const TerritoryCell& cell = game.getMap().getCell(column, row);
+
+        //la donacion es lo mismo destinado al ataque
+        const std::size_t donation = static_cast<std::size_t>(static_cast<float>(game.getPlayer()->getTroops())* attack_percent / 100.0f);
 
         const bool canAttack =(attack_percent > 0) && isCellAttackable(column, row);
+        const bool canDonate =cell.owner != nullptr && cell.owner != game.getPlayer()&& donation > 0;
 
-        const ContextMenu::Action action =context_menu.handleInput(canAttack);
+        const ContextMenu::Action action =context_menu.handleInput(canAttack, canDonate);
 
         if (action == ContextMenu::Action::Attack){
             executeContextAttack();
         }
-        else if (action == ContextMenu::Action::Donate|| action == ContextMenu::Action::Alliance){
-            //hay que implementarlas, por lo que por ahora se cierra
+        else if(action==ContextMenu::Action::Donate){
+            executeContextDonation();
+        }
+        else if (action == ContextMenu::Action::Alliance){
+            //hay que implementarla, por lo que por ahora se cierra
             context_menu.close();
         }
 
@@ -581,6 +589,41 @@ bool MainGameState::isCellAttackable(int column, int row) const
 
     //enemigo
     return playerIsAdjacentTo(cell.owner);
+}
+
+void MainGameState::executeContextDonation(){
+    const int index = context_menu.getCellIndex();
+    if (index < 0) {
+        context_menu.close();
+        return;
+    }
+
+    const int width = static_cast<int>(game.getMap().getWidth());
+    const int column = index % width;
+    const int row = index / width;
+
+    const TerritoryCell& cell = game.getMap().getCell(column, row);
+
+    Player* donador = game.getPlayer();
+    Entity* receiver = cell.owner;
+
+    if (receiver == nullptr || receiver == donador) {
+        context_menu.close();
+        return;
+    }
+
+    //la cantidad donada es la misma destinada al ataque
+    const std::size_t amount = static_cast<std::size_t>(static_cast<float>(donador->getTroops())* attack_percent / 100.0f);
+
+    if (amount == 0 || amount > donador->getTroops()) {
+        context_menu.close();
+        return;
+    }
+
+    donador->setTroops(donador->getTroops() - amount);
+    //no se limita al máximo ni se redondea
+    receiver->setTroops(receiver->getTroops() + amount);
+    context_menu.close();
 }
 
 void MainGameState::executeContextAttack()
@@ -799,9 +842,12 @@ void MainGameState::render()
         if (column >= 0 && row >= 0 && column < static_cast<int>(map.getWidth()) && row < static_cast<int>(map.getHeight())){
             const TerritoryCell& cell = map.getCell(column, row);
             const std::string title =(cell.owner == nullptr) ? "Tierra": cell.owner->getName();
+            const std::size_t donation = static_cast<std::size_t>(static_cast<float>(player->getTroops())* attack_percent / 100.0f);
+            const bool canDonate =cell.owner != nullptr&& cell.owner != player&& donation > 0;
             const bool canAttack =(attack_percent > 0) && isCellAttackable(column, row);
             const int attackTroops = static_cast<int>(static_cast<float>(player->getTroops()) * attack_percent / 100.0f);
-            context_menu.render(title.c_str(),attack_percent,attackTroops,canAttack);
+            context_menu.render(title.c_str(),attack_percent,attackTroops,canAttack,
+                                canDonate ? static_cast<int>(donation) : 0);
         }
     }
 

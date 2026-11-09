@@ -99,11 +99,12 @@ ContextMenu::Action ContextMenu::handleInput(bool canAttack, bool canDonate){
 
 
 //datos para dibujar el menu
-void ContextMenu::render(const char* title,int attackPercent,int attackTroops,bool canAttack) const{
+void ContextMenu::render(const char* title,int attackPercent,int attackTroops,bool canAttack,int donateTroops) const{
     if(!is_open){
         return;
     }
 
+    const bool canDonate = donateTroops > 0;
     const Vector2 mouse = GetMousePosition();
 
     //se pinta la sombra
