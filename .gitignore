@@ -34,6 +34,7 @@
 
 !vendor/lib/libraylib.a
 !vendor/lib/arm64/libraylib.a
+!vendor/lib/web/libraylib.a
 
 
 # Executables
@@ -53,6 +54,7 @@ imgui.ini
 
 # Build
 build/
+build-web/
 
 # Resultados de bench-multihilo-ccache.sh
 resultados-bench-*.md
