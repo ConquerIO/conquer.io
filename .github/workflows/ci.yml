@@ -48,3 +48,28 @@ jobs:
 
       - name: Verificar binario
         run: test -x game
+
+  web:
+    name: Compilar (Web / Emscripten)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Instalar Emscripten
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: latest
+          actions-cache-folder: emsdk-cache
+
+      - name: Compilar la versión web
+        run: make web
+
+      - name: Verificar artefactos
+        run: |
+          test -f build-web/index.html
+          test -f build-web/index.js
+          test -f build-web/index.wasm
+          test -f build-web/index.data
