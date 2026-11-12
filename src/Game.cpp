@@ -117,6 +117,9 @@ void Game::update(float deltaTime)
     if (game_over) return;
 
     game_time += deltaTime;
+#ifdef CONQUER_VERIFY_COUNTS
+    verifyCellCounts();
+#endif
 
     //Aqui se ajusta es sistema de los ticks para ajustar el crecimiento
     tick_timer += deltaTime;
@@ -249,14 +252,19 @@ bool Game::expandTerritory(Entity* owner)
             TerritoryCell& neighbor = map.getCell(nx, ny);
             if (!isConquerable(neighbor, target)) continue;
 
-            previousOwners.push_back(neighbor.owner);
+            Entity* previous = neighbor.owner;
+            previousOwners.push_back(previous);
+            if (previous != nullptr) previous->removeCell();
             neighbor.owner = owner;
+            owner->addCell();
+            changed_cells.push_back(static_cast<std::size_t>(ny) * columns + nx);
             captured.emplace_back(nx, ny);
             spent+=resistence;
         }
     }
 
     if (captured.empty()) return false;
+    ++map_version;
 
     owner->setAttackFuel(fuel - spent);
 
@@ -392,6 +400,9 @@ Target Game::chooseBotTarget(Entity* owner) const
 }
 
 std::size_t Game::getPlayerPixels(Entity* owner) const {
+    // O(1): el contador se mantiene en expandTerritory y spawnEntity
+    if (owner != nullptr) return owner->getCellCount();
+
     std::size_t pixels = 0;
     for (const TerritoryCell& cell : map.getCells()){
         if(cell.owner == owner) pixels++;
@@ -444,6 +455,9 @@ void Game::spawnEntity(Entity* entity, int x, int y){
                 // Solo conquistamos si la celda es tierra y no tiene dueño
                 if (!map.getCell(nx, ny).isWater && map.getCell(nx, ny).owner == nullptr) {
                     map.getCell(nx, ny).owner = entity;
+                    entity->addCell();
+                    changed_cells.push_back(static_cast<std::size_t>(ny) * map.getWidth() + nx);
+                    ++map_version;
                 }
             }
         }
@@ -560,6 +574,9 @@ void Game::reset()
     game_over = false;
     winner = nullptr;
     getPlayer()->cancelAttack();
+    changed_cells.clear();
+    ++map_generation;
+    ++map_version;
     if (config.map_type == MapType::MAP_FILE && !config.map_filename.empty()) {
         this->map = Map::fromImage(config.map_filename.c_str());
     } else {
@@ -646,3 +663,22 @@ std::size_t Game::computeAttackResistance(const Target& target) const
         static_cast<std::size_t>(raw)
     );
 }
+#ifdef CONQUER_VERIFY_COUNTS
+// Solo para pruebas: compara los contadores incrementales con un escaneo completo.
+void Game::verifyCellCounts() const {
+    static unsigned long checks = 0, errors = 0;
+    for (Entity* entity : entities) {
+        std::size_t scanned = 0;
+        for (const TerritoryCell& cell : map.getCells()) if (cell.owner == entity) ++scanned;
+        ++checks;
+        if (scanned != entity->getCellCount()) {
+            ++errors;
+            Logger::error(("VERIFY: " + entity->getName() + " contador=" + std::to_string(entity->getCellCount())
+                          + " real=" + std::to_string(scanned)).c_str());
+        }
+    }
+    if (checks % 2000 < entities.size()) {
+        Logger::info(("VERIFY: comprobaciones=" + std::to_string(checks) + " errores=" + std::to_string(errors)).c_str());
+    }
+}
+#endif

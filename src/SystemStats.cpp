@@ -2,7 +2,7 @@
 
 #include <thread>
 
-#ifdef __linux__
+#if defined(__linux__) && !defined(__EMSCRIPTEN__)
 #include <unistd.h>
 
 #include <fstream>
@@ -12,7 +12,7 @@
 
 namespace
 {
-#ifdef __linux__
+#if defined(__linux__) && !defined(__EMSCRIPTEN__)
 constexpr std::size_t BYTES_PER_KB = 1024;
 
 struct ProcStatSample
@@ -159,7 +159,7 @@ void SystemStats::update(float deltaTime)
 
 void SystemStats::readProcessStatus()
 {
-#ifdef __linux__
+#if defined(__linux__) && !defined(__EMSCRIPTEN__)
     unsigned long value = 0;
 
     if (readKeyedValue("/proc/self/status", "VmRSS:", value)){
@@ -179,7 +179,7 @@ void SystemStats::readProcessStatus()
 
 void SystemStats::readSystemMemory()
 {
-#ifdef __linux__
+#if defined(__linux__) && !defined(__EMSCRIPTEN__)
     unsigned long value = 0;
 
     if (readKeyedValue("/proc/meminfo", "MemTotal:", value)){
@@ -196,7 +196,7 @@ void SystemStats::readSystemMemory()
 
 void SystemStats::sample(double elapsedSeconds)
 {
-#ifdef __linux__
+#if defined(__linux__) && !defined(__EMSCRIPTEN__)
     ProcStatSample proc{};
     const bool proc_ok = readProcStat(proc);
     if (proc_ok)

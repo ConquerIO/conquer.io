@@ -50,6 +50,14 @@ public:
     std::size_t getTerritoryCells(Entity* owner) const;
     std::size_t getLandCellCount() const;
 
+    // Cambios del mapa para repintarlo de forma incremental.
+    // `generation` cambia cuando se regenera el mapa entero (reset);
+    // `version` cuando cambia el dueño de alguna celda.
+    unsigned getMapGeneration() const { return map_generation; }
+    unsigned getMapVersion() const { return map_version; }
+    // Entrega (y vacía) los índices de las celdas cambiadas desde la última llamada.
+    void takeChangedCells(std::vector<std::size_t>& out) { out.swap(changed_cells); changed_cells.clear(); }
+
     void setSpawnPreview(int targetIndex);
     GamePhase getPhase() const { return current_phase; }
     float getSpawnTimer() const { return spawn_timer; }
@@ -90,4 +98,11 @@ private:
     Entity* winner;
 
     GameConfig config;
+
+    std::vector<std::size_t> changed_cells;
+    unsigned map_version = 0;
+    unsigned map_generation = 0;
+#ifdef CONQUER_VERIFY_COUNTS
+    void verifyCellCounts() const;
+#endif
 };

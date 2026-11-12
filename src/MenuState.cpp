@@ -313,7 +313,10 @@ void MenuState::handleMainMenuInput(){
     //update comprueba si esta hovered y clicado
     create_button.update(mouse);
     settings_button.update(mouse);
+#ifndef __EMSCRIPTEN__
+    // En web no hay SALIR: se cierra la pestaña del navegador
     exit_button.update(mouse);
+#endif
 
     if (create_button.clicked) {
         show_customization = true;
@@ -321,9 +324,11 @@ void MenuState::handleMainMenuInput(){
     if (settings_button.clicked) {
         show_settings = true;
     }
+#ifndef __EMSCRIPTEN__
     if (exit_button.clicked) {
         state_machine->remove_state(true);
     }
+#endif
 
     if (!name_field.focused) { //logica del selector de color
         if (IsKeyPressed(KEY_UP)) {
@@ -506,7 +511,9 @@ void MenuState::renderMainMenu(){
     // pinta los botones
     create_button.draw(ui_theme, ui_layout.scale, bold);
     settings_button.draw(ui_theme, ui_layout.scale, bold);
+#ifndef __EMSCRIPTEN__
     exit_button.draw(ui_theme, ui_layout.scale, bold);
+#endif
 
     if (regular != nullptr) {
         const float small = ui_theme.smallFontSize * ui_layout.scale;

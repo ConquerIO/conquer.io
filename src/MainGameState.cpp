@@ -144,6 +144,15 @@ std::unordered_map<Entity*, TerritoryStats> collectTerritoryStats(
 }
 
 
+constexpr double STATS_REFRESH = 0.1;
+
+struct StatsCache{
+    std::unordered_map<Entity*, TerritoryStats> stats;
+    unsigned generation = ~0u;
+    unsigned version = ~0u;
+    double time = 0.0;
+};
+
 //esta lo que haces es ir calculando el tamaño del territiorio para ajustar el texto cada vez que se aumenta o disminuye el territorio
 TerritoryLabel buildLabel(const Map& map, Entity* owner, const TerritoryStats& stats, const Camera2D& camera){
     TerritoryLabel label;
@@ -329,7 +338,7 @@ void MainGameState::init()
         UnloadRenderTexture(map_texture);
     }
     map_texture_ready = false;
-    map_cell_owners.clear();
+    changed_cells_buffer.clear();
     camera_zoom = 1.0f;
     camera_pan = Vector2{0.0f, 0.0f};
     dragging_camera = false;
@@ -700,35 +709,23 @@ void MainGameState::render()
     //Bot* bot = (Bot* )game.getEntities()[1];
     const bool gameOver = game.isOver();
     const auto winner = game.getWinner();
-    std::size_t playerCells = 0;
-    std::size_t botCells = 0;
-    std::size_t landCells = 0;
-
-    for (const TerritoryCell& cell : map.getCells())
-    {
-        if (cell.isWater) continue;
-
-        ++landCells;
-        if (cell.owner == player)
-        {
-            ++playerCells;
-        }
-        else if (cell.owner != nullptr)
-        {
-            ++botCells;
-        }
-    }
-    const int playerPercent = landCells == 0 ? 0
-        : static_cast<int>(100.0 * static_cast<double>(playerCells) / landCells);
-    const int botPercent = landCells == 0 ? 0
-        : static_cast<int>(100.0 * static_cast<double>(botCells) / landCells);
-
     renderMap();
 
     {
         const std::vector<Entity*> entities = game.getEntities();
-        const std::unordered_map<Entity*, TerritoryStats> stats =
-            collectTerritoryStats(map, entities);
+        // Las estadísticas (centroide/tamaño de etiqueta) solo se recalculan si el
+        // mapa ha cambiado y como mucho cada STATS_REFRESH segundos.
+        static StatsCache cache;
+        const double now = GetTime();
+        if (cache.generation != game.getMapGeneration()
+            || (cache.version != game.getMapVersion() && now - cache.time >= STATS_REFRESH))
+        {
+            cache.stats = collectTerritoryStats(map, entities);
+            cache.generation = game.getMapGeneration();
+            cache.version = game.getMapVersion();
+            cache.time = now;
+        }
+        const std::unordered_map<Entity*, TerritoryStats>& stats = cache.stats;
 
         std::vector<TerritoryLabel> labels;
         labels.reserve(entities.size());
@@ -907,9 +904,11 @@ void MainGameState::render()
     }
 
     //se dibuja la interfaz de debug
-    rlImGuiBegin();
-    debug_overlay.draw(game, config, GetFrameTime());
-    rlImGuiEnd();
+    if (debug_overlay.isVisible()) {
+        rlImGuiBegin();
+        debug_overlay.draw(game, config, GetFrameTime());
+        rlImGuiEnd();
+    }
 
     EndDrawing();
 }
@@ -923,7 +922,8 @@ void MainGameState::renderMap()
 
     const bool requires_rebuild = !map_texture_ready
         || map_texture.texture.width != columns
-        || map_texture.texture.height != rows;
+        || map_texture.texture.height != rows
+        || map_generation_seen != game.getMapGeneration();
 
     if (requires_rebuild)
     {
@@ -935,7 +935,9 @@ void MainGameState::renderMap()
         map_texture = LoadRenderTexture(columns, rows);
         SetTextureFilter(map_texture.texture, TEXTURE_FILTER_POINT);
         map_texture_ready = true;
-        map_cell_owners.assign(cells.size(), nullptr);
+        map_generation_seen = game.getMapGeneration();
+        game.takeChangedCells(changed_cells_buffer);
+        changed_cells_buffer.clear();
 
         BeginTextureMode(map_texture);
         ClearBackground(Color{38, 45, 54, 255});
@@ -948,47 +950,25 @@ void MainGameState::renderMap()
                     + static_cast<std::size_t>(column);
 
                 DrawRectangle(column, row, 1, 1, cellColor(cells[index]));
-                map_cell_owners[index] = cells[index].owner;
             }
         }
         EndTextureMode();
     }
     else
     {
-        /*
-            Detección de cambios en el mapa
-
-            Repinta la textura si alguna TerritoryCell ha cambiado
-            de owner
-        */
-        bool hasChanges = false;
-        for (std::size_t i = 0; i < cells.size(); ++i)
-        {
-            if (cells[i].owner != map_cell_owners[i])
-            {
-                hasChanges = true;
-                break;
-            }
-        }
-
-        if (hasChanges)
+        // Solo se repintan las celdas que Game ha marcado como cambiadas
+        game.takeChangedCells(changed_cells_buffer);
+        if (!changed_cells_buffer.empty())
         {
             BeginTextureMode(map_texture);
-            for (int row = 0; row < rows; ++row)
+            for (const std::size_t index : changed_cells_buffer)
             {
-                for (int column = 0; column < columns; ++column)
-                {
-                    const std::size_t index =
-                        static_cast<std::size_t>(row) * map.getWidth()
-                        + static_cast<std::size_t>(column);
-
-                    if (cells[index].owner == map_cell_owners[index]) continue;
-
-                    DrawRectangle(column, row, 1, 1, cellColor(cells[index]));
-                    map_cell_owners[index] = cells[index].owner;
-                }
+                const int column = static_cast<int>(index % map.getWidth());
+                const int row = static_cast<int>(index / map.getWidth());
+                DrawRectangle(column, row, 1, 1, cellColor(cells[index]));
             }
             EndTextureMode();
+            changed_cells_buffer.clear();
         }
     }
 

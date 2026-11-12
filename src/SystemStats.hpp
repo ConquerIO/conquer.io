@@ -35,7 +35,7 @@ private:
     void readProcessStatus();
     void readSystemMemory();
 
-#ifdef __linux__
+#if defined(__linux__) && !defined(__EMSCRIPTEN__)
     bool supported = true;
 #else
     bool supported = false;
