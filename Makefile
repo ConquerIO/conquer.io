@@ -5,6 +5,11 @@
 #   make run            # compila y ejecuta
 #   make clean          # borra objetos y binario
 #   make ARCH=arm64     # fuerza la arquitectura (x86 | arm64)
+#   make -j$(nproc)     # compila en paralelo
+#   make web            # versión web con Emscripten (ver sección Web)
+#   make web-serve      # compila la versión web y la sirve en localhost
+#   make web-chrome     # igual, abriendo Chrome con la GPU habilitada
+#   make ccache-stats | clean-ccache-stats | clean-ccache   # gestión de ccache
 #
 # La arquitectura se detecta con uname -m. 
 # Genérico: todos los .cpp bajo src/ se detectan solos. 
@@ -48,7 +53,7 @@ INCS    := -I $(SRC_DIR) $(addprefix -I ,$(patsubst %/,%,$(wildcard vendor/*/)))
 LDFLAGS := $(addprefix -L ,$(LIBDIRS))
 
 # ---- Reglas -----------------------------------------------------------------
-.PHONY: web web-serve web-chrome all clean run clean-ccache-stats clean-ccache ccache-stats
+.PHONY: check-emsdk web web-serve web-chrome all clean run clean-ccache-stats clean-ccache ccache-stats
 .DEFAULT_GOAL := all
 
 all: $(TARGET)
@@ -63,7 +68,7 @@ $(BUILD_DIR)/%.o: %.cpp
 	@$(CXX) $(CXXFLAGS) $(DEFS) $(INCS) -MMD -MP -c $< -o $@
 
 # ---- Web (Emscripten) -------------------------------------------------------
-# Requisitos: emsdk activo (source emsdk_env.sh) y raylib compilada para web en
+# Requisitos: emsdk instalado y activo (source /ruta/a/emsdk/emsdk_env.sh) y raylib compilada para web en
 # vendor/lib/web/libraylib.a (en raylib/src: make PLATFORM=PLATFORM_WEB).
 #   make web         # genera build-web/index.html
 #   make web-serve   # lo sirve en http://localhost:8080
@@ -85,7 +90,14 @@ WEB_LDFLAGS  := vendor/lib/web/libraylib.a -sUSE_GLFW=3 -sALLOW_MEMORY_GROWTH=1 
 
 web: $(WEB_DIR)/index.html
 
-$(WEB_DIR)/index.html: $(WEB_OBJS) web/shell.html
+# Comprueba que Emscripten está disponible antes de compilar la versión web
+check-emsdk:
+	@command -v em++ >/dev/null 2>&1 || { \
+	    echo "No se encuentra em++: instala emsdk y actívalo con 'source /ruta/a/emsdk/emsdk_env.sh'"; \
+	    echo "Instrucciones: https://emscripten.org/docs/getting_started/downloads.html"; \
+	    exit 1; }
+
+$(WEB_DIR)/index.html: check-emsdk $(WEB_OBJS) web/shell.html
 	@echo "[link] $@ (web)"
 	@mkdir -p $(WEB_DIR)
 	@em++ -o $@ $(WEB_OBJS) $(WEB_LDFLAGS)
