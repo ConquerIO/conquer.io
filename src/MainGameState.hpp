@@ -36,7 +36,8 @@ class MainGameState : public GameState
         Camera2D map_camera{};
         RenderTexture2D map_texture{};
         bool map_texture_ready = false;
-        std::vector<Entity*> map_cell_owners;
+        std::vector<std::size_t> changed_cells_buffer;
+        unsigned map_generation_seen = ~0u;
         float camera_zoom = 1.0f;
         Vector2 camera_pan{0.0f, 0.0f};
         bool dragging_camera = false;

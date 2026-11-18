@@ -7,6 +7,9 @@
 #include <chrono>
 #include <atomic>
 #include <thread>
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 #include "rlImGui.h"
 #include "imgui.h"
 #include "system/Logger.hpp"
@@ -23,6 +26,35 @@ void initializeRandomSeed(){
     );
 }
 
+namespace {
+float delta_time = 0.0f;
+std::unique_ptr<StateMachine> state_machine;
+
+#ifndef __EMSCRIPTEN__
+bool game_running()
+{
+    return !state_machine->is_game_ending() && !WindowShouldClose();
+}
+#endif
+
+void frame()
+{
+#ifdef __EMSCRIPTEN__
+    // Red de seguridad: si algo pide terminar, se para el bucle en vez de tocar una pila de estados vacía
+    if (state_machine->is_game_ending()) {
+        emscripten_cancel_main_loop();
+        return;
+    }
+#endif
+    delta_time = GetFrameTime();
+    state_machine->handle_state_changes(delta_time);
+    if (IsKeyPressed(KEY_F2)) AudioManager::toggleMute();
+    state_machine->getCurrentState()->handleInput();
+    state_machine->getCurrentState()->update(delta_time);
+    state_machine->getCurrentState()->render();
+}
+}
+
 int main()
 {   
     Logger::debug("Inicializando seed...");
@@ -30,6 +62,9 @@ int main()
     Logger::debug("Seed inicializada correctamente");
 
     Logger::info("Inicializando ventana (2560x1440)...");
+#ifdef __EMSCRIPTEN__
+    SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+#endif
     InitWindow(2560, 1440, "Conquer.io v0.1.0-alpha");
     ResourceManager::initialize();
 
@@ -37,6 +72,7 @@ int main()
     InitAudioDevice();
     AudioManager::initialize();
 
+#ifndef __EMSCRIPTEN__
     {
         const int monitor = GetCurrentMonitor();
         const int monitorWidth = GetMonitorWidth(monitor);
@@ -70,29 +106,32 @@ int main()
         static_cast<int>(monitorPos.y) + (monitorH - winH) / 2
     );
 
+#endif
+
     SetExitKey(KEY_NULL);
 
     Logger::debug("Inicializando librerías de debug");
     rlImGuiSetup(true);
     //esta es para que no cree nada en el directorio de trabajo
     ImGui::GetIO().IniFilename = nullptr;
+#ifndef __EMSCRIPTEN__
+    // En web el navegador marca el ritmo con requestAnimationFrame
     SetTargetFPS(60);
-
-    float delta_time = 0.0f;
+#endif
 
     Logger::info("Inicializando máquina de estados...");
-    StateMachine state_machine = StateMachine();
-    state_machine.add_state(std::make_unique<MenuState>(), false);
-    state_machine.handle_state_changes(delta_time);
+    state_machine = std::make_unique<StateMachine>();
+    state_machine->add_state(std::make_unique<MenuState>(), false);
+    state_machine->handle_state_changes(delta_time);
 
-    while (!state_machine.is_game_ending() && !WindowShouldClose())
+#ifdef __EMSCRIPTEN__
+    // En web el bucle lo gestiona el navegador; esta llamada no retorna
+    emscripten_set_main_loop(frame, 0, 1);
+    return 0;
+#else
+    while (game_running())
     {
-        delta_time = GetFrameTime();
-        state_machine.handle_state_changes(delta_time);
-        if (IsKeyPressed(KEY_F2)) AudioManager::toggleMute();
-        state_machine.getCurrentState()->handleInput();
-        state_machine.getCurrentState()->update(delta_time);
-        state_machine.getCurrentState()->render();
+        frame();
     }
 
     Logger::info("Terminando ejecución...");
@@ -126,4 +165,5 @@ int main()
     }
 
     return 0;
+#endif
 }

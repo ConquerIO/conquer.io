@@ -19,6 +19,7 @@ El objetivo es conquistar el **100 % de la tierra ocupable** o ser el último ju
 - **Rivales con IA:** bots con distintos niveles de dificultad y comportamientos estratégicos.
 - **Interfaz minimalista:** el mapa y la información esencial son el centro de la experiencia.
 - **Overlay de depuración:** panel de información técnica y de partida activable con `F1`.
+- **Versión web:** el juego se compila a WebAssembly con Emscripten y se puede jugar desde el navegador.
 
 ## Cómo jugar
 
@@ -66,6 +67,7 @@ Entre los datos contemplados se encuentran:
 | **raylib** | Ventana, gráficos, entrada y renderizado |
 | **ImGui** | Interfaz del overlay de depuración |
 | **rlImGui** | Integración de ImGui con raylib |
+| **Emscripten** | Compilación a WebAssembly para la versión web |
 | **spdlog** | Logging estructurado |
 | **Git y GitHub** | Control de versiones y colaboración |
 | **GitHub Issues y Pull Requests** | Seguimiento de tareas, incidencias y revisión de cambios |
@@ -90,7 +92,7 @@ cd conquer.io
 
 ### Compilar y ejecutar
 
-Para arquitecturas x86 utilzar:
+Para arquitecturas x86 utilizar:
 ```bash
 ./build.sh
 ```
@@ -104,6 +106,86 @@ Y para ejecutar lanza el ejecutable:
 ```bash
 ./game
 ```
+
+### Compilar con Makefile
+
+Alternativa a los scripts, con compilación incremental (solo recompila lo que ha cambiado):
+
+```bash
+make            # compila (equivale a make all) y genera ./game
+make run        # compila y ejecuta
+make -j$(nproc) # compila en paralelo
+make clean      # borra build/, build-web/ y el binario
+```
+
+| Comando | Qué hace |
+|---|---|
+| `make` / `make all` | Compila el juego en `./game`. |
+| `make run` | Compila y ejecuta `./game`. |
+| `make clean` | Borra `build/`, `build-web/` y el binario. |
+| `make ARCH=arm64` | Fuerza la arquitectura (`x86` o `arm64`). Por defecto se detecta con `uname -m`. |
+| `make web`, `make web-serve`, `make web-chrome` | Versión web (ver [más abajo](#versión-web-emscripten)). |
+| `make ccache-stats` | Muestra las estadísticas de ccache. |
+| `make clean-ccache-stats` | Pone a cero las estadísticas de ccache (conserva la caché). |
+| `make clean-ccache` | Vacía la caché de ccache (conserva las estadísticas). |
+
+Notas:
+
+- Todos los `.cpp` bajo `src/` se detectan automáticamente; no hay que registrar archivos nuevos.
+- Si [ccache](https://ccache.dev/) está instalado se usa solo, y las recompilaciones son mucho más rápidas.
+- Los objetos se guardan en `build/<arquitectura>/`, así que x86 y ARM64 no se pisan.
+- Para añadir una librería, amplía la variable `LIBS` del `Makefile`.
+
+### Versión web (Emscripten)
+
+El juego también se puede compilar a WebAssembly y ejecutar en el navegador.
+
+#### Prueba rápida (desde cero)
+
+```bash
+# 1. Instalar emsdk (una sola vez)
+git clone https://github.com/emscripten-core/emsdk.git
+cd emsdk && ./emsdk install latest && ./emsdk activate latest
+
+# 2. Activarlo en esta terminal (hay que repetirlo en cada terminal nueva)
+source ./emsdk_env.sh
+em++ --version   # comprueba que está activo
+
+# 3. Clonar, compilar y servir el juego
+cd ..
+git clone https://github.com/ConquerIO/conquer.io.git
+cd conquer.io
+make web-serve
+```
+
+Abre http://localhost:8080: debería cargar el menú del juego. Si no carga, abre la consola del navegador (F12) y comprueba que tiene WebGL. Si estás en una máquina virtual y no hay WebGL, usa `make web-chrome` (ver tabla de comandos).
+
+#### Requisitos y detalles
+
+Requisitos adicionales:
+
+- [emsdk](https://emscripten.org/docs/getting_started/downloads.html) instalado y activo (pasos en la prueba rápida de arriba). No viene en el repositorio.
+- Python 3, solo para servir los archivos en local.
+- `vendor/lib/web/libraylib.a`: raylib compilada para web, que ya viene en el repositorio. Para regenerarla, desde el código fuente de raylib (`src/`): `make PLATFORM=PLATFORM_WEB`.
+
+Comandos:
+
+| Comando | Qué hace |
+|---|---|
+| `make web` | Compila y genera `build-web/index.html` (junto con `.js`, `.wasm` y `.data`). |
+| `make web-serve` | Compila y sirve el juego en http://localhost:8080. |
+| `make web-chrome` | Igual que `web-serve`, pero abre Chrome con `--ignore-gpu-blocklist` (útil en máquinas virtuales donde Chrome bloquea WebGL) y para el servidor al cerrarlo. |
+
+Opciones: `WEB_PORT=8081` cambia el puerto y `CHROME=/ruta/al/navegador` elige el navegador.
+
+`index.html` no funciona abriéndolo con doble clic: hay que servirlo por HTTP (por ejemplo con `make web-serve`).
+
+Limitaciones de la versión web:
+
+- Requiere un navegador con WebGL.
+- El botón SALIR del menú está oculto.
+- El overlay `F1` no muestra estadísticas del sistema (no existe `/proc` en el navegador).
+- Solo hay controles de ratón y teclado.
 
 ## Desarrollo y contribuciones
 
