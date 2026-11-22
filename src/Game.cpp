@@ -24,6 +24,9 @@ namespace
     constexpr std::size_t LAND_RESISTANCE = 1;
     constexpr double ENEMY_RESISTANCE_FACTOR = 1.5;
 
+    //constante de traicion de una alianza de un bot, del 40%
+    constexpr float BOT_BETRAY_CHANCE = 0.40f;
+
 
 int colorDistance(Color a, Color b)
 {
@@ -121,6 +124,27 @@ void Game::update(float deltaTime)
     game_time += deltaTime;
     alliances.update(game_time);
 
+    alliances.forEachPending([&](const AllianceManager::RequestSlot& request){
+        if (request.from == nullptr || request.to == nullptr) {
+            return;
+        }
+        if (request.to == getPlayer()) {
+            return;
+        }  
+        if (game_time < request.respondAt) {
+            return;
+        }
+
+        const float roll =static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
+
+        if (roll < 0.55f){
+            alliances.accept(request.to, request.from, game_time);
+        }
+        else{
+            alliances.reject(request.to, request.from, game_time);
+        }
+    });
+
 #ifdef CONQUER_VERIFY_COUNTS
     verifyCellCounts();
 #endif
@@ -178,6 +202,10 @@ void Game::update(float deltaTime)
             if (bot->shouldStartAttack(deltaTime))
             {
                 const Target target = chooseBotTarget(bot);
+                //igual aqui, al atacar se rompe la alianza
+                if (target.isEnemy() && target.getEntity() != nullptr&& alliances.areAllied(bot, target.getEntity())){
+                    alliances.breakAlliance(bot, target.getEntity());
+                }
                 bot->setTarget(target);
                 bot->beginAttack(bot->getAttackRatio(), computeAttackResistance(target));
             }
@@ -360,7 +388,6 @@ void Game::addExposedFrontier(Entity* victim, int x, int y)
 
 Entity* Game::randomNeighborEntity(Entity* owner) const
 {
-    // Entidades distintas de `owner` que tocan su frontera.
     std::vector<Entity*> neighbors;
     const int columns = static_cast<int>(map.getWidth());
     const int rows = static_cast<int>(map.getHeight());
@@ -386,6 +413,18 @@ Entity* Game::randomNeighborEntity(Entity* owner) const
         }
     }
 
+    //para que evite atacar a los aliados
+    if (avoidAllies){
+        neighbors.erase(std::remove_if(
+                neighbors.begin(),
+                neighbors.end(),
+                [this, owner](Entity* candidate)
+                {
+                    return alliances.areAllied(owner, candidate);
+                }),
+            neighbors.end());
+    }
+
     if (neighbors.empty()) return nullptr;
     return neighbors[std::rand() % neighbors.size()];
 }
@@ -398,8 +437,19 @@ Target Game::chooseBotTarget(Entity* owner) const
 
     if (roll < BOT_ENEMY_TARGET_CHANCE)
     {
+        //prioriza atacar a los que no son aliados
         Entity* enemy = randomNeighborEntity(owner);
         if (enemy != nullptr) return Target::enemy(enemy);
+
+        //si solo quedan aliados pues se ataca a ellos
+        const float betrayRoll = static_cast<float>(std::rand())/ static_cast<float>(RAND_MAX);
+
+        if (betrayRoll < BOT_BETRAY_CHANCE){
+            enemy = randomNeighborEntity(owner, false);
+            if (enemy != nullptr) {
+                return Target::enemy(enemy);
+            }
+        }
     }
     return Target::land();
 }
@@ -606,8 +656,11 @@ void Game::reset()
 void Game::setPlayerTarget(const Target& target, float ratio)
 {
     Player* player = getPlayer();
+    //se rompe la alianza al atacar
+    if (target.isEnemy() && target.getEntity() != nullptr&& alliances.areAllied(player, target.getEntity())){
+        alliances.breakAlliance(player, target.getEntity());
+    }
     player->setTarget(target);
-    // Destina al ataque la fraccion de tropas elegida (porcentaje del slider).
     player->beginAttack(ratio,  computeAttackResistance(target));
 }
 
