@@ -56,7 +56,7 @@ void ContextMenu::close(){
 }
 
 //dice la accion del menu que se pulsa
-ContextMenu::Action ContextMenu::handleInput(bool canAttack, bool canDonate){
+ContextMenu::Action ContextMenu::handleInput(bool canAttack, bool canDonate, bool canAlly){
     if(!is_open){
         return Action::None;
     }
@@ -77,7 +77,9 @@ ContextMenu::Action ContextMenu::handleInput(bool canAttack, bool canDonate){
         }
 
         if(CheckCollisionPointRec(mouse, allianceItem)){
-            return Action::Alliance;
+            if(canAlly){
+                return Action::Alliance;
+            }
         }
 
         if(!CheckCollisionPointRec(mouse, bounds)){
@@ -99,7 +101,7 @@ ContextMenu::Action ContextMenu::handleInput(bool canAttack, bool canDonate){
 
 
 //datos para dibujar el menu
-void ContextMenu::render(const char* title,int attackPercent,int attackTroops,bool canAttack,int donateTroops) const{
+void ContextMenu::render(const char* title,int attackPercent,int attackTroops,bool canAttack,int donateTroops, bool canAlly, const char* allyLabel) const{
     if(!is_open){
         return;
     }
@@ -128,7 +130,8 @@ void ContextMenu::render(const char* title,int attackPercent,int attackTroops,bo
     DrawText("Donar",static_cast<int>(donateItem.x + 7.0f),static_cast<int>(donateItem.y + 4.0f),13, canDonate ? RAYWHITE : Fade(RAYWHITE, 0.35f));
 
     //alianza
-    DrawRectangleRec(allianceItem, Color{40, 46, 56, 255});
-    DrawText("Alianza",static_cast<int>(allianceItem.x + 7.0f),static_cast<int>(allianceItem.y + 4.0f),13, Fade(RAYWHITE, 0.35f));
+    const bool hoverAlliance =canAlly && CheckCollisionPointRec(mouse, allianceItem);
+    DrawRectangleRec(allianceItem,hoverAlliance ? Color{90, 70, 140, 255} : Color{40, 46, 56, 255});
+    DrawText(allyLabel != nullptr ? allyLabel : "Alianza",static_cast<int>(allianceItem.x + 7.0f),static_cast<int>(allianceItem.y + 4.0f),13,canAlly ? RAYWHITE : Fade(RAYWHITE, 0.35f));
 
 }
