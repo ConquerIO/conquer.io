@@ -37,7 +37,7 @@ class AllianceManager{
 
         std::size_t countAllies(const Entity* entity) const;
         std::size_t countPendingTo(const Entity* target) const;
-        bool firstPendingTo(const Entity* target, Entity*& outFrom) const;
+        bool firstPendingTo(const Entity* target, Entity*& outFrom,  float& outExpiresAt) const;
 
         template <typename Func>
         void forEachPending(Func&& func) const

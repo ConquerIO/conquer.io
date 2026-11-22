@@ -208,7 +208,7 @@ std::size_t AllianceManager::countPendingTo(const Entity* target) const{
     return count;
 }
 
-bool AllianceManager::firstPendingTo(const Entity* target, Entity*& outFrom) const{
+bool AllianceManager::firstPendingTo(const Entity* target, Entity*& outFrom,  float& outExpiresAt) const{
     if (!valid(target)) {
         return false;
     }
@@ -233,6 +233,7 @@ bool AllianceManager::firstPendingTo(const Entity* target, Entity*& outFrom) con
     }
 
     outFrom = best->from;
+    outExpiresAt = best->expiresAt;
     return true;
 }
 

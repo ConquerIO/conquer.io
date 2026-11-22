@@ -40,12 +40,23 @@ bool Bot::shouldExpand(float deltaTime, float interval)
     return true;
 }
 
+bool Bot::shouldRequestAlliance(float deltaTime){
+    alliance_timer -= deltaTime;
+    if (alliance_timer > 0.0f) {
+        return false;
+    }
+    //un bot intenta iniciar una alianza cada 20-40 segs
+    alliance_timer = randomRange(20.0f, 40.0f);
+    return true;
+}
+
 void Bot::reset()
 {
     attack_decision_timer = 0.0f;
     next_attack_delay = randomRange(5.5f, 7.0f);
     expand_timer = 0.0f;
     attack_ratio = randomRange(0.15f, 0.23f);
+    alliance_timer = randomRange(20.0f, 40.0f);
     target = Target::none();
     attack_fuel = 0;
     attack_resistence=1;

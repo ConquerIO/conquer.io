@@ -195,8 +195,10 @@ void Game::update(float deltaTime)
     }
 
     for(int i = 1; i < entities.size(); ++i){
-        auto bot = (Bot*)entities[i];
-
+        auto* bot = static_cast<Bot*>(entities[i]);
+        if (bot->shouldRequestAlliance(deltaTime)){
+            tryBotAlliance(bot);
+        }
         if (bot->getTarget().isNone())
         {
             if (bot->shouldStartAttack(deltaTime))
@@ -386,7 +388,7 @@ void Game::addExposedFrontier(Entity* victim, int x, int y)
     }
 }
 
-Entity* Game::randomNeighborEntity(Entity* owner) const
+Entity* Game::randomNeighborEntity(Entity* owner, bool avoidAllies) const
 {
     std::vector<Entity*> neighbors;
     const int columns = static_cast<int>(map.getWidth());
@@ -438,7 +440,7 @@ Target Game::chooseBotTarget(Entity* owner) const
     if (roll < BOT_ENEMY_TARGET_CHANCE)
     {
         //prioriza atacar a los que no son aliados
-        Entity* enemy = randomNeighborEntity(owner);
+        Entity* enemy = randomNeighborEntity(owner, true);
         if (enemy != nullptr) return Target::enemy(enemy);
 
         //si solo quedan aliados pues se ataca a ellos
@@ -722,6 +724,27 @@ std::size_t Game::computeAttackResistance(const Target& target) const
         static_cast<std::size_t>(raw)
     );
 }
+
+void Game::tryBotAlliance(Bot* bot)
+{
+    Entity* target = randomNeighborEntity(bot, true);
+    if (target == nullptr) {
+        return;
+    }
+    if (!alliances.canRequest(bot, target, game_time)) {
+        return;
+    }
+
+    //probabilidad de iniciar la solicitud, del 35% minimo
+    const float roll = static_cast<float>(std::rand())/ static_cast<float>(RAND_MAX);
+    if (roll > 0.35f) {
+        return;
+    } 
+    //espera de 0,75 a 2 segs
+    const float respondDelay =0.75f + static_cast<float>(std::rand())/ static_cast<float>(RAND_MAX) * 1.25f;
+    alliances.sendRequest(bot,target,game_time,game_time + respondDelay);
+}
+
 #ifdef CONQUER_VERIFY_COUNTS
 // Solo para pruebas: compara los contadores incrementales con un escaneo completo.
 void Game::verifyCellCounts() const {

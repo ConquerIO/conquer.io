@@ -375,6 +375,11 @@ void MainGameState::handleInput()
         }
     }
 
+    // Si hay una solicitud de alianza entrante, sus botones tienen prioridad.
+    if (handleAlliancePanelInput()) {
+        return;
+    }
+
     const float wheel = GetMouseWheelMove();
     if (wheel != 0.0f)
     {
@@ -677,6 +682,118 @@ void MainGameState::executeContextAlliance(){
     context_menu.close();
 }
 
+void MainGameState::updateAlliancePanelLayout(){
+    constexpr float panelW = 330.0f;
+    constexpr float panelH = 112.0f;
+    constexpr float margin = 24.0f;
+
+    const float x = std::max(8.0f,static_cast<float>(GetScreenWidth()) - panelW - margin);
+    const float y = 120.0f;
+
+    alliance_panel_rect = Rectangle{ x, y, panelW, panelH };
+
+    constexpr float buttonW = 138.0f;
+    constexpr float buttonH = 28.0f;
+    const float buttonY = y + 48.0f;
+
+    alliance_accept_rect =Rectangle{ x + 14.0f, buttonY, buttonW, buttonH };
+    alliance_reject_rect =Rectangle{ x + panelW - 14.0f - buttonW, buttonY, buttonW, buttonH };
+}
+
+bool MainGameState::handleAlliancePanelInput(){
+    Player* player = game.getPlayer();
+    Entity* requester = nullptr;
+    float expiresAt = 0.0f;
+
+    if (!game.getAlliances().firstPendingTo(player, requester, expiresAt)){
+        return false;
+    }
+
+    updateAlliancePanelLayout();
+
+    if (!IsMouseButtonPressed(MOUSE_BUTTON_LEFT)){
+        return false;
+    }
+
+    const Vector2 mouse = GetMousePosition();
+
+    if (CheckCollisionPointRec(mouse, alliance_accept_rect)){
+        game.getAlliances().accept(player, requester, game.getTime());
+        return true;
+    }
+
+    if (CheckCollisionPointRec(mouse, alliance_reject_rect)){
+        game.getAlliances().reject(player, requester, game.getTime());
+        return true;
+    }
+
+    //ell click dentro del panel no afecta a la jugabilidad
+    if (CheckCollisionPointRec(mouse, alliance_panel_rect)){
+        return true;
+    }
+
+    return false;
+}
+
+void MainGameState::renderAlliancePanel()
+{
+    Player* player = game.getPlayer();
+    Entity* requester = nullptr;
+    float expiresAt = 0.0f;
+
+    if (!game.getAlliances().firstPendingTo(player, requester, expiresAt)){
+        return;
+    }
+
+    updateAlliancePanelLayout();
+
+    const Vector2 mouse = GetMousePosition();
+    const float remaining = std::max(0.0f, expiresAt - game.getTime());
+    const float ratio = std::max(0.0f, std::min(1.0f, remaining / 15.0f));
+    const std::size_t pending = game.getAlliances().countPendingTo(player);
+
+    //panel
+    DrawRectangleRounded(Rectangle{ alliance_panel_rect.x + 2.0f,alliance_panel_rect.y + 2.0f,alliance_panel_rect.width,alliance_panel_rect.height },0.08f, 8, Fade(BLACK, 0.35f));
+    DrawRectangleRounded(alliance_panel_rect, 0.08f, 8, Color{30, 34, 42, 245});
+    DrawRectangleRoundedLines(alliance_panel_rect, 0.08f, 8, GRAY);
+
+    //texto del panel
+    DrawText(requester->getName().c_str(),static_cast<int>(alliance_panel_rect.x + 14.0f),static_cast<int>(alliance_panel_rect.y + 10.0f),18, RAYWHITE);
+    DrawText("quiere aliarse contigo",static_cast<int>(alliance_panel_rect.x + 14.0f),static_cast<int>(alliance_panel_rect.y + 30.0f),14, LIGHTGRAY);
+    DrawText(TextFormat("%.0f s", remaining),static_cast<int>(alliance_panel_rect.x + alliance_panel_rect.width - 52.0f),static_cast<int>(alliance_panel_rect.y + 30.0f),14, LIGHTGRAY);
+
+    //botones
+    const bool hoverAccept =CheckCollisionPointRec(mouse, alliance_accept_rect);
+    const bool hoverReject =CheckCollisionPointRec(mouse, alliance_reject_rect);
+    DrawRectangleRec(alliance_accept_rect,hoverAccept ? Color{45, 120, 60, 255} : Color{40, 70, 50, 255});
+    DrawRectangleLinesEx(alliance_accept_rect, 1.0f, GRAY);
+    const char* acceptText = "Aceptar";
+    DrawText(acceptText,static_cast<int>(alliance_accept_rect.x+ (alliance_accept_rect.width- MeasureText(acceptText, 16)) / 2.0f),static_cast<int>(alliance_accept_rect.y + 6.0f),16, RAYWHITE);
+    DrawRectangleRec(alliance_reject_rect,hoverReject ? Color{150, 55, 55, 255} : Color{80, 42, 42, 255});
+    DrawRectangleLinesEx(alliance_reject_rect, 1.0f, GRAY);
+    const char* rejectText = "Rechazar";
+    DrawText(rejectText,static_cast<int>(alliance_reject_rect.x+ (alliance_reject_rect.width- MeasureText(rejectText, 16)) / 2.0f),static_cast<int>(alliance_reject_rect.y + 6.0f),16, RAYWHITE);
+
+    //tiempo
+    const Rectangle bar{
+        alliance_panel_rect.x + 14.0f,
+        alliance_panel_rect.y + 86.0f,
+        alliance_panel_rect.width - 28.0f,
+        6.0f
+    };
+
+    DrawRectangleRec(bar, Color{20, 24, 30, 255});
+
+    Rectangle fill = bar;
+    fill.width *= ratio;
+    DrawRectangleRec(fill, Color{220, 180, 60, 255});
+
+    //cola de solicitudes
+    if (pending > 1){
+        DrawText(TextFormat("Pendientes: %d", static_cast<int>(pending)),static_cast<int>(alliance_panel_rect.x + 14.0f),static_cast<int>(alliance_panel_rect.y + 96.0f),12, GRAY);
+    }
+}
+
 void MainGameState::executeContextAttack()
 {
     const int index = context_menu.getCellIndex();
@@ -923,6 +1040,8 @@ void MainGameState::render()
             context_menu.render(title.c_str(),attack_percent,attackTroops,canAttack,canDonate ? static_cast<int>(donation) : 0,canAlly, allyLabel.c_str());
         }
     }
+
+    renderAlliancePanel();
 
     if (gameOver)
     {

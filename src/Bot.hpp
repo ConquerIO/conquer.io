@@ -28,9 +28,13 @@ public:
         return expand_timer; 
     }
 
+    //para que los bots inicien tambien alianzas
+    bool shouldRequestAlliance(float deltaTime);
+
 private:
     float attack_decision_timer; // tiempo acumulado desde el ultimo ataque
     float next_attack_delay;     // espera aleatoria [6, 10] hasta el proximo ataque
     float expand_timer;          // temporizador de las oleadas de expansion
     float attack_ratio;          // fraccion de tropas [0.30, 0.70] del ataque actual
+    float alliance_timer = 0.0f;
 };

@@ -64,6 +64,8 @@ public:
         return alliances; 
     }
 
+    void tryBotAlliance(Bot* bot);
+
 private:
     void createEntities(string playerName, Color playerColor);
     void resetEntities(string playerName, Color playerColor);
@@ -74,7 +76,7 @@ private:
     void rebuildFrontier(Entity* owner);
     void addExposedFrontier(Entity* victim, int x, int y);
     Target chooseBotTarget(Entity* owner) const;
-    Entity* randomNeighborEntity(Entity* owner) const;
+    Entity* randomNeighborEntity(Entity* owner, bool avoidAllies) const;
     std::size_t getPlayerPixels(Entity* owner) const;
     float getPlayerTroops(Entity* owner) const;
     float calculateInterest(float troops, float pixels) const;

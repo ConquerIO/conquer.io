@@ -58,5 +58,14 @@ class MainGameState : public GameState
         void executeContextAttack();
         void executeContextDonation();
         void executeContextAlliance();
+
+        //panel de la solicitud de una alianza
+        Rectangle alliance_panel_rect{};
+        Rectangle alliance_accept_rect{};
+        Rectangle alliance_reject_rect{};
+        void updateAlliancePanelLayout();
+        bool handleAlliancePanelInput();
+        void renderAlliancePanel();
+
         ContextMenu context_menu;
 };
