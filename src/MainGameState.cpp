@@ -451,16 +451,25 @@ void MainGameState::handleInput()
 
         const int column = index % width;
         const int row = index / width;
+
         const TerritoryCell& cell = game.getMap().getCell(column, row);
+        Entity* targetEntity = cell.owner;
+        Player* player = game.getPlayer();
+        const AllianceManager& alliances = game.getAlliances();
+
+        const bool alreadyAllied =targetEntity != nullptr && alliances.areAllied(player, targetEntity);
+        const bool pending =targetEntity != nullptr && alliances.hasPendingFrom(player, targetEntity);
+        const float cooldown =targetEntity != nullptr? alliances.cooldownRemaining(player, targetEntity, game.getTime()): 0.0f;
+        const bool canAlly =targetEntity != nullptr&& targetEntity != player&& !alreadyAllied&& !pending&& cooldown <= 0.0f;
 
         //la donacion es lo mismo destinado al ataque
-        const std::size_t donadorTroops = game.getPlayer()->getTroops();
+        const std::size_t donadorTroops = player->getTroops();
         const std::size_t donation = static_cast<std::size_t>(static_cast<float>(donadorTroops)* attack_percent / 100.0f);
 
         const bool canAttack =(attack_percent > 0) && isCellAttackable(column, row);
-        const bool canDonate =cell.owner != nullptr && cell.owner != game.getPlayer()&& donadorTroops > 1 && donation > 0;
+        const bool canDonate =cell.owner != nullptr && cell.owner != player&& donadorTroops > 1 && donation > 0;
 
-        const ContextMenu::Action action =context_menu.handleInput(canAttack, canDonate);
+        const ContextMenu::Action action =context_menu.handleInput(canAttack, canDonate, canAlly);
 
         if (action == ContextMenu::Action::Attack){
             executeContextAttack();
@@ -469,8 +478,7 @@ void MainGameState::handleInput()
             executeContextDonation();
         }
         else if (action == ContextMenu::Action::Alliance){
-            //hay que implementarla, por lo que por ahora se cierra
-            context_menu.close();
+            executeContextAlliance();
         }
 
         return;
@@ -640,6 +648,32 @@ void MainGameState::executeContextDonation(){
     donador->setTroops(donador->getTroops() - amount);
     //no se limita al máximo ni se redondea
     receiver->setTroops(receiver->getTroops() + amount);
+    context_menu.close();
+}
+
+void MainGameState::executeContextAlliance(){
+    const int index = context_menu.getCellIndex();
+    if (index < 0) {
+        context_menu.close();
+        return;
+    }
+
+    const int width = static_cast<int>(game.getMap().getWidth());
+    const int column = index % width;
+    const int row = index / width;
+
+    const TerritoryCell& cell = game.getMap().getCell(column, row);
+
+    Player* player = game.getPlayer();
+    Entity* target = cell.owner;
+
+    if (target == nullptr || target == player) {
+        context_menu.close();
+        return;
+    }
+
+    //un bot tarda aprox 1 seg en responder
+    game.getAlliances().sendRequest(player,target,game.getTime(),game.getTime() + 1.0f);
     context_menu.close();
 }
 
@@ -859,15 +893,34 @@ void MainGameState::render()
 
         if (column >= 0 && row >= 0 && column < static_cast<int>(map.getWidth()) && row < static_cast<int>(map.getHeight())){
             const TerritoryCell& cell = map.getCell(column, row);
-            const std::string title =(cell.owner == nullptr) ? "Tierra": cell.owner->getName();
+            Entity* targetEntity = cell.owner;
+            const std::string title =(targetEntity == nullptr) ? "Tierra": targetEntity->getName();
+
+            const AllianceManager& alliances = game.getAlliances();
+            const bool alreadyAllied =targetEntity != nullptr && alliances.areAllied(player, targetEntity);
+            const bool pending =targetEntity != nullptr && alliances.hasPendingFrom(player, targetEntity);
+            const float cooldown =targetEntity != nullptr? alliances.cooldownRemaining(player, targetEntity, game.getTime()): 0.0f;
+
+            const bool canAlly =targetEntity != nullptr&& targetEntity != player&& !alreadyAllied&& !pending&& cooldown <= 0.0f;
+
+            std::string allyLabel = "Alianza";
+            if (alreadyAllied) {
+                allyLabel = "Ya aliados";
+            }
+            else if (pending) {
+                allyLabel = "Solicitud enviada";
+            }
+            else if (cooldown > 0.0f){
+                allyLabel = TextFormat("Espera %d s", static_cast<int>(std::ceil(cooldown)));
+            }
+
             const std::size_t donadorTroops = player->getTroops();
             const std::size_t donation = static_cast<std::size_t>(static_cast<float>(donadorTroops)* attack_percent / 100.0f);
             //con una tropa no se puede donar para no morir
             const bool canDonate =cell.owner != nullptr && cell.owner != player&& donadorTroops > 1 && donation > 0;
             const bool canAttack =(attack_percent > 0) && isCellAttackable(column, row);
             const int attackTroops = static_cast<int>(static_cast<float>(player->getTroops()) * attack_percent / 100.0f);
-            context_menu.render(title.c_str(),attack_percent,attackTroops,canAttack,
-                                canDonate ? static_cast<int>(donation) : 0);
+            context_menu.render(title.c_str(),attack_percent,attackTroops,canAttack,canDonate ? static_cast<int>(donation) : 0,canAlly, allyLabel.c_str());
         }
     }
 

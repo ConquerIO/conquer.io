@@ -86,7 +86,7 @@ void Game::createEntities(std::string playerName, Color playerColor){
         
         Color botColor = {static_cast<unsigned char>(GetRandomValue(50, 230)), static_cast<unsigned char>(GetRandomValue(50, 230)), static_cast<unsigned char>(GetRandomValue(50, 230)), 255};
         
-        auto* bot = new Bot(botName, botColor);4
+        auto* bot = new Bot(botName, botColor);
         bot->setId(i+1);
         bot->setTroops(config.bot_troops);
         this->entities.push_back(bot);

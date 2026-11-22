@@ -57,5 +57,6 @@ class MainGameState : public GameState
         bool playerIsAdjacentTo(Entity* enemy) const;
         void executeContextAttack();
         void executeContextDonation();
+        void executeContextAlliance();
         ContextMenu context_menu;
 };

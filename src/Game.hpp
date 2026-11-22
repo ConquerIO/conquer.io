@@ -57,6 +57,9 @@ public:
     float getSpawnTimer() const { return spawn_timer; }
     int getSpawnPreview() const { return player_spawn_preview; }
     
+    AllianceManager& getAlliances() { 
+        return alliances; 
+    }
     const AllianceManager& getAlliances() const { 
         return alliances; 
     }
