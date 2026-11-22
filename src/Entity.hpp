@@ -22,7 +22,6 @@ public:
     std::vector<std::pair<int, int>>& getFrontier() { return frontier; }
     const std::vector<std::pair<int, int>>& getFrontier() const { return frontier; }
 
-    // Celdas que posee la entidad (lo mantiene Game al cambiar el dueño de una celda)
     std::size_t getCellCount() const { return cell_count; }
     void addCell() { ++cell_count; }
     void removeCell() { if (cell_count > 0) --cell_count; }
@@ -32,6 +31,15 @@ public:
     void setAttackFuel(std::size_t fuel);
     void beginAttack(float ratio, std::size_t resistance);
     void endAttack();
+
+    std::size_t getId() const { 
+        return id; 
+    }
+
+    void setId(std::size_t value) { 
+        id = value; 
+    }
+
 protected:
     std::string name;
     Color color;
@@ -41,6 +49,7 @@ protected:
     std::size_t attack_fuel = 0;
     std::size_t attack_resistence=1;
     std::size_t cell_count = 0;
+    std::size_t id = 0;
 
     std::vector<std::pair<int, int>> frontier;
 };
