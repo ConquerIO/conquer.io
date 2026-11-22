@@ -3,6 +3,7 @@
 #include <Bot.hpp>
 #include <Player.hpp>
 #include <TerritoryCell.hpp>
+#include <AllianceManager.hpp>
 #include <Target.hpp>
 #include <Map.hpp>
 #include <GameConfig.hpp>
@@ -17,12 +18,10 @@ enum class GamePhase {
     PLAYING
 };
 
-class Game
-{
+class Game{
 public:
     Game(std::string playerName, Color playerColor, const GameConfig &config);
     ~Game();
-    // Game es dueño de las entidades, no se puede copiar.
     Game(const Game&) = delete;
     Game& operator=(const Game&) = delete;
 
@@ -49,13 +48,8 @@ public:
     float getTroopLimit(Entity* owner) const;
     std::size_t getTerritoryCells(Entity* owner) const;
     std::size_t getLandCellCount() const;
-
-    // Cambios del mapa para repintarlo de forma incremental.
-    // `generation` cambia cuando se regenera el mapa entero (reset);
-    // `version` cuando cambia el dueño de alguna celda.
     unsigned getMapGeneration() const { return map_generation; }
     unsigned getMapVersion() const { return map_version; }
-    // Entrega (y vacía) los índices de las celdas cambiadas desde la última llamada.
     void takeChangedCells(std::vector<std::size_t>& out) { out.swap(changed_cells); changed_cells.clear(); }
 
     void setSpawnPreview(int targetIndex);
@@ -63,7 +57,9 @@ public:
     float getSpawnTimer() const { return spawn_timer; }
     int getSpawnPreview() const { return player_spawn_preview; }
     
-
+    const AllianceManager& getAlliances() const { 
+        return alliances; 
+    }
 
 private:
     void createEntities(string playerName, Color playerColor);
@@ -98,6 +94,8 @@ private:
     Entity* winner;
 
     GameConfig config;
+
+    AllianceManager alliances;
 
     std::vector<std::size_t> changed_cells;
     unsigned map_version = 0;

@@ -113,12 +113,14 @@ void Game::update(float deltaTime)
             Logger::info("El tiempo de spawn ha terminado, comenzando partida...");                                                                                                             
             current_phase = GamePhase::PLAYING;                                                                                                  
         }                                                                                                                                        
-        return; // Evita que se ejecute la lógica de juego mientras tanto                                                                        
+        return;
     } 
 
     if (game_over) return;
 
     game_time += deltaTime;
+    alliances.update(game_time);
+
 #ifdef CONQUER_VERIFY_COUNTS
     verifyCellCounts();
 #endif
@@ -134,6 +136,7 @@ void Game::update(float deltaTime)
 
     for(auto it = entities.begin(); it != entities.end(); ){
         if(*it != player && getPlayerPixels(*it) == 0){
+            alliances.removeEntity(*it);
             it = entities.erase(it);
         } else {
             ++it;
@@ -586,6 +589,7 @@ void Game::reset()
     }
     
     resetEntities(getPlayer()->getName(), getPlayer()->getColor());
+    alliances.reset(entities.size());
 
     for (size_t i = 1; i < entities.size(); ++i) {
         static_cast<Bot*>(entities[i])->reset();
