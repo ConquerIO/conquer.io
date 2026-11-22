@@ -208,6 +208,23 @@ std::size_t AllianceManager::countPendingTo(const Entity* target) const{
     return count;
 }
 
+std::size_t AllianceManager::countPendingFrom(const Entity* from) const{
+    if (!valid(from)) {
+        return 0;
+    }
+
+    const std::size_t fromId = from->getId();
+    std::size_t count = 0;
+
+    for (std::size_t toId = 0; toId < n; ++toId){
+        if (requests[fromId * n + toId].active) {
+            ++count;
+        }
+    }
+
+    return count;
+}
+
 bool AllianceManager::firstPendingTo(const Entity* target, Entity*& outFrom,  float& outExpiresAt) const{
     if (!valid(target)) {
         return false;

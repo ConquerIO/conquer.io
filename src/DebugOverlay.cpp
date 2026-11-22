@@ -172,7 +172,9 @@ void section(const char* title)
 void kv(const char* label, const char* value)
 {
     ImGui::TextDisabled("%s", label);
-    ImGui::SameLine(LABEL_WIDTH);
+    const float labelWidth = ImGui::CalcTextSize(label).x;
+    ImGui::SameLine(std::max(LABEL_WIDTH, labelWidth + 12.0f));
+
     ImGui::TextUnformatted(value);
 }
 
@@ -285,6 +287,24 @@ void DebugOverlay::drawGamePanel(const Game& game, const GameConfig& config)
     kv("Objetivo", targetName(player->getTarget()));
     kv("Celdas / frontera", format("%zu / %zu",
                                    player_cells, player->getFrontier().size()));
+
+    section("ALIANZAS");
+    {
+        const AllianceManager& alliances = game.getAlliances();
+
+        kv("Aliados", format("%zu", alliances.countAllies(player)));
+        kv("Solicitudes recibidas", format("%zu", alliances.countPendingTo(player)));
+        kv("Solicitudes enviadas", format("%zu", alliances.countPendingFrom(player)));
+
+        float cooldown = 0.0f;
+        const Target& target = player->getTarget();
+
+        if (target.isEnemy() && target.getEntity() != nullptr){
+            cooldown = alliances.cooldownRemaining(player, target.getEntity(), game.getTime());
+        }
+
+        kv("Cooldown objetivo",cooldown > 0.0f ? format("%.1f s", cooldown): std::string("ninguno"));
+    }
 
     section("BOTS");
     if (alive_bots == 0)
