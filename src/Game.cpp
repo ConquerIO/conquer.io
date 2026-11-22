@@ -77,6 +77,7 @@ Game::Game(std::string playerName, Color playerColor, const GameConfig &config):
 
 void Game::createEntities(std::string playerName, Color playerColor){
     auto* player = new Player(std::move(playerName), playerColor);
+    player->setId(0); //el jugador siempre va a ser el ID 0
     player->setTroops(config.initial_troops);
     this->entities.push_back(player);
 
@@ -85,7 +86,8 @@ void Game::createEntities(std::string playerName, Color playerColor){
         
         Color botColor = {static_cast<unsigned char>(GetRandomValue(50, 230)), static_cast<unsigned char>(GetRandomValue(50, 230)), static_cast<unsigned char>(GetRandomValue(50, 230)), 255};
         
-        auto* bot = new Bot(botName, botColor);
+        auto* bot = new Bot(botName, botColor);4
+        bot->setId(i+1);
         bot->setTroops(config.bot_troops);
         this->entities.push_back(bot);
     }
