@@ -49,16 +49,22 @@ constexpr int LABEL_MAX_FONT = 40;
 constexpr float LABEL_TROOPS_SCALE = 0.65f;
 constexpr float LABEL_LINE_GAP = 0.25f;
 
+//icono de alianza encima del nombre
+constexpr float ALLY_ICON_SIZE = 14.0f;
+constexpr float ALLY_ICON_GAP = 2.0f;
+
 //esto lo que hace es la etiqueta de la tropas y nombres para mostrarla
 struct TerritoryLabel{
     Entity* owner = nullptr;
     std::string name;
     std::string troops;
     Rectangle rect{};
+    Rectangle iconRect{};
     std::size_t cells = 0; 
     int nameFontSize = 0;
     int troopsFontSize = 0;
     bool visible = false;
+    bool allied = false;
 };
 
 //aqui estan los datos de un territorio
@@ -153,11 +159,29 @@ struct StatsCache{
     double time = 0.0;
 };
 
+//icono de dos manos estrechandose
+void drawHandshakeIcon(float cx, float cy, float size, Color color){
+    const Color outline{20, 24, 30, 255};
+
+    const Vector2 leftStart= { cx - size * 0.50f, cy - size * 0.15f };
+    const Vector2 rightStart = { cx + size * 0.50f, cy - size * 0.15f };
+    const Vector2 center= { cx, cy + size * 0.15f };
+
+    DrawLineEx(leftStart, center, std::max(2.0f, size * 0.28f), outline);
+    DrawLineEx(rightStart, center, std::max(2.0f, size * 0.28f), outline);
+    DrawCircleV(center, size * 0.22f, outline);
+
+    DrawLineEx(leftStart, center, std::max(1.0f, size * 0.14f), color);
+    DrawLineEx(rightStart, center, std::max(1.0f, size * 0.14f), color);
+    DrawCircleV(center, size * 0.14f, color);
+}
+
 //esta lo que haces es ir calculando el tamaño del territiorio para ajustar el texto cada vez que se aumenta o disminuye el territorio
-TerritoryLabel buildLabel(const Map& map, Entity* owner, const TerritoryStats& stats, const Camera2D& camera){
+TerritoryLabel buildLabel(const Map& map, Entity* owner, const TerritoryStats& stats, const Camera2D& camera, bool isAlly){
     TerritoryLabel label;
     label.owner = owner;
     label.cells = stats.cells;
+    label.allied = isAlly;
 
     //no se muestra si no tenemos un territorio
     if (stats.cells == 0) {
@@ -199,16 +223,24 @@ TerritoryLabel buildLabel(const Map& map, Entity* owner, const TerritoryStats& s
     //lo mismo con las tropas
     float gap = nameFontSize * LABEL_LINE_GAP;
     int troopsFontSize = static_cast<int>(nameFontSize * LABEL_TROOPS_SCALE);
-    float blockHeight = static_cast<float>(nameFontSize + troopsFontSize) + gap;
+
+    const float iconSize = isAlly ? ALLY_ICON_SIZE : 0.0f;
+    const float iconGap = isAlly ? ALLY_ICON_GAP : 0.0f;
+
+    float textHeight = static_cast<float>(nameFontSize + troopsFontSize) + gap;
+    float blockHeight = textHeight + iconSize + iconGap;
 
     //si es mas alto que el bloque donde se mete, se reduce 
     const float maxBlockHeight = box.height * LABEL_HEIGHT_FILL;
-    if (blockHeight > maxBlockHeight && blockHeight > 0.0f){
-        const float scale = maxBlockHeight / blockHeight;
+    const float maxTextHeight = std::max(0.0f, maxBlockHeight - iconSize - iconGap);
+
+    if (textHeight > maxTextHeight && textHeight > 0.0f){
+        const float scale = maxTextHeight / textHeight;
         nameFontSize = static_cast<int>(nameFontSize * scale);
         troopsFontSize = static_cast<int>(nameFontSize * LABEL_TROOPS_SCALE);
         gap = nameFontSize * LABEL_LINE_GAP;
-        blockHeight = static_cast<float>(nameFontSize + troopsFontSize) + gap;
+        textHeight = static_cast<float>(nameFontSize + troopsFontSize) + gap;
+        blockHeight = textHeight + iconSize + iconGap;
     }
 
     //si es muy pequeño no se muestra
@@ -217,6 +249,8 @@ TerritoryLabel buildLabel(const Map& map, Entity* owner, const TerritoryStats& s
     }
 
     const int textWidth =std::max(MeasureText(label.name.c_str(), nameFontSize),MeasureText(label.troops.c_str(), troopsFontSize));
+    const float labelWidth = std::max(static_cast<float>(textWidth), iconSize);
+
     const Vector2 anchor = GetWorldToScreen2D(
         Vector2{static_cast<float>(anchorColumn) + 0.5f, static_cast<float>(anchorRow) + 0.5f}, camera);
     const float anchorX = anchor.x;
@@ -226,11 +260,21 @@ TerritoryLabel buildLabel(const Map& map, Entity* owner, const TerritoryStats& s
     label.nameFontSize = nameFontSize;
     label.troopsFontSize = troopsFontSize;
     label.rect = Rectangle{
-        anchorX - textWidth / 2.0f,
+        anchorX - labelWidth / 2.0f,
         anchorY - blockHeight / 2.0f,
-        static_cast<float>(textWidth),
+        labelWidth,
         blockHeight
     };
+
+    if (isAlly) {
+        label.iconRect = Rectangle{
+            label.rect.x + (label.rect.width - iconSize) / 2.0f,
+            label.rect.y,
+            iconSize,
+            iconSize
+        };
+    }
+
     label.visible = true;
     return label;
 }
@@ -246,8 +290,14 @@ void drawTerritoryLabel(const TerritoryLabel& label){
     const float nameWidth = MeasureText(label.name.c_str(), label.nameFontSize);
     const float troopsWidth = MeasureText(label.troops.c_str(), label.troopsFontSize);
 
-    DrawText(label.name.c_str(),static_cast<int>(label.rect.x + (label.rect.width - nameWidth) / 2.0f),static_cast<int>(label.rect.y),label.nameFontSize, color);
-    DrawText(label.troops.c_str(),static_cast<int>(label.rect.x + (label.rect.width - troopsWidth) / 2.0f),static_cast<int>(label.rect.y + label.nameFontSize + gap),label.troopsFontSize, color);
+    float textTop = label.rect.y;
+
+    if (label.allied) {
+        drawHandshakeIcon(label.iconRect.x + label.iconRect.width / 2.0f,label.iconRect.y + label.iconRect.height / 2.0f,label.iconRect.width,GOLD);
+        textTop += label.iconRect.height + ALLY_ICON_GAP;
+    }
+    DrawText(label.name.c_str(),static_cast<int>(label.rect.x + (label.rect.width - nameWidth) / 2.0f),static_cast<int>(textTop),label.nameFontSize, color);
+    DrawText(label.troops.c_str(),static_cast<int>(label.rect.x + (label.rect.width - troopsWidth) / 2.0f),static_cast<int>(textTop + label.nameFontSize + gap),label.troopsFontSize, color);
 }
 
 
@@ -884,8 +934,8 @@ void MainGameState::render()
         for (Entity* entity : entities)
         {
             const auto it = stats.find(entity);
-            labels.push_back(buildLabel(map, entity,
-                                        it != stats.end() ? it->second : empty, map_camera));
+            const bool isAlly = game.getAlliances().areAllied(player, entity);
+            labels.push_back(buildLabel(map, entity,it != stats.end() ? it->second : empty,map_camera, isAlly));
         }
 
         // Solo se muestran las etiquetas que caen dentro de la pantalla.
