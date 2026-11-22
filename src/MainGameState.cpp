@@ -728,7 +728,16 @@ void MainGameState::executeContextAlliance(){
     }
 
     //un bot tarda aprox 1 seg en responder
-    game.getAlliances().sendRequest(player,target,game.getTime(),game.getTime() + 1.0f);
+    const bool sent = game.getAlliances().sendRequest(
+        player,
+        target,
+        game.getTime(),
+        game.getTime() + 1.0f);
+
+    if (sent) {
+        showAllianceToast("Solicitud enviada a " + target->getName());
+    }
+
     context_menu.close();
 }
 
@@ -769,11 +778,13 @@ bool MainGameState::handleAlliancePanelInput(){
 
     if (CheckCollisionPointRec(mouse, alliance_accept_rect)){
         game.getAlliances().accept(player, requester, game.getTime());
+        showAllianceToast("Alianza aceptada con " + requester->getName());
         return true;
     }
 
     if (CheckCollisionPointRec(mouse, alliance_reject_rect)){
         game.getAlliances().reject(player, requester, game.getTime());
+        showAllianceToast("Alianza rechazada con " + requester->getName());
         return true;
     }
 
@@ -844,6 +855,41 @@ void MainGameState::renderAlliancePanel()
     }
 }
 
+void MainGameState::showAllianceToast(const std::string& message){
+    alliance_toast = message;
+    alliance_toast_timer = 3.0f;
+}
+
+//para dibujar el mensaje de aviso
+void MainGameState::renderAllianceToast()
+{
+    if (alliance_toast_timer <= 0.0f || alliance_toast.empty()) {
+        return;
+    }
+
+    const int screenWidth = GetScreenWidth();
+    const int screenHeight = GetScreenHeight();
+
+    const int fontSize = 18;
+    const int textWidth = MeasureText(alliance_toast.c_str(), fontSize);
+
+    const float width = static_cast<float>(textWidth + 28);
+    const float height = 34.0f;
+
+    const Rectangle rect{
+        (static_cast<float>(screenWidth) - width) / 2.0f,
+        static_cast<float>(screenHeight) - 110.0f,
+        width,
+        height
+    };
+
+    const float alpha = std::max(0.0f, std::min(1.0f, alliance_toast_timer));
+
+    DrawRectangleRounded(rect, 0.25f, 8, Fade(BLACK, 0.65f * alpha));
+    DrawRectangleRoundedLines(rect, 0.25f, 8, Fade(GRAY, alpha));
+    DrawText(alliance_toast.c_str(),static_cast<int>(rect.x + (rect.width - textWidth) / 2.0f),static_cast<int>(rect.y + (rect.height - fontSize) / 2.0f),fontSize,Fade(RAYWHITE, alpha));
+}
+
 void MainGameState::executeContextAttack()
 {
     const int index = context_menu.getCellIndex();
@@ -885,6 +931,29 @@ void MainGameState::update(float deltaTime)
 {
     game.update(deltaTime);
     if (game.isOver()) game_over_timer += deltaTime;
+
+    //avisosde alianza que se generan en el main
+    std::vector<Game::AllianceEvent> events;
+    game.takeAllianceEvents(events);
+
+    for (const Game::AllianceEvent& event : events){
+        switch (event.type){
+            case Game::AllianceEvent::Type::Accepted:
+                showAllianceToast(event.otherName + " ha aceptado la alianza");
+                break;
+            case Game::AllianceEvent::Type::Rejected:
+                showAllianceToast(event.otherName + " ha rechazado la alianza");
+                break;
+            case Game::AllianceEvent::Type::Broken:
+                showAllianceToast("Alianza rota con " + event.otherName);
+                break;
+        }
+    }
+
+    if (alliance_toast_timer > 0.0f)
+    {
+        alliance_toast_timer = std::max(0.0f, alliance_toast_timer - deltaTime);
+    }
 
     //el sonido de fin de partida suena una sola vez al aparecer la pantalla
     if (!end_sound_played) {
@@ -1061,7 +1130,7 @@ void MainGameState::render()
         if (column >= 0 && row >= 0 && column < static_cast<int>(map.getWidth()) && row < static_cast<int>(map.getHeight())){
             const TerritoryCell& cell = map.getCell(column, row);
             Entity* targetEntity = cell.owner;
-            const std::string title =(targetEntity == nullptr) ? "Tierra": targetEntity->getName();
+            std::string title =(targetEntity == nullptr) ? "Tierra": targetEntity->getName();
 
             const AllianceManager& alliances = game.getAlliances();
             const bool alreadyAllied =targetEntity != nullptr && alliances.areAllied(player, targetEntity);
@@ -1092,6 +1161,7 @@ void MainGameState::render()
     }
 
     renderAlliancePanel();
+    renderAllianceToast();
 
     if (gameOver)
     {

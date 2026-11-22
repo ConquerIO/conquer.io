@@ -67,5 +67,10 @@ class MainGameState : public GameState
         bool handleAlliancePanelInput();
         void renderAlliancePanel();
 
+        std::string alliance_toast;
+        float alliance_toast_timer = 0.0f;
+        void showAllianceToast(const std::string& message);
+        void renderAllianceToast();
+
         ContextMenu context_menu;
 };

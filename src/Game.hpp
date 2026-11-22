@@ -25,11 +25,23 @@ public:
     Game(const Game&) = delete;
     Game& operator=(const Game&) = delete;
 
+    //para que se pueda ver la traza de alianzas que haces y mostrarla luego
+    struct AllianceEvent {
+        enum class Type { Accepted, Rejected, Broken };
+        Type type;
+        std::string otherName;
+    };
 
     void update(float deltaTime);
     void reset();
     void setPlayerTarget(const Target& target, float ratio);
     void cancelPlayerAttack();
+
+    //para avisar al jugador
+    void takeAllianceEvents(std::vector<AllianceEvent>& out) {
+        out.swap(alliance_events);
+        alliance_events.clear();
+    }
 
     Player* getPlayer() const { return (Player*)entities[0];}
     const Map& getMap() const { return map; }
@@ -101,6 +113,9 @@ private:
     GameConfig config;
 
     AllianceManager alliances;
+    std::vector<AllianceEvent> alliance_events;
+
+    void pushAllianceEvent(AllianceEvent::Type type, Entity* other);
 
     std::vector<std::size_t> changed_cells;
     unsigned map_version = 0;

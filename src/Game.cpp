@@ -101,6 +101,13 @@ Game::~Game(){
     for (auto entity : entities) delete entity;
 }
 
+void Game::pushAllianceEvent(AllianceEvent::Type type, Entity* other){
+    if (other == nullptr) {
+        return;
+    }
+    alliance_events.push_back(AllianceEvent{type, other->getName()});
+}
+
 void Game::resetEntities(std::string playerName, Color playerColor){
     for (auto entity : entities) delete entity;
     this->entities.clear();
@@ -135,13 +142,22 @@ void Game::update(float deltaTime)
             return;
         }
 
-        const float roll =static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
+        Entity* from = request.from;
+        Entity* to = request.to;
 
-        if (roll < 0.55f){
-            alliances.accept(request.to, request.from, game_time);
+        const float roll =static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
+        const bool accepted = roll < 0.55f;
+
+        if (accepted){
+            alliances.accept(to, from, game_time);
         }
         else{
-            alliances.reject(request.to, request.from, game_time);
+            alliances.reject(to, from, game_time);
+        }
+
+        //se avisa al jugador
+        if (from == getPlayer()){
+            pushAllianceEvent(accepted ? AllianceEvent::Type::Accepted: AllianceEvent::Type::Rejected,to);
         }
     });
 
@@ -206,7 +222,11 @@ void Game::update(float deltaTime)
                 const Target target = chooseBotTarget(bot);
                 //igual aqui, al atacar se rompe la alianza
                 if (target.isEnemy() && target.getEntity() != nullptr&& alliances.areAllied(bot, target.getEntity())){
-                    alliances.breakAlliance(bot, target.getEntity());
+                    Entity* other = target.getEntity();
+                    if (other == getPlayer()){
+                        pushAllianceEvent(AllianceEvent::Type::Broken, bot);
+                    }
+                    alliances.breakAlliance(bot, other);
                 }
                 bot->setTarget(target);
                 bot->beginAttack(bot->getAttackRatio(), computeAttackResistance(target));
@@ -631,6 +651,7 @@ void Game::reset()
     game_over = false;
     winner = nullptr;
     getPlayer()->cancelAttack();
+    alliance_events.clear();
     changed_cells.clear();
     ++map_generation;
     ++map_version;
@@ -660,6 +681,7 @@ void Game::setPlayerTarget(const Target& target, float ratio)
     Player* player = getPlayer();
     //se rompe la alianza al atacar
     if (target.isEnemy() && target.getEntity() != nullptr&& alliances.areAllied(player, target.getEntity())){
+        pushAllianceEvent(AllianceEvent::Type::Broken, target.getEntity());
         alliances.breakAlliance(player, target.getEntity());
     }
     player->setTarget(target);
