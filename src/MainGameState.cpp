@@ -413,6 +413,42 @@ void drawLeaderboard(const std::vector<Entity*>& entities,Player* player,int scr
     }
 }
 
+//para las estadisticas de arriba derecha
+void drawMatchStats(std::size_t humans,std::size_t bots,float playerTerritoryPercent,float interest,int screenWidth){
+    constexpr float panelW = 270.0f;
+    constexpr float panelH = 128.0f;
+    constexpr float margin = 24.0f;
+    const float panelX =static_cast<float>(screenWidth) - panelW - margin;
+    constexpr float panelY = 120.0f;
+
+    DrawRectangleRounded(Rectangle{panelX + 2.0f, panelY + 2.0f, panelW, panelH},0.06f, 8, Fade(BLACK, 0.35f));
+    DrawRectangleRounded(Rectangle{panelX, panelY, panelW, panelH},0.06f, 8, Color{24, 29, 36, 235});
+    DrawRectangleRoundedLines(Rectangle{panelX, panelY, panelW, panelH},0.06f, 8, Color{70, 90, 105, 255});
+    DrawText("ESTADISTICAS",static_cast<int>(panelX + 10.0f),static_cast<int>(panelY + 6.0f),14, LIGHTGRAY);
+
+    const char* labels[4] = {
+        "Humanos",
+        "Bots",
+        "Territorio",
+        "Interes"
+    };
+
+    const std::string values[4] = {
+        TextFormat("%d", static_cast<int>(humans)),
+        TextFormat("%d", static_cast<int>(bots)),
+        TextFormat("%.1f %%", playerTerritoryPercent),
+        TextFormat("%.1f %%/s", interest)
+    };
+
+    float rowY = panelY + 34.0f;
+
+    for (int i = 0; i < 4; ++i){
+        DrawText(labels[i],static_cast<int>(panelX + 10.0f),static_cast<int>(rowY),14, LIGHTGRAY);
+        DrawText(values[i].c_str(),static_cast<int>(panelX + panelW - 10.0f- MeasureText(values[i].c_str(), 14)),static_cast<int>(rowY),14, RAYWHITE);
+        rowY += 22.0f;
+    }
+}
+
 //esta resuelve el solape entre varios territorios
 void separateLabels(std::vector<TerritoryLabel>& labels, const Rectangle& mapBounds){
     for (std::size_t i = 0; i < labels.size(); ++i){
@@ -859,7 +895,7 @@ void MainGameState::updateAlliancePanelLayout(){
     constexpr float margin = 24.0f;
 
     const float x = std::max(8.0f,static_cast<float>(GetScreenWidth()) - panelW - margin);
-    const float y = 120.0f;
+    const float y = 260.0f;
 
     alliance_panel_rect = Rectangle{ x, y, panelW, panelH };
 
@@ -1196,7 +1232,14 @@ void MainGameState::render()
 
     if (game.getPhase() == GamePhase::PLAYING) {
         const std::vector<Entity*> entities = game.getEntities();
+        const std::size_t bots =entities.empty() ? 0 : entities.size() - 1;
+        const std::size_t humans = entities.size() - bots;
+        const std::size_t landCells = game.getLandCellCount();
+        const float playerPercent =landCells == 0? 0.0f: 100.0f * static_cast<float>(player->getCellCount())/ static_cast<float>(landCells);
+        const float interest = game.getInterest(player) * 100.0f;
         drawLeaderboard(entities, player, screenWidth);
+        drawMatchStats(humans, bots, playerPercent, interest, screenWidth);
+
         const Rectangle slider = getAttackSliderBounds();
         const float sliderRatio = static_cast<float>(attack_percent) / 100.0f;
         const Color playerColor = player->getColor();
