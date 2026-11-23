@@ -24,6 +24,9 @@ namespace
     constexpr std::size_t LAND_RESISTANCE = 1;
     constexpr double ENEMY_RESISTANCE_FACTOR = 1.5;
 
+    //constante de traicion de una alianza de un bot, del 40%
+    constexpr float BOT_BETRAY_CHANCE = 0.40f;
+
 
 int colorDistance(Color a, Color b)
 {
@@ -77,6 +80,7 @@ Game::Game(std::string playerName, Color playerColor, const GameConfig &config):
 
 void Game::createEntities(std::string playerName, Color playerColor){
     auto* player = new Player(std::move(playerName), playerColor);
+    player->setId(0); //el jugador siempre va a ser el ID 0
     player->setTroops(config.initial_troops);
     this->entities.push_back(player);
 
@@ -86,6 +90,7 @@ void Game::createEntities(std::string playerName, Color playerColor){
         Color botColor = {static_cast<unsigned char>(GetRandomValue(50, 230)), static_cast<unsigned char>(GetRandomValue(50, 230)), static_cast<unsigned char>(GetRandomValue(50, 230)), 255};
         
         auto* bot = new Bot(botName, botColor);
+        bot->setId(i+1);
         bot->setTroops(config.bot_troops);
         this->entities.push_back(bot);
     }
@@ -94,6 +99,13 @@ void Game::createEntities(std::string playerName, Color playerColor){
 
 Game::~Game(){
     for (auto entity : entities) delete entity;
+}
+
+void Game::pushAllianceEvent(AllianceEvent::Type type, Entity* other){
+    if (other == nullptr) {
+        return;
+    }
+    alliance_events.push_back(AllianceEvent{type, other->getName()});
 }
 
 void Game::resetEntities(std::string playerName, Color playerColor){
@@ -111,12 +123,44 @@ void Game::update(float deltaTime)
             Logger::info("El tiempo de spawn ha terminado, comenzando partida...");                                                                                                             
             current_phase = GamePhase::PLAYING;                                                                                                  
         }                                                                                                                                        
-        return; // Evita que se ejecute la lógica de juego mientras tanto                                                                        
+        return;
     } 
 
     if (game_over) return;
 
     game_time += deltaTime;
+    alliances.update(game_time);
+
+    alliances.forEachPending([&](const AllianceManager::RequestSlot& request){
+        if (request.from == nullptr || request.to == nullptr) {
+            return;
+        }
+        if (request.to == getPlayer()) {
+            return;
+        }  
+        if (game_time < request.respondAt) {
+            return;
+        }
+
+        Entity* from = request.from;
+        Entity* to = request.to;
+
+        const float roll =static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
+        const bool accepted = roll < 0.55f;
+
+        if (accepted){
+            alliances.accept(to, from, game_time);
+        }
+        else{
+            alliances.reject(to, from, game_time);
+        }
+
+        //se avisa al jugador
+        if (from == getPlayer()){
+            pushAllianceEvent(accepted ? AllianceEvent::Type::Accepted: AllianceEvent::Type::Rejected,to);
+        }
+    });
+
 #ifdef CONQUER_VERIFY_COUNTS
     verifyCellCounts();
 #endif
@@ -132,6 +176,7 @@ void Game::update(float deltaTime)
 
     for(auto it = entities.begin(); it != entities.end(); ){
         if(*it != player && getPlayerPixels(*it) == 0){
+            alliances.removeEntity(*it);
             it = entities.erase(it);
         } else {
             ++it;
@@ -166,13 +211,23 @@ void Game::update(float deltaTime)
     }
 
     for(int i = 1; i < entities.size(); ++i){
-        auto bot = (Bot*)entities[i];
-
+        auto* bot = static_cast<Bot*>(entities[i]);
+        if (bot->shouldRequestAlliance(deltaTime)){
+            tryBotAlliance(bot);
+        }
         if (bot->getTarget().isNone())
         {
             if (bot->shouldStartAttack(deltaTime))
             {
                 const Target target = chooseBotTarget(bot);
+                //igual aqui, al atacar se rompe la alianza
+                if (target.isEnemy() && target.getEntity() != nullptr&& alliances.areAllied(bot, target.getEntity())){
+                    Entity* other = target.getEntity();
+                    if (other == getPlayer()){
+                        pushAllianceEvent(AllianceEvent::Type::Broken, bot);
+                    }
+                    alliances.breakAlliance(bot, other);
+                }
                 bot->setTarget(target);
                 bot->beginAttack(bot->getAttackRatio(), computeAttackResistance(target));
             }
@@ -353,9 +408,8 @@ void Game::addExposedFrontier(Entity* victim, int x, int y)
     }
 }
 
-Entity* Game::randomNeighborEntity(Entity* owner) const
+Entity* Game::randomNeighborEntity(Entity* owner, bool avoidAllies) const
 {
-    // Entidades distintas de `owner` que tocan su frontera.
     std::vector<Entity*> neighbors;
     const int columns = static_cast<int>(map.getWidth());
     const int rows = static_cast<int>(map.getHeight());
@@ -381,6 +435,18 @@ Entity* Game::randomNeighborEntity(Entity* owner) const
         }
     }
 
+    //para que evite atacar a los aliados
+    if (avoidAllies){
+        neighbors.erase(std::remove_if(
+                neighbors.begin(),
+                neighbors.end(),
+                [this, owner](Entity* candidate)
+                {
+                    return alliances.areAllied(owner, candidate);
+                }),
+            neighbors.end());
+    }
+
     if (neighbors.empty()) return nullptr;
     return neighbors[std::rand() % neighbors.size()];
 }
@@ -393,8 +459,19 @@ Target Game::chooseBotTarget(Entity* owner) const
 
     if (roll < BOT_ENEMY_TARGET_CHANCE)
     {
-        Entity* enemy = randomNeighborEntity(owner);
+        //prioriza atacar a los que no son aliados
+        Entity* enemy = randomNeighborEntity(owner, true);
         if (enemy != nullptr) return Target::enemy(enemy);
+
+        //si solo quedan aliados pues se ataca a ellos
+        const float betrayRoll = static_cast<float>(std::rand())/ static_cast<float>(RAND_MAX);
+
+        if (betrayRoll < BOT_BETRAY_CHANCE){
+            enemy = randomNeighborEntity(owner, false);
+            if (enemy != nullptr) {
+                return Target::enemy(enemy);
+            }
+        }
     }
     return Target::land();
 }
@@ -574,6 +651,7 @@ void Game::reset()
     game_over = false;
     winner = nullptr;
     getPlayer()->cancelAttack();
+    alliance_events.clear();
     changed_cells.clear();
     ++map_generation;
     ++map_version;
@@ -584,6 +662,7 @@ void Game::reset()
     }
     
     resetEntities(getPlayer()->getName(), getPlayer()->getColor());
+    alliances.reset(entities.size());
 
     for (size_t i = 1; i < entities.size(); ++i) {
         static_cast<Bot*>(entities[i])->reset();
@@ -600,8 +679,12 @@ void Game::reset()
 void Game::setPlayerTarget(const Target& target, float ratio)
 {
     Player* player = getPlayer();
+    //se rompe la alianza al atacar
+    if (target.isEnemy() && target.getEntity() != nullptr&& alliances.areAllied(player, target.getEntity())){
+        pushAllianceEvent(AllianceEvent::Type::Broken, target.getEntity());
+        alliances.breakAlliance(player, target.getEntity());
+    }
     player->setTarget(target);
-    // Destina al ataque la fraccion de tropas elegida (porcentaje del slider).
     player->beginAttack(ratio,  computeAttackResistance(target));
 }
 
@@ -663,6 +746,27 @@ std::size_t Game::computeAttackResistance(const Target& target) const
         static_cast<std::size_t>(raw)
     );
 }
+
+void Game::tryBotAlliance(Bot* bot)
+{
+    Entity* target = randomNeighborEntity(bot, true);
+    if (target == nullptr) {
+        return;
+    }
+    if (!alliances.canRequest(bot, target, game_time)) {
+        return;
+    }
+
+    //probabilidad de iniciar la solicitud, del 35% minimo
+    const float roll = static_cast<float>(std::rand())/ static_cast<float>(RAND_MAX);
+    if (roll > 0.35f) {
+        return;
+    } 
+    //espera de 0,75 a 2 segs
+    const float respondDelay =0.75f + static_cast<float>(std::rand())/ static_cast<float>(RAND_MAX) * 1.25f;
+    alliances.sendRequest(bot,target,game_time,game_time + respondDelay);
+}
+
 #ifdef CONQUER_VERIFY_COUNTS
 // Solo para pruebas: compara los contadores incrementales con un escaneo completo.
 void Game::verifyCellCounts() const {

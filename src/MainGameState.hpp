@@ -57,5 +57,20 @@ class MainGameState : public GameState
         bool playerIsAdjacentTo(Entity* enemy) const;
         void executeContextAttack();
         void executeContextDonation();
+        void executeContextAlliance();
+
+        //panel de la solicitud de una alianza
+        Rectangle alliance_panel_rect{};
+        Rectangle alliance_accept_rect{};
+        Rectangle alliance_reject_rect{};
+        void updateAlliancePanelLayout();
+        bool handleAlliancePanelInput();
+        void renderAlliancePanel();
+
+        std::string alliance_toast;
+        float alliance_toast_timer = 0.0f;
+        void showAllianceToast(const std::string& message);
+        void renderAllianceToast();
+
         ContextMenu context_menu;
 };

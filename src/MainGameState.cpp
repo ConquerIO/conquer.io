@@ -49,16 +49,22 @@ constexpr int LABEL_MAX_FONT = 40;
 constexpr float LABEL_TROOPS_SCALE = 0.65f;
 constexpr float LABEL_LINE_GAP = 0.25f;
 
+//icono de alianza encima del nombre
+constexpr float ALLY_ICON_SIZE = 14.0f;
+constexpr float ALLY_ICON_GAP = 2.0f;
+
 //esto lo que hace es la etiqueta de la tropas y nombres para mostrarla
 struct TerritoryLabel{
     Entity* owner = nullptr;
     std::string name;
     std::string troops;
     Rectangle rect{};
+    Rectangle iconRect{};
     std::size_t cells = 0; 
     int nameFontSize = 0;
     int troopsFontSize = 0;
     bool visible = false;
+    bool allied = false;
 };
 
 //aqui estan los datos de un territorio
@@ -153,11 +159,29 @@ struct StatsCache{
     double time = 0.0;
 };
 
+//icono de dos manos estrechandose
+void drawHandshakeIcon(float cx, float cy, float size, Color color){
+    const Color outline{20, 24, 30, 255};
+
+    const Vector2 leftStart= { cx - size * 0.50f, cy - size * 0.15f };
+    const Vector2 rightStart = { cx + size * 0.50f, cy - size * 0.15f };
+    const Vector2 center= { cx, cy + size * 0.15f };
+
+    DrawLineEx(leftStart, center, std::max(2.0f, size * 0.28f), outline);
+    DrawLineEx(rightStart, center, std::max(2.0f, size * 0.28f), outline);
+    DrawCircleV(center, size * 0.22f, outline);
+
+    DrawLineEx(leftStart, center, std::max(1.0f, size * 0.14f), color);
+    DrawLineEx(rightStart, center, std::max(1.0f, size * 0.14f), color);
+    DrawCircleV(center, size * 0.14f, color);
+}
+
 //esta lo que haces es ir calculando el tamaño del territiorio para ajustar el texto cada vez que se aumenta o disminuye el territorio
-TerritoryLabel buildLabel(const Map& map, Entity* owner, const TerritoryStats& stats, const Camera2D& camera){
+TerritoryLabel buildLabel(const Map& map, Entity* owner, const TerritoryStats& stats, const Camera2D& camera, bool isAlly){
     TerritoryLabel label;
     label.owner = owner;
     label.cells = stats.cells;
+    label.allied = isAlly;
 
     //no se muestra si no tenemos un territorio
     if (stats.cells == 0) {
@@ -199,16 +223,24 @@ TerritoryLabel buildLabel(const Map& map, Entity* owner, const TerritoryStats& s
     //lo mismo con las tropas
     float gap = nameFontSize * LABEL_LINE_GAP;
     int troopsFontSize = static_cast<int>(nameFontSize * LABEL_TROOPS_SCALE);
-    float blockHeight = static_cast<float>(nameFontSize + troopsFontSize) + gap;
+
+    const float iconSize = isAlly ? ALLY_ICON_SIZE : 0.0f;
+    const float iconGap = isAlly ? ALLY_ICON_GAP : 0.0f;
+
+    float textHeight = static_cast<float>(nameFontSize + troopsFontSize) + gap;
+    float blockHeight = textHeight + iconSize + iconGap;
 
     //si es mas alto que el bloque donde se mete, se reduce 
     const float maxBlockHeight = box.height * LABEL_HEIGHT_FILL;
-    if (blockHeight > maxBlockHeight && blockHeight > 0.0f){
-        const float scale = maxBlockHeight / blockHeight;
+    const float maxTextHeight = std::max(0.0f, maxBlockHeight - iconSize - iconGap);
+
+    if (textHeight > maxTextHeight && textHeight > 0.0f){
+        const float scale = maxTextHeight / textHeight;
         nameFontSize = static_cast<int>(nameFontSize * scale);
         troopsFontSize = static_cast<int>(nameFontSize * LABEL_TROOPS_SCALE);
         gap = nameFontSize * LABEL_LINE_GAP;
-        blockHeight = static_cast<float>(nameFontSize + troopsFontSize) + gap;
+        textHeight = static_cast<float>(nameFontSize + troopsFontSize) + gap;
+        blockHeight = textHeight + iconSize + iconGap;
     }
 
     //si es muy pequeño no se muestra
@@ -217,6 +249,8 @@ TerritoryLabel buildLabel(const Map& map, Entity* owner, const TerritoryStats& s
     }
 
     const int textWidth =std::max(MeasureText(label.name.c_str(), nameFontSize),MeasureText(label.troops.c_str(), troopsFontSize));
+    const float labelWidth = std::max(static_cast<float>(textWidth), iconSize);
+
     const Vector2 anchor = GetWorldToScreen2D(
         Vector2{static_cast<float>(anchorColumn) + 0.5f, static_cast<float>(anchorRow) + 0.5f}, camera);
     const float anchorX = anchor.x;
@@ -226,11 +260,21 @@ TerritoryLabel buildLabel(const Map& map, Entity* owner, const TerritoryStats& s
     label.nameFontSize = nameFontSize;
     label.troopsFontSize = troopsFontSize;
     label.rect = Rectangle{
-        anchorX - textWidth / 2.0f,
+        anchorX - labelWidth / 2.0f,
         anchorY - blockHeight / 2.0f,
-        static_cast<float>(textWidth),
+        labelWidth,
         blockHeight
     };
+
+    if (isAlly) {
+        label.iconRect = Rectangle{
+            label.rect.x + (label.rect.width - iconSize) / 2.0f,
+            label.rect.y,
+            iconSize,
+            iconSize
+        };
+    }
+
     label.visible = true;
     return label;
 }
@@ -246,8 +290,14 @@ void drawTerritoryLabel(const TerritoryLabel& label){
     const float nameWidth = MeasureText(label.name.c_str(), label.nameFontSize);
     const float troopsWidth = MeasureText(label.troops.c_str(), label.troopsFontSize);
 
-    DrawText(label.name.c_str(),static_cast<int>(label.rect.x + (label.rect.width - nameWidth) / 2.0f),static_cast<int>(label.rect.y),label.nameFontSize, color);
-    DrawText(label.troops.c_str(),static_cast<int>(label.rect.x + (label.rect.width - troopsWidth) / 2.0f),static_cast<int>(label.rect.y + label.nameFontSize + gap),label.troopsFontSize, color);
+    float textTop = label.rect.y;
+
+    if (label.allied) {
+        drawHandshakeIcon(label.iconRect.x + label.iconRect.width / 2.0f,label.iconRect.y + label.iconRect.height / 2.0f,label.iconRect.width,GOLD);
+        textTop += label.iconRect.height + ALLY_ICON_GAP;
+    }
+    DrawText(label.name.c_str(),static_cast<int>(label.rect.x + (label.rect.width - nameWidth) / 2.0f),static_cast<int>(textTop),label.nameFontSize, color);
+    DrawText(label.troops.c_str(),static_cast<int>(label.rect.x + (label.rect.width - troopsWidth) / 2.0f),static_cast<int>(textTop + label.nameFontSize + gap),label.troopsFontSize, color);
 }
 
 
@@ -375,6 +425,11 @@ void MainGameState::handleInput()
         }
     }
 
+    // Si hay una solicitud de alianza entrante, sus botones tienen prioridad.
+    if (handleAlliancePanelInput()) {
+        return;
+    }
+
     const float wheel = GetMouseWheelMove();
     if (wheel != 0.0f)
     {
@@ -451,16 +506,25 @@ void MainGameState::handleInput()
 
         const int column = index % width;
         const int row = index / width;
+
         const TerritoryCell& cell = game.getMap().getCell(column, row);
+        Entity* targetEntity = cell.owner;
+        Player* player = game.getPlayer();
+        const AllianceManager& alliances = game.getAlliances();
+
+        const bool alreadyAllied =targetEntity != nullptr && alliances.areAllied(player, targetEntity);
+        const bool pending =targetEntity != nullptr && alliances.hasPendingFrom(player, targetEntity);
+        const float cooldown =targetEntity != nullptr? alliances.cooldownRemaining(player, targetEntity, game.getTime()): 0.0f;
+        const bool canAlly =targetEntity != nullptr&& targetEntity != player&& !alreadyAllied&& !pending&& cooldown <= 0.0f;
 
         //la donacion es lo mismo destinado al ataque
-        const std::size_t donadorTroops = game.getPlayer()->getTroops();
+        const std::size_t donadorTroops = player->getTroops();
         const std::size_t donation = static_cast<std::size_t>(static_cast<float>(donadorTroops)* attack_percent / 100.0f);
 
         const bool canAttack =(attack_percent > 0) && isCellAttackable(column, row);
-        const bool canDonate =cell.owner != nullptr && cell.owner != game.getPlayer()&& donadorTroops > 1 && donation > 0;
+        const bool canDonate =cell.owner != nullptr && cell.owner != player&& donadorTroops > 1 && donation > 0;
 
-        const ContextMenu::Action action =context_menu.handleInput(canAttack, canDonate);
+        const ContextMenu::Action action =context_menu.handleInput(canAttack, canDonate, canAlly);
 
         if (action == ContextMenu::Action::Attack){
             executeContextAttack();
@@ -469,8 +533,7 @@ void MainGameState::handleInput()
             executeContextDonation();
         }
         else if (action == ContextMenu::Action::Alliance){
-            //hay que implementarla, por lo que por ahora se cierra
-            context_menu.close();
+            executeContextAlliance();
         }
 
         return;
@@ -643,6 +706,190 @@ void MainGameState::executeContextDonation(){
     context_menu.close();
 }
 
+void MainGameState::executeContextAlliance(){
+    const int index = context_menu.getCellIndex();
+    if (index < 0) {
+        context_menu.close();
+        return;
+    }
+
+    const int width = static_cast<int>(game.getMap().getWidth());
+    const int column = index % width;
+    const int row = index / width;
+
+    const TerritoryCell& cell = game.getMap().getCell(column, row);
+
+    Player* player = game.getPlayer();
+    Entity* target = cell.owner;
+
+    if (target == nullptr || target == player) {
+        context_menu.close();
+        return;
+    }
+
+    //un bot tarda aprox 1 seg en responder
+    const bool sent = game.getAlliances().sendRequest(
+        player,
+        target,
+        game.getTime(),
+        game.getTime() + 1.0f);
+
+    if (sent) {
+        showAllianceToast("Solicitud enviada a " + target->getName());
+    }
+
+    context_menu.close();
+}
+
+void MainGameState::updateAlliancePanelLayout(){
+    constexpr float panelW = 330.0f;
+    constexpr float panelH = 112.0f;
+    constexpr float margin = 24.0f;
+
+    const float x = std::max(8.0f,static_cast<float>(GetScreenWidth()) - panelW - margin);
+    const float y = 120.0f;
+
+    alliance_panel_rect = Rectangle{ x, y, panelW, panelH };
+
+    constexpr float buttonW = 138.0f;
+    constexpr float buttonH = 28.0f;
+    const float buttonY = y + 48.0f;
+
+    alliance_accept_rect =Rectangle{ x + 14.0f, buttonY, buttonW, buttonH };
+    alliance_reject_rect =Rectangle{ x + panelW - 14.0f - buttonW, buttonY, buttonW, buttonH };
+}
+
+bool MainGameState::handleAlliancePanelInput(){
+    Player* player = game.getPlayer();
+    Entity* requester = nullptr;
+    float expiresAt = 0.0f;
+
+    if (!game.getAlliances().firstPendingTo(player, requester, expiresAt)){
+        return false;
+    }
+
+    updateAlliancePanelLayout();
+
+    if (!IsMouseButtonPressed(MOUSE_BUTTON_LEFT)){
+        return false;
+    }
+
+    const Vector2 mouse = GetMousePosition();
+
+    if (CheckCollisionPointRec(mouse, alliance_accept_rect)){
+        game.getAlliances().accept(player, requester, game.getTime());
+        showAllianceToast("Alianza aceptada con " + requester->getName());
+        return true;
+    }
+
+    if (CheckCollisionPointRec(mouse, alliance_reject_rect)){
+        game.getAlliances().reject(player, requester, game.getTime());
+        showAllianceToast("Alianza rechazada con " + requester->getName());
+        return true;
+    }
+
+    //ell click dentro del panel no afecta a la jugabilidad
+    if (CheckCollisionPointRec(mouse, alliance_panel_rect)){
+        return true;
+    }
+
+    return false;
+}
+
+void MainGameState::renderAlliancePanel()
+{
+    Player* player = game.getPlayer();
+    Entity* requester = nullptr;
+    float expiresAt = 0.0f;
+
+    if (!game.getAlliances().firstPendingTo(player, requester, expiresAt)){
+        return;
+    }
+
+    updateAlliancePanelLayout();
+
+    const Vector2 mouse = GetMousePosition();
+    const float remaining = std::max(0.0f, expiresAt - game.getTime());
+    const float ratio = std::max(0.0f, std::min(1.0f, remaining / 15.0f));
+    const std::size_t pending = game.getAlliances().countPendingTo(player);
+
+    //panel
+    DrawRectangleRounded(Rectangle{ alliance_panel_rect.x + 2.0f,alliance_panel_rect.y + 2.0f,alliance_panel_rect.width,alliance_panel_rect.height },0.08f, 8, Fade(BLACK, 0.35f));
+    DrawRectangleRounded(alliance_panel_rect, 0.08f, 8, Color{30, 34, 42, 245});
+    DrawRectangleRoundedLines(alliance_panel_rect, 0.08f, 8, GRAY);
+
+    //texto del panel
+    DrawText(requester->getName().c_str(),static_cast<int>(alliance_panel_rect.x + 14.0f),static_cast<int>(alliance_panel_rect.y + 10.0f),18, RAYWHITE);
+    DrawText("quiere aliarse contigo",static_cast<int>(alliance_panel_rect.x + 14.0f),static_cast<int>(alliance_panel_rect.y + 30.0f),14, LIGHTGRAY);
+    DrawText(TextFormat("%.0f s", remaining),static_cast<int>(alliance_panel_rect.x + alliance_panel_rect.width - 52.0f),static_cast<int>(alliance_panel_rect.y + 30.0f),14, LIGHTGRAY);
+
+    //botones
+    const bool hoverAccept =CheckCollisionPointRec(mouse, alliance_accept_rect);
+    const bool hoverReject =CheckCollisionPointRec(mouse, alliance_reject_rect);
+    DrawRectangleRec(alliance_accept_rect,hoverAccept ? Color{45, 120, 60, 255} : Color{40, 70, 50, 255});
+    DrawRectangleLinesEx(alliance_accept_rect, 1.0f, GRAY);
+    const char* acceptText = "Aceptar";
+    DrawText(acceptText,static_cast<int>(alliance_accept_rect.x+ (alliance_accept_rect.width- MeasureText(acceptText, 16)) / 2.0f),static_cast<int>(alliance_accept_rect.y + 6.0f),16, RAYWHITE);
+    DrawRectangleRec(alliance_reject_rect,hoverReject ? Color{150, 55, 55, 255} : Color{80, 42, 42, 255});
+    DrawRectangleLinesEx(alliance_reject_rect, 1.0f, GRAY);
+    const char* rejectText = "Rechazar";
+    DrawText(rejectText,static_cast<int>(alliance_reject_rect.x+ (alliance_reject_rect.width- MeasureText(rejectText, 16)) / 2.0f),static_cast<int>(alliance_reject_rect.y + 6.0f),16, RAYWHITE);
+
+    //tiempo
+    const Rectangle bar{
+        alliance_panel_rect.x + 14.0f,
+        alliance_panel_rect.y + 86.0f,
+        alliance_panel_rect.width - 28.0f,
+        6.0f
+    };
+
+    DrawRectangleRec(bar, Color{20, 24, 30, 255});
+
+    Rectangle fill = bar;
+    fill.width *= ratio;
+    DrawRectangleRec(fill, Color{220, 180, 60, 255});
+
+    //cola de solicitudes
+    if (pending > 1){
+        DrawText(TextFormat("Pendientes: %d", static_cast<int>(pending)),static_cast<int>(alliance_panel_rect.x + 14.0f),static_cast<int>(alliance_panel_rect.y + 96.0f),12, GRAY);
+    }
+}
+
+void MainGameState::showAllianceToast(const std::string& message){
+    alliance_toast = message;
+    alliance_toast_timer = 3.0f;
+}
+
+//para dibujar el mensaje de aviso
+void MainGameState::renderAllianceToast()
+{
+    if (alliance_toast_timer <= 0.0f || alliance_toast.empty()) {
+        return;
+    }
+
+    const int screenWidth = GetScreenWidth();
+    const int screenHeight = GetScreenHeight();
+
+    const int fontSize = 18;
+    const int textWidth = MeasureText(alliance_toast.c_str(), fontSize);
+
+    const float width = static_cast<float>(textWidth + 28);
+    const float height = 34.0f;
+
+    const Rectangle rect{
+        (static_cast<float>(screenWidth) - width) / 2.0f,
+        static_cast<float>(screenHeight) - 110.0f,
+        width,
+        height
+    };
+
+    const float alpha = std::max(0.0f, std::min(1.0f, alliance_toast_timer));
+
+    DrawRectangleRounded(rect, 0.25f, 8, Fade(BLACK, 0.65f * alpha));
+    DrawRectangleRoundedLines(rect, 0.25f, 8, Fade(GRAY, alpha));
+    DrawText(alliance_toast.c_str(),static_cast<int>(rect.x + (rect.width - textWidth) / 2.0f),static_cast<int>(rect.y + (rect.height - fontSize) / 2.0f),fontSize,Fade(RAYWHITE, alpha));
+}
+
 void MainGameState::executeContextAttack()
 {
     const int index = context_menu.getCellIndex();
@@ -684,6 +931,29 @@ void MainGameState::update(float deltaTime)
 {
     game.update(deltaTime);
     if (game.isOver()) game_over_timer += deltaTime;
+
+    //avisosde alianza que se generan en el main
+    std::vector<Game::AllianceEvent> events;
+    game.takeAllianceEvents(events);
+
+    for (const Game::AllianceEvent& event : events){
+        switch (event.type){
+            case Game::AllianceEvent::Type::Accepted:
+                showAllianceToast(event.otherName + " ha aceptado la alianza");
+                break;
+            case Game::AllianceEvent::Type::Rejected:
+                showAllianceToast(event.otherName + " ha rechazado la alianza");
+                break;
+            case Game::AllianceEvent::Type::Broken:
+                showAllianceToast("Alianza rota con " + event.otherName);
+                break;
+        }
+    }
+
+    if (alliance_toast_timer > 0.0f)
+    {
+        alliance_toast_timer = std::max(0.0f, alliance_toast_timer - deltaTime);
+    }
 
     //el sonido de fin de partida suena una sola vez al aparecer la pantalla
     if (!end_sound_played) {
@@ -733,8 +1003,8 @@ void MainGameState::render()
         for (Entity* entity : entities)
         {
             const auto it = stats.find(entity);
-            labels.push_back(buildLabel(map, entity,
-                                        it != stats.end() ? it->second : empty, map_camera));
+            const bool isAlly = game.getAlliances().areAllied(player, entity);
+            labels.push_back(buildLabel(map, entity,it != stats.end() ? it->second : empty,map_camera, isAlly));
         }
 
         // Solo se muestran las etiquetas que caen dentro de la pantalla.
@@ -859,17 +1129,39 @@ void MainGameState::render()
 
         if (column >= 0 && row >= 0 && column < static_cast<int>(map.getWidth()) && row < static_cast<int>(map.getHeight())){
             const TerritoryCell& cell = map.getCell(column, row);
-            const std::string title =(cell.owner == nullptr) ? "Tierra": cell.owner->getName();
+            Entity* targetEntity = cell.owner;
+            std::string title =(targetEntity == nullptr) ? "Tierra": targetEntity->getName();
+
+            const AllianceManager& alliances = game.getAlliances();
+            const bool alreadyAllied =targetEntity != nullptr && alliances.areAllied(player, targetEntity);
+            const bool pending =targetEntity != nullptr && alliances.hasPendingFrom(player, targetEntity);
+            const float cooldown =targetEntity != nullptr? alliances.cooldownRemaining(player, targetEntity, game.getTime()): 0.0f;
+
+            const bool canAlly =targetEntity != nullptr&& targetEntity != player&& !alreadyAllied&& !pending&& cooldown <= 0.0f;
+
+            std::string allyLabel = "Alianza";
+            if (alreadyAllied) {
+                allyLabel = "Ya aliados";
+            }
+            else if (pending) {
+                allyLabel = "Solicitud enviada";
+            }
+            else if (cooldown > 0.0f){
+                allyLabel = TextFormat("Espera %d s", static_cast<int>(std::ceil(cooldown)));
+            }
+
             const std::size_t donadorTroops = player->getTroops();
             const std::size_t donation = static_cast<std::size_t>(static_cast<float>(donadorTroops)* attack_percent / 100.0f);
             //con una tropa no se puede donar para no morir
             const bool canDonate =cell.owner != nullptr && cell.owner != player&& donadorTroops > 1 && donation > 0;
             const bool canAttack =(attack_percent > 0) && isCellAttackable(column, row);
             const int attackTroops = static_cast<int>(static_cast<float>(player->getTroops()) * attack_percent / 100.0f);
-            context_menu.render(title.c_str(),attack_percent,attackTroops,canAttack,
-                                canDonate ? static_cast<int>(donation) : 0);
+            context_menu.render(title.c_str(),attack_percent,attackTroops,canAttack,canDonate ? static_cast<int>(donation) : 0,canAlly, allyLabel.c_str());
         }
     }
+
+    renderAlliancePanel();
+    renderAllianceToast();
 
     if (gameOver)
     {

@@ -3,6 +3,7 @@
 #include <Bot.hpp>
 #include <Player.hpp>
 #include <TerritoryCell.hpp>
+#include <AllianceManager.hpp>
 #include <Target.hpp>
 #include <Map.hpp>
 #include <GameConfig.hpp>
@@ -17,20 +18,30 @@ enum class GamePhase {
     PLAYING
 };
 
-class Game
-{
+class Game{
 public:
     Game(std::string playerName, Color playerColor, const GameConfig &config);
     ~Game();
-    // Game es dueño de las entidades, no se puede copiar.
     Game(const Game&) = delete;
     Game& operator=(const Game&) = delete;
 
+    //para que se pueda ver la traza de alianzas que haces y mostrarla luego
+    struct AllianceEvent {
+        enum class Type { Accepted, Rejected, Broken };
+        Type type;
+        std::string otherName;
+    };
 
     void update(float deltaTime);
     void reset();
     void setPlayerTarget(const Target& target, float ratio);
     void cancelPlayerAttack();
+
+    //para avisar al jugador
+    void takeAllianceEvents(std::vector<AllianceEvent>& out) {
+        out.swap(alliance_events);
+        alliance_events.clear();
+    }
 
     Player* getPlayer() const { return (Player*)entities[0];}
     const Map& getMap() const { return map; }
@@ -49,13 +60,8 @@ public:
     float getTroopLimit(Entity* owner) const;
     std::size_t getTerritoryCells(Entity* owner) const;
     std::size_t getLandCellCount() const;
-
-    // Cambios del mapa para repintarlo de forma incremental.
-    // `generation` cambia cuando se regenera el mapa entero (reset);
-    // `version` cuando cambia el dueño de alguna celda.
     unsigned getMapGeneration() const { return map_generation; }
     unsigned getMapVersion() const { return map_version; }
-    // Entrega (y vacía) los índices de las celdas cambiadas desde la última llamada.
     void takeChangedCells(std::vector<std::size_t>& out) { out.swap(changed_cells); changed_cells.clear(); }
 
     void setSpawnPreview(int targetIndex);
@@ -63,7 +69,14 @@ public:
     float getSpawnTimer() const { return spawn_timer; }
     int getSpawnPreview() const { return player_spawn_preview; }
     
+    AllianceManager& getAlliances() { 
+        return alliances; 
+    }
+    const AllianceManager& getAlliances() const { 
+        return alliances; 
+    }
 
+    void tryBotAlliance(Bot* bot);
 
 private:
     void createEntities(string playerName, Color playerColor);
@@ -75,7 +88,7 @@ private:
     void rebuildFrontier(Entity* owner);
     void addExposedFrontier(Entity* victim, int x, int y);
     Target chooseBotTarget(Entity* owner) const;
-    Entity* randomNeighborEntity(Entity* owner) const;
+    Entity* randomNeighborEntity(Entity* owner, bool avoidAllies) const;
     std::size_t getPlayerPixels(Entity* owner) const;
     float getPlayerTroops(Entity* owner) const;
     float calculateInterest(float troops, float pixels) const;
@@ -98,6 +111,11 @@ private:
     Entity* winner;
 
     GameConfig config;
+
+    AllianceManager alliances;
+    std::vector<AllianceEvent> alliance_events;
+
+    void pushAllianceEvent(AllianceEvent::Type type, Entity* other);
 
     std::vector<std::size_t> changed_cells;
     unsigned map_version = 0;
