@@ -300,6 +300,18 @@ void drawTerritoryLabel(const TerritoryLabel& label){
     DrawText(label.troops.c_str(),static_cast<int>(label.rect.x + (label.rect.width - troopsWidth) / 2.0f),static_cast<int>(textTop + label.nameFontSize + gap),label.troopsFontSize, color);
 }
 
+//dibuja la corona del primero en la clasificacion
+void drawCrownIcon(float x, float y, float width, float height, Color color){
+    auto drawShape = [](float sx, float sy, float sw, float sh, Color c){
+        DrawRectangle(static_cast<int>(sx),static_cast<int>(sy + sh * 0.60f),static_cast<int>(sw),static_cast<int>(sh * 0.35f),c);
+        DrawTriangle(Vector2{sx, sy + sh * 0.60f},Vector2{sx + sw * 0.25f, sy},Vector2{sx + sw * 0.50f, sy + sh * 0.60f},c);
+        DrawTriangle(Vector2{sx + sw * 0.25f, sy + sh * 0.60f},Vector2{sx + sw * 0.50f, sy},Vector2{sx + sw * 0.75f, sy + sh * 0.60f},c);
+        DrawTriangle(Vector2{sx + sw * 0.50f, sy + sh * 0.60f},Vector2{sx + sw * 0.75f, sy},Vector2{sx + sw, sy + sh * 0.60f},c);
+    };
+    drawShape(x - 1.0f, y - 1.0f, width + 2.0f, height + 2.0f,Color{40, 32, 10, 255});
+    drawShape(x, y, width, height, color);
+}
+
 
 //esta resuelve el solape entre varios territorios
 void separateLabels(std::vector<TerritoryLabel>& labels, const Rectangle& mapBounds){
