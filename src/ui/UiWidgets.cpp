@@ -131,6 +131,67 @@ void Checkbox::draw(const UiTheme& theme, float scale, const Font* font) const {
     DrawTextEx(f, label.c_str(), { bounds.x + box + 10.0f * scale, bounds.y + (bounds.height - ts.y) * 0.5f }, fs, 1.0f, theme.text);
 }
 
+bool Slider::update(Vector2 mouse) {
+    if (bounds.width <= 0.0f) {
+        return false;
+    }
+
+    bool changed = false;
+
+    const float pad = bounds.height * 0.5f;
+    const Rectangle hit{
+        bounds.x,
+        bounds.y - pad,
+        bounds.width,
+        bounds.height + pad * 2.0f
+    };
+
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)&& CheckCollisionPointRec(mouse, hit)){
+        dragging = true;
+    }
+
+    if (dragging && IsMouseButtonDown(MOUSE_BUTTON_LEFT)){
+        const float next = std::clamp((mouse.x - bounds.x) / bounds.width,0.0f,1.0f);
+
+        if (next != value) {
+            value = next;
+            changed = true;
+        }
+    }
+
+    if (dragging && IsMouseButtonReleased(MOUSE_BUTTON_LEFT)){
+        dragging = false;
+        AudioManager::play(Sfx::UiChange);
+    }
+
+    return changed;
+}
+
+void Slider::draw(const UiTheme& theme, float scale) const {
+    const float trackHeight = std::max(4.0f, 8.0f * scale);
+
+    const Rectangle track{
+        bounds.x,
+        bounds.y + (bounds.height - trackHeight) * 0.5f,
+        bounds.width,
+        trackHeight
+    };
+
+    DrawRectangleRec(track, theme.secondary);
+    DrawRectangleLinesEx(track, std::max(1.0f, scale), theme.border);
+
+    Rectangle fill = track;
+    fill.width *= std::clamp(value, 0.0f, 1.0f);
+    DrawRectangleRec(fill, theme.primary);
+
+    const float knobX = bounds.x + bounds.width * std::clamp(value, 0.0f, 1.0f);
+    const float knobY = bounds.y + bounds.height * 0.5f;
+    const float knobRadius = std::max(8.0f, 10.0f * scale);
+
+    DrawCircleV(Vector2{knobX, knobY}, knobRadius, theme.primaryHover);
+    DrawCircleV(Vector2{knobX, knobY}, knobRadius * 0.55f, theme.text);
+}
+
 
 //funciones auxiliares para los botones de personalizacion de -, + y el campo
 static Rectangle stepperMinus(const Rectangle& b) {
