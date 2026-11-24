@@ -44,6 +44,21 @@ struct CustomizationLayout { //elementos de la pantalla de personalizacion
     Rectangle playButton{};
 };
 
+struct SettingsLayout {
+    Rectangle panel{};
+    Rectangle title{};
+
+    Rectangle displayLabel{};
+    Rectangle displayRows[3]{};
+
+    Rectangle audioLabel{};
+    Rectangle soundLabel{};
+    Rectangle soundSlider{};
+    Rectangle soundValue{};
+
+    Rectangle backButton{};
+};
+
 class MenuState : public GameState
 {
     public:
@@ -69,6 +84,12 @@ class MenuState : public GameState
         Button settings_button;
         Button exit_button;
         Button settings_back_button;
+
+        //elementos de la pantalla de ajustes
+        SettingsLayout settings_layout;
+        Checkbox display_mode_checkboxes[3];
+        Slider sound_slider;
+        void updateSettingsLayout();
 
         int selected_color;
         static constexpr int NUM_COLORS = 6;
