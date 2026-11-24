@@ -37,4 +37,6 @@ void UiSprites::load(){
     loadSprite(Money,"assets/images/bolsa_dinero.png");
     loadSprite(Crown,"assets/images/corona.png");
     loadSprite(Ship,"assets/images/barco_perfil_8x8.png");
+    loadSprite(ZoomIn,  "assets/images/mas.png");
+    loadSprite(ZoomOut, "assets/images/menos.png");
 }
