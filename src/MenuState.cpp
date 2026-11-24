@@ -6,6 +6,7 @@
 #include <algorithm>
 #include "system/ResourceManager.hpp"
 #include "system/AudioManager.hpp"
+#include "system/AppSettings.hpp"
 #include <vector>
 #include <cmath>
 
@@ -130,7 +131,61 @@ void MenuState::updateLayout(){
     create_button.bounds = menu_layout.primaryButton;
     settings_button.bounds = menu_layout.settingsButton;
     exit_button.bounds = menu_layout.exitButton;
-    settings_back_button.bounds = ui_layout.rect(860.0f, 620.0f, 200.0f, 56.0f);
+}
+
+
+void MenuState::updateSettingsLayout()
+{
+    ui_layout.update(GetScreenWidth(), GetScreenHeight());
+
+    constexpr float panelX = 460.0f;
+    constexpr float panelY = 170.0f;
+    constexpr float panelW = 1000.0f;
+    constexpr float panelH = 740.0f;
+
+    settings_layout.panel =ui_layout.rect(panelX, panelY, panelW, panelH);
+
+    settings_layout.title =ui_layout.rect(panelX, panelY + 24.0f, panelW, 40.0f);
+
+    //pantalla
+    settings_layout.displayLabel =ui_layout.rect(panelX + 70.0f, panelY + 110.0f, 300.0f, 28.0f);
+
+    for (int i = 0; i < 3; ++i) {
+        settings_layout.displayRows[i] = ui_layout.rect(
+            panelX + 90.0f,
+            panelY + 155.0f + i * 45.0f,
+            500.0f,
+            28.0f);
+    }
+
+    //audio
+    settings_layout.audioLabel =ui_layout.rect(panelX + 70.0f, panelY + 320.0f, 300.0f, 28.0f);
+    settings_layout.soundLabel =ui_layout.rect(panelX + 90.0f, panelY + 365.0f, 400.0f, 24.0f);
+    settings_layout.soundSlider =ui_layout.rect(panelX + 90.0f, panelY + 405.0f, 650.0f, 24.0f);
+    settings_layout.soundValue =ui_layout.rect(panelX + 770.0f, panelY + 400.0f, 120.0f, 30.0f);
+
+    // Botón volver
+    settings_layout.backButton = ui_layout.rect(
+        panelX + (panelW - 200.0f) / 2.0f,
+        panelY + panelH - 80.0f,
+        200.0f,
+        56.0f
+    );
+
+    //widgets
+    for (int i = 0; i < 3; ++i) {
+        display_mode_checkboxes[i].bounds = settings_layout.displayRows[i];
+        display_mode_checkboxes[i].checked =(static_cast<int>(AppSettings::displayMode) == i);
+    }
+
+    sound_slider.bounds = settings_layout.soundSlider;
+
+    if (!sound_slider.dragging) {
+        sound_slider.value = AppSettings::sfxVolume;
+        AudioManager::setSfxVolume(AppSettings::sfxVolume);
+    }
+
+    settings_back_button.bounds = settings_layout.backButton;
 }
 
 void MenuState::updateCustomizationLayout() {
@@ -254,6 +309,18 @@ void MenuState::init()
 
     settings_back_button.label = "VOLVER";
     settings_back_button.style = ButtonStyle::Secondary;
+
+    const char* DISPLAY_MODE_NAMES[] = {
+        "Ventana",
+        "Ventana a pantalla completa",
+        "Pantalla completa"
+    };
+
+    for (int i = 0; i < 3; ++i) {
+        display_mode_checkboxes[i].label = DISPLAY_MODE_NAMES[i];
+    }
+
+    sound_slider.value = AppSettings::sfxVolume;
 
     //inicializacion de los elementos de la pantalla de personalizacion
     map_procedural_checkbox.label = "Procedural";
@@ -434,14 +501,34 @@ void MenuState::handleCustomizationInput(){
 }
 
 void MenuState::handleSettingsInput(){
-    updateLayout();
+    updateSettingsLayout();
 
     if (IsKeyPressed(KEY_ESCAPE)) {
         show_settings = false;
         return;
     }
 
-    settings_back_button.update(GetMousePosition());
+    const Vector2 mouse = GetMousePosition();
+
+    //pantalla
+    for (int i = 0; i < 3; ++i) {
+        display_mode_checkboxes[i].update(mouse);
+
+        if (display_mode_checkboxes[i].clicked) {
+            AppSettings::applyDisplayMode(static_cast<DisplayMode>(i));
+            updateSettingsLayout();
+            break;
+        }
+    }
+
+    //sonido
+    if (sound_slider.update(mouse)) {
+        AppSettings::sfxVolume = sound_slider.value;
+        AudioManager::setSfxVolume(AppSettings::sfxVolume);
+    }
+
+    //boton volver
+    settings_back_button.update(mouse);
 
     if (settings_back_button.clicked) {
         show_settings = false;
@@ -592,34 +679,81 @@ void MenuState::renderCustomizationOverlay(){
     customization_play_button.draw(ui_theme, scale, bold);
 }
 
-void MenuState::renderSettingsOverlay (){
-    updateLayout();
+void MenuState::renderSettingsOverlay(){
+    updateSettingsLayout();
 
-    DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(BLACK, 0.65f));
+    DrawRectangle(0, 0,GetScreenWidth(),GetScreenHeight(),Fade(BLACK, 0.65f));
 
-    const Rectangle panel = ui_layout.rect(660.0f, 300.0f, 600.0f, 400.0f);
-    DrawRectangleRec(panel, ui_theme.panel);
-    DrawRectangleLinesEx(panel, std::max(1.0f, ui_layout.scale), ui_theme.border);
+    DrawRectangleRec(settings_layout.panel, ui_theme.panel);
+    DrawRectangleLinesEx(settings_layout.panel,std::max(1.0f, ui_layout.scale),ui_theme.border);
 
     Font* bold = ResourceManager::getFont(MENU_FONT_BOLD_KEY);
     Font* regular = ResourceManager::getFont(MENU_FONT_REGULAR_KEY);
 
-    if (bold != nullptr) {
-        const float titleSize = 32.0f * ui_layout.scale;
-        const Vector2 titleW = MeasureTextEx(*bold, "AJUSTES", titleSize, 1.0f);
-        DrawTextEx(*bold, "AJUSTES", Vector2{panel.x + (panel.width - titleW.x) * 0.5f, panel.y + 40.0f * ui_layout.scale}, titleSize, 1.0f, ui_theme.text);
+    const Font& titleFont = bold ? *bold : GetFontDefault();
+    const Font& textFont = regular ? *regular : GetFontDefault();
+
+    const float titleSize = 32.0f * ui_layout.scale;
+    const char* title = "AJUSTES";
+
+    const Vector2 titleMeasure =MeasureTextEx(titleFont, title, titleSize, 1.0f);
+
+    DrawTextEx(titleFont,title,
+        Vector2{
+            settings_layout.title.x +(settings_layout.title.width - titleMeasure.x) * 0.5f,
+            settings_layout.title.y +(settings_layout.title.height - titleMeasure.y) * 0.5f
+        },
+        titleSize,1.0f,ui_theme.text
+    );
+
+    const float sectionSize = 24.0f * ui_layout.scale;
+
+    DrawTextEx(titleFont,"PANTALLA",
+        Vector2{
+            settings_layout.displayLabel.x,
+            settings_layout.displayLabel.y
+        },
+        sectionSize,1.0f,ui_theme.text
+    );
+
+    for (int i = 0; i < 3; ++i) {
+        display_mode_checkboxes[i].draw(ui_theme,ui_layout.scale,&textFont);
     }
 
-    if (regular != nullptr) {
-        const float textSize = 22.0f * ui_layout.scale;
-        const char* line1 = "EN DESARROLLO";
-        
-        const Vector2 w1 = MeasureTextEx(*regular, line1, textSize, 1.0f);
-        
-        DrawTextEx(*regular, line1, Vector2{panel.x + (panel.width - w1.x) * 0.5f, panel.y + 140.0f * ui_layout.scale}, textSize, 1.0f, ui_theme.textMuted);
-    }
+    DrawTextEx(titleFont,"AUDIO",
+        Vector2{
+            settings_layout.audioLabel.x,
+            settings_layout.audioLabel.y
+        },
+        sectionSize,1.0f,ui_theme.text
+    );
 
-    settings_back_button.draw(ui_theme, ui_layout.scale, bold);
+    const float labelSize = 20.0f * ui_layout.scale;
+
+    DrawTextEx(textFont,"Volumen del sonido",
+        Vector2{
+            settings_layout.soundLabel.x,
+            settings_layout.soundLabel.y
+        },
+        labelSize,1.0f,ui_theme.textMuted);
+
+    sound_slider.draw(ui_theme, ui_layout.scale);
+
+    const int percent =static_cast<int>(std::lround(sound_slider.value * 100.0f));
+    const char* valueText = TextFormat("%d%%", percent);
+    const float valueSize = 22.0f * ui_layout.scale;
+    const Vector2 valueMeasure =MeasureTextEx(textFont, valueText, valueSize, 1.0f);
+
+    DrawTextEx(textFont,valueText,
+        Vector2{
+            settings_layout.soundValue.x,
+            settings_layout.soundValue.y +
+                (settings_layout.soundValue.height - valueMeasure.y) * 0.5f
+        },
+        valueSize,1.0f,ui_theme.text
+    );
+
+    settings_back_button.draw(ui_theme,ui_layout.scale,&titleFont);
 }
 
 // Renderizado

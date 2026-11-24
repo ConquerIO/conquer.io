@@ -51,6 +51,15 @@ struct Checkbox { //para las opciones del menu de personalizacion
     void draw(const UiTheme& theme, float scale, const Font* font = nullptr) const;
 };
 
+struct Slider {
+    Rectangle bounds{};
+    float value = 1.0f; //va de 0 a 1
+    bool dragging = false;
+
+    bool update(Vector2 mouse);
+    void draw(const UiTheme& theme, float scale) const;
+};
+
 struct NumberStepper { // + tropas - | + nº bots -
     Rectangle bounds{}; // ancho total: 210 de diseño
     std::string value;

@@ -3,6 +3,7 @@
 #include <fstream>
 #include <map>
 #include <string>
+#include <algorithm>
 
 namespace {
 
@@ -75,7 +76,10 @@ void AudioManager::initialize() {
         }
         sounds[i] = LoadSound(path.c_str());
         loaded[i] = IsSoundValid(sounds[i]);
-        if (loaded[i]) ++count;
+        if (loaded[i]) {
+            SetSoundVolume(sounds[i], sfxVolume);
+            ++count;
+        }
     }
     Logger::info(("Audio inicializado: " + std::to_string(count) + "/" + std::to_string(COUNT) + " sonidos cargados").c_str());
 }
@@ -91,4 +95,18 @@ void AudioManager::play(Sfx sfx) {
     const int i = static_cast<int>(sfx);
     if (i < 0 || i >= COUNT || !loaded[i]) return;
     PlaySound(sounds[i]);
+}
+
+float AudioManager::sfxVolume = 1.0f;
+
+void AudioManager::setSfxVolume(float volume) {
+    sfxVolume = std::clamp(volume, 0.0f, 1.0f);
+
+    if (!IsAudioDeviceReady()) return;
+
+    for (int i = 0; i < COUNT; ++i) {
+        if (loaded[i]) {
+            SetSoundVolume(sounds[i], sfxVolume);
+        }
+    }
 }
