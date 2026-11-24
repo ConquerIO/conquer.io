@@ -6,6 +6,7 @@
 #include <algorithm>
 #include "system/ResourceManager.hpp"
 #include "system/AudioManager.hpp"
+#include "system/AppSettings.hpp"
 #include <vector>
 #include <cmath>
 
@@ -130,7 +131,60 @@ void MenuState::updateLayout(){
     create_button.bounds = menu_layout.primaryButton;
     settings_button.bounds = menu_layout.settingsButton;
     exit_button.bounds = menu_layout.exitButton;
-    settings_back_button.bounds = ui_layout.rect(860.0f, 620.0f, 200.0f, 56.0f);
+}
+
+
+void MenuState::updateSettingsLayout()
+{
+    ui_layout.update(GetScreenWidth(), GetScreenHeight());
+
+    constexpr float panelX = 460.0f;
+    constexpr float panelY = 170.0f;
+    constexpr float panelW = 1000.0f;
+    constexpr float panelH = 740.0f;
+
+    settings_layout.panel =ui_layout.rect(panelX, panelY, panelW, panelH);
+
+    settings_layout.title =ui_layout.rect(panelX, panelY + 24.0f, panelW, 40.0f);
+
+    //pantalla
+    settings_layout.displayLabel =ui_layout.rect(panelX + 70.0f, panelY + 110.0f, 300.0f, 28.0f);
+
+    for (int i = 0; i < 3; ++i) {
+        settings_layout.displayRows[i] = ui_layout.rect(
+            panelX + 90.0f,
+            panelY + 155.0f + i * 45.0f,
+            500.0f,
+            28.0f);
+    }
+
+    //audio
+    settings_layout.audioLabel =ui_layout.rect(panelX + 70.0f, panelY + 320.0f, 300.0f, 28.0f);
+    settings_layout.soundLabel =ui_layout.rect(panelX + 90.0f, panelY + 365.0f, 400.0f, 24.0f);
+    settings_layout.soundSlider =ui_layout.rect(panelX + 90.0f, panelY + 405.0f, 650.0f, 24.0f);
+    settings_layout.soundValue =ui_layout.rect(panelX + 770.0f, panelY + 400.0f, 120.0f, 30.0f);
+
+    // Botón volver
+    settings_layout.backButton = ui_layout.rect(
+        panelX + (panelW - 200.0f) / 2.0f,
+        panelY + panelH - 80.0f,
+        200.0f,
+        56.0f
+    );
+
+    //widgets
+    for (int i = 0; i < 3; ++i) {
+        display_mode_checkboxes[i].bounds = settings_layout.displayRows[i];
+        display_mode_checkboxes[i].checked =(static_cast<int>(AppSettings::displayMode) == i);
+    }
+
+    sound_slider.bounds = settings_layout.soundSlider;
+
+    if (!sound_slider.dragging) {
+        sound_slider.value = AppSettings::sfxVolume;
+    }
+
+    settings_back_button.bounds = settings_layout.backButton;
 }
 
 void MenuState::updateCustomizationLayout() {
@@ -254,6 +308,18 @@ void MenuState::init()
 
     settings_back_button.label = "VOLVER";
     settings_back_button.style = ButtonStyle::Secondary;
+
+    const char* DISPLAY_MODE_NAMES[] = {
+        "Ventana",
+        "Ventana a pantalla completa",
+        "Pantalla completa"
+    };
+
+    for (int i = 0; i < 3; ++i) {
+        display_mode_checkboxes[i].label = DISPLAY_MODE_NAMES[i];
+    }
+
+    sound_slider.value = AppSettings::sfxVolume;
 
     //inicializacion de los elementos de la pantalla de personalizacion
     map_procedural_checkbox.label = "Procedural";
