@@ -22,6 +22,37 @@ static const Color TERRITORY_COLORS[] = {
     RED, BLUE, GREEN, YELLOW, PURPLE, ORANGE
 };
 
+//tiempos de espera del cambio de pantalla
+constexpr float DISPLAY_MODE_BASE_DELAY = 0.45f;
+constexpr float DISPLAY_MODE_BASE_WAIT_MAX = 1.5f;
+constexpr float DISPLAY_MODE_SETTLE_DELAY = 0.30f;
+constexpr float DISPLAY_MODE_RETRY_INTERVAL = 0.25f;
+constexpr float DISPLAY_MODE_HOLD_DELAY = 0.90f;
+constexpr float DISPLAY_MODE_MAX_LOCK = 3.0f;
+
+static bool displayModeIsApplied(DisplayMode mode) {
+#ifdef __EMSCRIPTEN__
+    (void)mode;
+    return true;
+#else
+    const bool fullscreen = IsWindowFullscreen();
+    const bool maximized = IsWindowMaximized();
+    const bool borderless = IsWindowState(FLAG_BORDERLESS_WINDOWED_MODE);
+    const bool undecorated = IsWindowState(FLAG_WINDOW_UNDECORATED);
+
+    switch (mode) {
+        case DisplayMode::Fullscreen:
+            return fullscreen;
+        case DisplayMode::Maximized:
+            return maximized && !fullscreen;
+        case DisplayMode::Windowed:
+            return !fullscreen && !maximized && !borderless && !undecorated;
+    }
+
+    return true;
+#endif
+}
+
 // funcion auxiliar que añade robustez si se ejecuta el juego en otro directorio
 std::string MenuState::assetPath(const std::string& relativePath) const{
     std::string base = GetApplicationDirectory();
@@ -173,9 +204,13 @@ void MenuState::updateSettingsLayout()
     );
 
     //widgets
+    const DisplayMode shownMode =
+        display_mode_locked ? pending_display_mode : AppSettings::displayMode;
+
     for (int i = 0; i < 3; ++i) {
         display_mode_checkboxes[i].bounds = settings_layout.displayRows[i];
-        display_mode_checkboxes[i].checked =(static_cast<int>(AppSettings::displayMode) == i);
+        display_mode_checkboxes[i].checked = (static_cast<int>(shownMode) == i);
+        display_mode_checkboxes[i].enabled = !display_mode_locked;
     }
 
     sound_slider.bounds = settings_layout.soundSlider;
@@ -515,7 +550,17 @@ void MenuState::handleSettingsInput(){
         display_mode_checkboxes[i].update(mouse);
 
         if (display_mode_checkboxes[i].clicked) {
-            AppSettings::applyDisplayMode(static_cast<DisplayMode>(i));
+            pending_display_mode = static_cast<DisplayMode>(i);
+
+            //primero se vuelve a una ventana base; el modo se aplica
+            //en update() cuando esa base ya ha tenido tiempo de asentarse
+            display_mode_locked = true;
+            display_mode_target_applied = false;
+            display_mode_lock_timer = DISPLAY_MODE_BASE_DELAY;
+            display_mode_lock_elapsed = 0.0f;
+
+            AppSettings::resetToWindowed();
+
             updateSettingsLayout();
             break;
         }
@@ -549,7 +594,51 @@ void MenuState::handleInput()
 
 // Actualización
 void MenuState::update(float deltaTime){
-    (void)deltaTime;
+    if (!display_mode_locked) {
+        return;
+    }
+
+    display_mode_lock_elapsed += deltaTime;
+    display_mode_lock_timer = std::max(0.0f, display_mode_lock_timer - deltaTime);
+
+    if (!display_mode_target_applied) {
+        if (display_mode_lock_timer > 0.0f) {
+            return;
+        }
+
+        const bool baseReady =!IsWindowFullscreen() && !IsWindowMaximized();
+
+        if (baseReady || display_mode_lock_elapsed >= DISPLAY_MODE_BASE_WAIT_MAX) {
+            AppSettings::applyTargetDisplayMode(pending_display_mode);
+            display_mode_target_applied = true;
+            display_mode_lock_timer = DISPLAY_MODE_SETTLE_DELAY;
+            display_mode_lock_elapsed = 0.0f;
+        }
+
+        return;
+    }
+
+    if (display_mode_lock_timer > 0.0f) {
+        return;
+    }
+
+    if (display_mode_lock_elapsed < DISPLAY_MODE_HOLD_DELAY) {
+        AppSettings::applyTargetDisplayMode(pending_display_mode);
+        display_mode_lock_timer = DISPLAY_MODE_RETRY_INTERVAL;
+        return;
+    }
+
+    if (displayModeIsApplied(pending_display_mode)
+        || display_mode_lock_elapsed >= DISPLAY_MODE_MAX_LOCK)
+    {
+        display_mode_locked = false;
+        display_mode_target_applied = false;
+        return;
+    }
+
+    //si el gestor de ventanas ha revertido el cambio, se vuelve a pedir
+    AppSettings::applyTargetDisplayMode(pending_display_mode);
+    display_mode_lock_timer = DISPLAY_MODE_RETRY_INTERVAL;
 }
 
 // --- renderizado de menu, personalizacion y settings ---
@@ -715,6 +804,22 @@ void MenuState::renderSettingsOverlay(){
         },
         sectionSize,1.0f,ui_theme.text
     );
+
+    if (display_mode_locked) {
+        const float applyingSize = 16.0f * ui_layout.scale;
+
+        DrawTextEx(
+            textFont,
+            "Aplicando cambio...",
+            Vector2{
+                settings_layout.displayLabel.x +
+                    settings_layout.displayLabel.width + 20.0f * ui_layout.scale,
+                settings_layout.displayLabel.y + 4.0f * ui_layout.scale
+            },
+            applyingSize,
+            1.0f,
+            ui_theme.textMuted);
+    }
 
     for (int i = 0; i < 3; ++i) {
         display_mode_checkboxes[i].draw(ui_theme,ui_layout.scale,&textFont);

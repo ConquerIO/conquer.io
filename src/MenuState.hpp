@@ -7,6 +7,7 @@
 #include "ui/UiLayout.hpp"
 #include "ui/UiTheme.hpp"
 #include "ui/UiWidgets.hpp"
+#include "system/AppSettings.hpp"
 
 struct MainMenuLayout { //elementos de la pantalla de menu
     Rectangle logo{};
@@ -90,6 +91,13 @@ class MenuState : public GameState
         Checkbox display_mode_checkboxes[3];
         Slider sound_slider;
         void updateSettingsLayout();
+
+        //bloquea las opciones mientras la ventana termina de cambiar de modo
+        DisplayMode pending_display_mode = DisplayMode::Windowed;
+        bool display_mode_locked = false;
+        bool display_mode_target_applied = false;
+        float display_mode_lock_timer = 0.0f;
+        float display_mode_lock_elapsed = 0.0f;
 
         int selected_color;
         static constexpr int NUM_COLORS = 6;
