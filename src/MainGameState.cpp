@@ -6,6 +6,7 @@
 #include <raylib.h>
 #include "rlImGui.h"
 #include "system/AudioManager.hpp"
+#include "ui/UiSprites.hpp"
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
@@ -531,6 +532,7 @@ MainGameState::~MainGameState()
 void MainGameState::init()
 {
     game.reset();
+    UiSprites::load();
     if (map_texture_ready && IsWindowReady())
     {
         UnloadRenderTexture(map_texture);
