@@ -300,6 +300,154 @@ void drawTerritoryLabel(const TerritoryLabel& label){
     DrawText(label.troops.c_str(),static_cast<int>(label.rect.x + (label.rect.width - troopsWidth) / 2.0f),static_cast<int>(textTop + label.nameFontSize + gap),label.troopsFontSize, color);
 }
 
+//dibuja la corona del primero en la clasificacion
+void drawCrownIcon(float x, float y, float width, float height, Color color){
+    auto drawShape = [](float sx, float sy, float sw, float sh, Color c){
+        DrawRectangle(static_cast<int>(sx),static_cast<int>(sy + sh * 0.60f),static_cast<int>(sw),static_cast<int>(sh * 0.35f),c);
+        DrawTriangle(Vector2{sx, sy + sh * 0.60f},Vector2{sx + sw * 0.25f, sy},Vector2{sx + sw * 0.50f, sy + sh * 0.60f},c);
+        DrawTriangle(Vector2{sx + sw * 0.25f, sy + sh * 0.60f},Vector2{sx + sw * 0.50f, sy},Vector2{sx + sw * 0.75f, sy + sh * 0.60f},c);
+        DrawTriangle(Vector2{sx + sw * 0.50f, sy + sh * 0.60f},Vector2{sx + sw * 0.75f, sy},Vector2{sx + sw, sy + sh * 0.60f},c);
+    };
+    drawShape(x - 1.0f, y - 1.0f, width + 2.0f, height + 2.0f,Color{40, 32, 10, 255});
+    drawShape(x, y, width, height, color);
+}
+
+//clasificacion (por pixeles conquistados)
+void drawLeaderboard(const std::vector<Entity*>& entities,Player* player,int screenWidth){
+    
+    (void)screenWidth;
+
+    if (entities.empty()) {
+        return;
+    }
+
+    constexpr float panelX = 24.0f;
+    constexpr float panelY = 120.0f;
+    constexpr float panelW = 300.0f;
+    constexpr float rowH = 24.0f;
+    constexpr float headerH = 24.0f;
+    constexpr float padding = 8.0f;
+    constexpr std::size_t maxRows = 5;
+    std::vector<Entity*> ranking = entities;
+
+    //se ordena por esas celdas 
+    std::sort(ranking.begin(), ranking.end(),[](Entity* a, Entity* b){
+        if (a->getCellCount() != b->getCellCount())
+            return a->getCellCount() > b->getCellCount();
+
+        return a->getName() < b->getName();
+    });
+
+    std::vector<Entity*> rows;
+    rows.reserve(maxRows + 1);
+
+    for (std::size_t i = 0; i < ranking.size() && i < maxRows; ++i){
+        rows.push_back(ranking[i]);
+    }
+
+    const auto playerIt = std::find(ranking.begin(), ranking.end(), player);
+    const std::size_t playerRank =playerIt == ranking.end()? ranking.size() + 1: static_cast<std::size_t>(std::distance(ranking.begin(), playerIt)) + 1;
+
+    //se muestra el jugador aunque no este en ese top 5
+    if (playerIt != ranking.end() && playerRank > rows.size()){
+        rows.push_back(player);
+    }
+
+    const float panelH =padding * 2.0f + headerH + rows.size() * rowH;
+    DrawRectangleRounded(Rectangle{panelX + 2.0f, panelY + 2.0f, panelW, panelH},0.06f, 8, Fade(BLACK, 0.35f));
+    DrawRectangleRounded(Rectangle{panelX, panelY, panelW, panelH},0.06f, 8, Color{24, 29, 36, 235});
+    DrawRectangleRoundedLines(Rectangle{panelX, panelY, panelW, panelH},0.06f, 8, Color{70, 90, 105, 255});
+    DrawText("CLASIFICACION",static_cast<int>(panelX + 10.0f),static_cast<int>(panelY + 6.0f),14, LIGHTGRAY);
+
+    const char* pointsHeader = "PUNTOS";
+    DrawText(pointsHeader,static_cast<int>(panelX + panelW - 10.0f- MeasureText(pointsHeader, 12)),static_cast<int>(panelY + 8.0f),12, GRAY);
+
+    float rowY = panelY + padding + headerH;
+
+    for (Entity* entity : rows){
+        const auto it = std::find(ranking.begin(), ranking.end(), entity);
+        const int rank =static_cast<int>(std::distance(ranking.begin(), it)) + 1;
+        const bool isFirst = rank == 1;
+        const bool isPlayer = entity == player;
+
+        Color rowColor = Color{30, 36, 45, 235};
+
+        if (isFirst && isPlayer){
+            rowColor = Color{32, 100, 55, 240};
+        }
+        else if (isFirst){
+            rowColor = Color{170, 140, 45, 240};
+        }
+        else if (isPlayer){
+            rowColor = Color{32, 100, 55, 240};
+        }
+
+        const Rectangle row{
+            panelX + padding,
+            rowY,
+            panelW - padding * 2.0f,
+            rowH - 2.0f
+        };
+
+        DrawRectangleRounded(row, 0.15f, 4, rowColor);
+
+        if (isPlayer){
+            DrawRectangleLinesEx(row, 1.0f,isFirst ? Color{255, 215, 0, 255}: Color{90, 220, 130, 255});
+        }
+
+        const Color textColor = readableTextColor(rowColor);
+        DrawText(TextFormat("%d", rank),static_cast<int>(row.x + 4.0f),static_cast<int>(row.y + 4.0f),14, textColor);
+        DrawRectangle(static_cast<int>(row.x + 26.0f),static_cast<int>(row.y + 7.0f),10, 10, entity->getColor());
+
+        float nameX = row.x + 42.0f;
+
+        if (isFirst){
+            drawCrownIcon(nameX, row.y + 6.0f, 13.0f, 11.0f,Color{255, 245, 180, 255});
+            nameX += 18.0f;
+        }
+
+        DrawText(entity->getName().c_str(),static_cast<int>(nameX),static_cast<int>(row.y + 4.0f),15, textColor);
+        const char* points = TextFormat("%zu", entity->getCellCount());
+        DrawText(points,static_cast<int>(row.x + row.width - 4.0f- MeasureText(points, 14)),static_cast<int>(row.y + 4.0f),14, textColor);
+        rowY += rowH;
+    }
+}
+
+//para las estadisticas de arriba derecha
+void drawMatchStats(std::size_t humans,std::size_t bots,float playerTerritoryPercent,float interest,int screenWidth){
+    constexpr float panelW = 270.0f;
+    constexpr float panelH = 128.0f;
+    constexpr float margin = 24.0f;
+    const float panelX =static_cast<float>(screenWidth) - panelW - margin;
+    constexpr float panelY = 120.0f;
+
+    DrawRectangleRounded(Rectangle{panelX + 2.0f, panelY + 2.0f, panelW, panelH},0.06f, 8, Fade(BLACK, 0.35f));
+    DrawRectangleRounded(Rectangle{panelX, panelY, panelW, panelH},0.06f, 8, Color{24, 29, 36, 235});
+    DrawRectangleRoundedLines(Rectangle{panelX, panelY, panelW, panelH},0.06f, 8, Color{70, 90, 105, 255});
+    DrawText("ESTADISTICAS",static_cast<int>(panelX + 10.0f),static_cast<int>(panelY + 6.0f),14, LIGHTGRAY);
+
+    const char* labels[4] = {
+        "Humanos",
+        "Bots",
+        "Territorio",
+        "Interes"
+    };
+
+    const std::string values[4] = {
+        TextFormat("%d", static_cast<int>(humans)),
+        TextFormat("%d", static_cast<int>(bots)),
+        TextFormat("%.1f %%", playerTerritoryPercent),
+        TextFormat("%.1f %%/s", interest)
+    };
+
+    float rowY = panelY + 34.0f;
+
+    for (int i = 0; i < 4; ++i){
+        DrawText(labels[i],static_cast<int>(panelX + 10.0f),static_cast<int>(rowY),14, LIGHTGRAY);
+        DrawText(values[i].c_str(),static_cast<int>(panelX + panelW - 10.0f- MeasureText(values[i].c_str(), 14)),static_cast<int>(rowY),14, RAYWHITE);
+        rowY += 22.0f;
+    }
+}
 
 //esta resuelve el solape entre varios territorios
 void separateLabels(std::vector<TerritoryLabel>& labels, const Rectangle& mapBounds){
@@ -747,7 +895,7 @@ void MainGameState::updateAlliancePanelLayout(){
     constexpr float margin = 24.0f;
 
     const float x = std::max(8.0f,static_cast<float>(GetScreenWidth()) - panelW - margin);
-    const float y = 120.0f;
+    const float y = 260.0f;
 
     alliance_panel_rect = Rectangle{ x, y, panelW, panelH };
 
@@ -1083,6 +1231,15 @@ void MainGameState::render()
     }
 
     if (game.getPhase() == GamePhase::PLAYING) {
+        const std::vector<Entity*> entities = game.getEntities();
+        const std::size_t bots =entities.empty() ? 0 : entities.size() - 1;
+        const std::size_t humans = entities.size() - bots;
+        const std::size_t landCells = game.getLandCellCount();
+        const float playerPercent =landCells == 0? 0.0f: 100.0f * static_cast<float>(player->getCellCount())/ static_cast<float>(landCells);
+        const float interest = game.getInterest(player) * 100.0f;
+        drawLeaderboard(entities, player, screenWidth);
+        drawMatchStats(humans, bots, playerPercent, interest, screenWidth);
+
         const Rectangle slider = getAttackSliderBounds();
         const float sliderRatio = static_cast<float>(attack_percent) / 100.0f;
         const Color playerColor = player->getColor();
