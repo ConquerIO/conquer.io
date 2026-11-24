@@ -679,34 +679,81 @@ void MenuState::renderCustomizationOverlay(){
     customization_play_button.draw(ui_theme, scale, bold);
 }
 
-void MenuState::renderSettingsOverlay (){
-    updateLayout();
+void MenuState::renderSettingsOverlay(){
+    updateSettingsLayout();
 
-    DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(BLACK, 0.65f));
+    DrawRectangle(0, 0,GetScreenWidth(),GetScreenHeight(),Fade(BLACK, 0.65f));
 
-    const Rectangle panel = ui_layout.rect(660.0f, 300.0f, 600.0f, 400.0f);
-    DrawRectangleRec(panel, ui_theme.panel);
-    DrawRectangleLinesEx(panel, std::max(1.0f, ui_layout.scale), ui_theme.border);
+    DrawRectangleRec(settings_layout.panel, ui_theme.panel);
+    DrawRectangleLinesEx(settings_layout.panel,std::max(1.0f, ui_layout.scale),ui_theme.border);
 
     Font* bold = ResourceManager::getFont(MENU_FONT_BOLD_KEY);
     Font* regular = ResourceManager::getFont(MENU_FONT_REGULAR_KEY);
 
-    if (bold != nullptr) {
-        const float titleSize = 32.0f * ui_layout.scale;
-        const Vector2 titleW = MeasureTextEx(*bold, "AJUSTES", titleSize, 1.0f);
-        DrawTextEx(*bold, "AJUSTES", Vector2{panel.x + (panel.width - titleW.x) * 0.5f, panel.y + 40.0f * ui_layout.scale}, titleSize, 1.0f, ui_theme.text);
+    const Font& titleFont = bold ? *bold : GetFontDefault();
+    const Font& textFont = regular ? *regular : GetFontDefault();
+
+    const float titleSize = 32.0f * ui_layout.scale;
+    const char* title = "AJUSTES";
+
+    const Vector2 titleMeasure =MeasureTextEx(titleFont, title, titleSize, 1.0f);
+
+    DrawTextEx(titleFont,title,
+        Vector2{
+            settings_layout.title.x +(settings_layout.title.width - titleMeasure.x) * 0.5f,
+            settings_layout.title.y +(settings_layout.title.height - titleMeasure.y) * 0.5f
+        },
+        titleSize,1.0f,ui_theme.text
+    );
+
+    const float sectionSize = 24.0f * ui_layout.scale;
+
+    DrawTextEx(titleFont,"PANTALLA",
+        Vector2{
+            settings_layout.displayLabel.x,
+            settings_layout.displayLabel.y
+        },
+        sectionSize,1.0f,ui_theme.text
+    );
+
+    for (int i = 0; i < 3; ++i) {
+        display_mode_checkboxes[i].draw(ui_theme,ui_layout.scale,&textFont);
     }
 
-    if (regular != nullptr) {
-        const float textSize = 22.0f * ui_layout.scale;
-        const char* line1 = "EN DESARROLLO";
-        
-        const Vector2 w1 = MeasureTextEx(*regular, line1, textSize, 1.0f);
-        
-        DrawTextEx(*regular, line1, Vector2{panel.x + (panel.width - w1.x) * 0.5f, panel.y + 140.0f * ui_layout.scale}, textSize, 1.0f, ui_theme.textMuted);
-    }
+    DrawTextEx(titleFont,"AUDIO",
+        Vector2{
+            settings_layout.audioLabel.x,
+            settings_layout.audioLabel.y
+        },
+        sectionSize,1.0f,ui_theme.text
+    );
 
-    settings_back_button.draw(ui_theme, ui_layout.scale, bold);
+    const float labelSize = 20.0f * ui_layout.scale;
+
+    DrawTextEx(textFont,"Volumen del sonido",
+        Vector2{
+            settings_layout.soundLabel.x,
+            settings_layout.soundLabel.y
+        },
+        labelSize,1.0f,ui_theme.textMuted);
+
+    sound_slider.draw(ui_theme, ui_layout.scale);
+
+    const int percent =static_cast<int>(std::lround(sound_slider.value * 100.0f));
+    const char* valueText = TextFormat("%d%%", percent);
+    const float valueSize = 22.0f * ui_layout.scale;
+    const Vector2 valueMeasure =MeasureTextEx(textFont, valueText, valueSize, 1.0f);
+
+    DrawTextEx(textFont,valueText,
+        Vector2{
+            settings_layout.soundValue.x,
+            settings_layout.soundValue.y +
+                (settings_layout.soundValue.height - valueMeasure.y) * 0.5f
+        },
+        valueSize,1.0f,ui_theme.text
+    );
+
+    settings_back_button.draw(ui_theme,ui_layout.scale,&titleFont);
 }
 
 // Renderizado
