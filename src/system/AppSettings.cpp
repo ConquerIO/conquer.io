@@ -19,6 +19,14 @@ void AppSettings::applyDisplayMode(DisplayMode mode){
             ClearWindowState(FLAG_BORDERLESS_WINDOWED_MODE);
         }
 
+        if (IsWindowState(FLAG_WINDOW_UNDECORATED)) {
+            ClearWindowState(FLAG_WINDOW_UNDECORATED);
+        }
+
+        if (IsWindowMaximized()) {
+            RestoreWindow();
+        }
+
         if (!IsWindowState(FLAG_FULLSCREEN_MODE)) {
             SetWindowState(FLAG_FULLSCREEN_MODE);
         }
@@ -32,21 +40,37 @@ void AppSettings::applyDisplayMode(DisplayMode mode){
     }
 
     //ventana a pantalla completa
-    if (mode == DisplayMode::Borderless){
-        if (!IsWindowState(FLAG_BORDERLESS_WINDOWED_MODE)) {
-            SetWindowState(FLAG_BORDERLESS_WINDOWED_MODE);
+    if (mode == DisplayMode::Maximized)
+    {
+        if (IsWindowState(FLAG_BORDERLESS_WINDOWED_MODE)) {
+            ClearWindowState(FLAG_BORDERLESS_WINDOWED_MODE);
         }
 
-        SetWindowSize(monitorW, monitorH);
-        SetWindowPosition(static_cast<int>(monitorPos.x),static_cast<int>(monitorPos.y));
+        if (IsWindowState(FLAG_WINDOW_UNDECORATED)) {
+            ClearWindowState(FLAG_WINDOW_UNDECORATED);
+        }
+
+        SetWindowState(FLAG_WINDOW_RESIZABLE);
+
+        if (!IsWindowMaximized()) {
+            MaximizeWindow();
+        }
 
         displayMode = mode;
         return;
     }
 
     //ventana
+    if (IsWindowMaximized()) {
+        RestoreWindow();
+    }
+
     if (IsWindowState(FLAG_BORDERLESS_WINDOWED_MODE)) {
         ClearWindowState(FLAG_BORDERLESS_WINDOWED_MODE);
+    }
+
+    if (IsWindowState(FLAG_WINDOW_UNDECORATED)) {
+        ClearWindowState(FLAG_WINDOW_UNDECORATED);
     }
 
     constexpr float designW = 1600.0f;

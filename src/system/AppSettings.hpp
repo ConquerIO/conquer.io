@@ -2,7 +2,7 @@
 
 enum class DisplayMode {
     Windowed,
-    Borderless,
+    Maximized,
     Fullscreen
 };
 
