@@ -1,6 +1,30 @@
 #include "ContextMenu.hpp"
+#include "ui/UiSprites.hpp"
+#include "system/ResourceManager.hpp"
 #include <algorithm>
 
+
+namespace{
+    bool drawMenuIcon(const char* textureKey, Rectangle item, Color tint){
+        Texture2D* texture = ResourceManager::getTexture(textureKey);
+        if (texture == nullptr || texture->id == 0) {
+            return false;
+        }
+
+        constexpr float iconSize = 22.0f;
+
+        DrawTexturePro(
+            *texture,
+            Rectangle{0.0f, 0.0f,static_cast<float>(texture->width),static_cast<float>(texture->height)},
+            Rectangle{item.x + 8.0f,item.y + (item.height - iconSize) * 0.5f,iconSize,iconSize},
+            Vector2{0.0f, 0.0f},
+            0.0f,
+            tint
+        );
+
+        return true;
+    }
+}
 
 void ContextMenu::open(int cellIndex, Vector2 mouse, int screenWidth, int screenHeight){
     is_open = true;
@@ -9,15 +33,15 @@ void ContextMenu::open(int cellIndex, Vector2 mouse, int screenWidth, int screen
     hoveredItem = -1;
 
     //ancho panel
-    constexpr float W = 140.0f;
+    constexpr float W = 190.0f;
     //alto de cada boton
-    constexpr float ITEM_H = 22.0f;
+    constexpr float ITEM_H = 34.0f;
     //margen
-    constexpr float PADDING = 4.0f;
+    constexpr float PADDING = 6.0f;
     //distancia del click a la esquina
     constexpr float OFFSET = 4.0f;
     //alto cabecera
-    constexpr float HEADER_H = 16.0f;
+    constexpr float HEADER_H = 22.0f;
 
     const float height = PADDING * 2.0f + HEADER_H + ITEM_H * 3.0f;
 
@@ -114,24 +138,27 @@ void ContextMenu::render(const char* title,int attackPercent,int attackTroops,bo
     DrawRectangleRounded(bounds, 0.08f, 8, Color{30, 34, 42, 245});
     DrawRectangleRoundedLines(bounds, 0.08f, 8, GRAY);
     //cabecera
-    DrawText(title != nullptr ? title : "",static_cast<int>(bounds.x + 7.0f),static_cast<int>(bounds.y + 4.0f),12, LIGHTGRAY);
+    DrawText(title != nullptr ? title : "",static_cast<int>(bounds.x + 8.0f),static_cast<int>(bounds.y + 5.0f),14, LIGHTGRAY);
     //linea que separa los items del titulo
-    DrawLine(static_cast<int>(bounds.x + 6.0f),static_cast<int>(bounds.y + 4.0f + 16.0f - 3.0f),static_cast<int>(bounds.x + bounds.width - 6.0f),static_cast<int>(bounds.y + 4.0f + 16.0f - 3.0f),Color{70, 76, 86, 255});
-    
+    const float separatorY = attackItem.y - 3.0f;
+    DrawLine(static_cast<int>(bounds.x + 6.0f),static_cast<int>(separatorY),static_cast<int>(bounds.x + bounds.width - 6.0f),static_cast<int>(separatorY),Color{70, 76, 86, 255});   
+
     //atacar
     const bool hoverAttack =canAttack && CheckCollisionPointRec(mouse, attackItem);
     DrawRectangleRec(attackItem,hoverAttack ? Color{45, 120, 60, 255} : Color{40, 46, 56, 255});
-    DrawText("Atacar",static_cast<int>(attackItem.x + 7.0f),static_cast<int>(attackItem.y + 3.0f),15,canAttack ? RAYWHITE : Fade(RAYWHITE, 0.35f));
-
+    const bool hasSword = drawMenuIcon(UiSprites::Sword,attackItem,canAttack ? WHITE : Fade(WHITE, 0.35f));
+    DrawText("Atacar",static_cast<int>(attackItem.x + 8.0f + (hasSword ? 28.0f : 0.0f)),static_cast<int>(attackItem.y + 7.0f),16,canAttack ? RAYWHITE : Fade(RAYWHITE, 0.35f));
+        
     //donar
     const bool canDonate = donateTroops > 0;
     const bool hoverDonate =canDonate && CheckCollisionPointRec(mouse, donateItem);
     DrawRectangleRec(donateItem, hoverDonate ? Color{45, 90, 140, 255} : Color{40, 46, 56, 255});
-    DrawText("Donar",static_cast<int>(donateItem.x + 7.0f),static_cast<int>(donateItem.y + 4.0f),13, canDonate ? RAYWHITE : Fade(RAYWHITE, 0.35f));
+    const bool hasMoney = drawMenuIcon(UiSprites::Money,donateItem,canDonate ? WHITE : Fade(WHITE, 0.35f));
+    DrawText("Donar",static_cast<int>(donateItem.x + 8.0f + (hasMoney ? 28.0f : 0.0f)),static_cast<int>(donateItem.y + 8.0f),16,canDonate ? RAYWHITE : Fade(RAYWHITE, 0.35f));
 
     //alianza
     const bool hoverAlliance =canAlly && CheckCollisionPointRec(mouse, allianceItem);
     DrawRectangleRec(allianceItem,hoverAlliance ? Color{90, 70, 140, 255} : Color{40, 46, 56, 255});
-    DrawText(allyLabel != nullptr ? allyLabel : "Alianza",static_cast<int>(allianceItem.x + 7.0f),static_cast<int>(allianceItem.y + 4.0f),13,canAlly ? RAYWHITE : Fade(RAYWHITE, 0.35f));
-
+    const bool hasHandshake = drawMenuIcon(UiSprites::Handshake,allianceItem,canAlly ? WHITE : Fade(WHITE, 0.35f));
+    DrawText(allyLabel != nullptr ? allyLabel : "Alianza",static_cast<int>(allianceItem.x + 8.0f + (hasHandshake ? 28.0f : 0.0f)),static_cast<int>(allianceItem.y + 8.0f),16,canAlly ? RAYWHITE : Fade(RAYWHITE, 0.35f));
 }

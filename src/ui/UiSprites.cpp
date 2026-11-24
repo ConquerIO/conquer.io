@@ -1,6 +1,6 @@
 #include "ui/UiSprites.hpp"
 #include "system/ResourceManager.hpp"
-
+#include "system/Logger.hpp"
 #include <raylib.h>
 #include <string>
 
@@ -18,10 +18,13 @@ namespace
         if (ResourceManager::getTexture(key) != nullptr) {
             return;
         }
-        Texture2D texture = LoadTexture(assetPath(relativePath).c_str());
+        const std::string path = assetPath(relativePath);
+        Texture2D texture = LoadTexture(path.c_str());
         if (texture.id == 0) {
+            Logger::warn(("UiSprites: no se pudo cargar " + path).c_str());
             return;
         }
+        Logger::info(("UiSprites: cargada " + path).c_str());
         SetTextureFilter(texture, TEXTURE_FILTER_POINT);
         ResourceManager::loadTexture(key, texture);
     }
