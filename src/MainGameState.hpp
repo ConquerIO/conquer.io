@@ -58,6 +58,7 @@ class MainGameState : public GameState
         void executeContextAttack();
         void executeContextDonation();
         void executeContextAlliance();
+        
 
         //panel de la solicitud de una alianza
         Rectangle alliance_panel_rect{};
@@ -66,6 +67,14 @@ class MainGameState : public GameState
         void updateAlliancePanelLayout();
         bool handleAlliancePanelInput();
         void renderAlliancePanel();
+
+         //botones de zoom de la camara
+        Rectangle zoom_plus_rect{};
+        Rectangle zoom_minus_rect{};
+        void updateZoomButtonsLayout();
+        bool handleZoomButtonsInput();
+        void renderZoomButtons();
+        void applyZoomStep(float steps);
 
         std::string alliance_toast;
         float alliance_toast_timer = 0.0f;

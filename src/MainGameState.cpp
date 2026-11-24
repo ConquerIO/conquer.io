@@ -163,7 +163,7 @@ struct StatsCache{
 };
 
 //esta lo que haces es ir calculando el tamaño del territiorio para ajustar el texto cada vez que se aumenta o disminuye el territorio
-TerritoryLabel buildLabel(const Map& map, Entity* owner, const TerritoryStats& stats, const Camera2D& camera, bool isAlly, bool isLeader = false){
+TerritoryLabel buildLabel(const Map& map, Entity* owner, const TerritoryStats& stats, const Camera2D& camera, bool isAlly, bool isLeader){
     TerritoryLabel label;
     label.owner = owner;
     label.cells = stats.cells;
@@ -573,6 +573,12 @@ void MainGameState::init()
     AudioManager::play(Sfx::GameStart);
 }
 
+//helper del zoom de la camara
+void MainGameState::applyZoomStep(float steps){
+    camera_zoom *= std::pow(CAMERA_ZOOM_STEP, steps);
+    camera_zoom = std::clamp(camera_zoom, CAMERA_MIN_ZOOM, CAMERA_MAX_ZOOM);
+}
+
 void MainGameState::handleInput()
 {
     if (IsKeyPressed(KEY_F1)) {
@@ -600,16 +606,18 @@ void MainGameState::handleInput()
         }
     }
 
-    // Si hay una solicitud de alianza entrante, sus botones tienen prioridad.
     if (handleAlliancePanelInput()) {
+        return;
+    }
+
+    if (handleZoomButtonsInput()) {
         return;
     }
 
     const float wheel = GetMouseWheelMove();
     if (wheel != 0.0f)
     {
-        camera_zoom *= std::pow(CAMERA_ZOOM_STEP, wheel);
-        camera_zoom = std::clamp(camera_zoom, CAMERA_MIN_ZOOM, CAMERA_MAX_ZOOM);
+        applyZoomStep(wheel);
     }
 
     if (!context_menu.isOpen() && IsMouseButtonPressed(MOUSE_BUTTON_RIGHT))
@@ -916,6 +924,43 @@ void MainGameState::executeContextAlliance(){
     context_menu.close();
 }
 
+//calcula la posicion para los botones de + y -
+void MainGameState::updateZoomButtonsLayout(){
+    constexpr float size = 56.0f;
+    constexpr float gap = 10.0f;
+    constexpr float margin = 24.0f;
+    constexpr float y = 384.0f;
+
+    const float right =static_cast<float>(GetScreenWidth()) - margin;
+    const float x = right - size;
+
+    zoom_plus_rect  = Rectangle{x, y, size, size};
+    zoom_minus_rect = Rectangle{x, y + size + gap, size, size};
+}
+
+//input de + y -
+bool MainGameState::handleZoomButtonsInput(){
+    updateZoomButtonsLayout();
+
+    if (!IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        return false;
+    }
+
+    const Vector2 mouse = GetMousePosition();
+
+    if (CheckCollisionPointRec(mouse, zoom_plus_rect)) {
+        applyZoomStep(1.0f);
+        return true;
+    }
+
+    if (CheckCollisionPointRec(mouse, zoom_minus_rect)) {
+        applyZoomStep(-1.0f);
+        return true;
+    }
+
+    return false;
+}
+
 void MainGameState::updateAlliancePanelLayout(){
     constexpr float panelW = 330.0f;
     constexpr float panelH = 112.0f;
@@ -969,6 +1014,39 @@ bool MainGameState::handleAlliancePanelInput(){
     }
 
     return false;
+}
+
+//dibuja los botones
+void MainGameState::renderZoomButtons(){
+    updateZoomButtonsLayout();
+
+    const Vector2 mouse = GetMousePosition();
+
+    auto drawButton = [&](Rectangle rect, const char* sprite){
+        const bool hover = CheckCollisionPointRec(mouse, rect);
+
+        DrawRectangleRounded(
+            rect,
+            0.20f,
+            8,
+            hover ? Color{55, 70, 85, 245} : Color{40, 46, 56, 245});
+
+        DrawRectangleRoundedLines(rect, 0.20f, 8, GRAY);
+
+        const float iconSize = rect.width * 0.62f;
+
+        const Rectangle icon{
+            rect.x + (rect.width - iconSize) / 2.0f,
+            rect.y + (rect.height - iconSize) / 2.0f,
+            iconSize,
+            iconSize
+        };
+
+        drawSpriteInRect(sprite, icon, WHITE);
+    };
+
+    drawButton(zoom_minus_rect, UiSprites::ZoomOut);
+    drawButton(zoom_plus_rect,  UiSprites::ZoomIn);
 }
 
 void MainGameState::renderAlliancePanel()
@@ -1367,6 +1445,9 @@ void MainGameState::render()
     }
 
     renderAlliancePanel();
+    if (!gameOver && winner == nullptr) {
+        renderZoomButtons();
+    }
     renderAllianceToast();
 
     if (gameOver)
