@@ -24,10 +24,6 @@ namespace
     constexpr std::size_t LAND_RESISTANCE = 1;
     constexpr double ENEMY_RESISTANCE_FACTOR = 1.5;
 
-    //constante de traicion de una alianza de un bot, del 40%
-    constexpr float BOT_BETRAY_CHANCE = 0.40f;
-
-
 int colorDistance(Color a, Color b)
 {
     const int redDifference = static_cast<int>(a.r) - b.r;
@@ -57,10 +53,6 @@ bool isConquerable(const TerritoryCell& cell, const Target& target)
 // Desplazamientos de los 4 vecinos: arriba, abajo, izquierda, derecha.
 constexpr int NEIGHBOR_X[4] = {0, 0, -1, 1};
 constexpr int NEIGHBOR_Y[4] = {-1, 1, 0, 0};
-
-// Probabilidad de que el objetivo de un bot sea una entidad fronteriza.
-// El resto de las veces ataca tierra (preferentemente tierra).
-constexpr float BOT_ENEMY_TARGET_CHANCE = 0.30f;
 }
 
 Game::Game(std::string playerName, Color playerColor, const GameConfig &config):
@@ -73,7 +65,7 @@ Game::Game(std::string playerName, Color playerColor, const GameConfig &config):
           ? Map::fromImage(config.map_filename.c_str())
           : Map::generateMap(500, 500))
 {
-    
+    tuning = tuningFor(config.difficulty);
     Logger::info("Creando entidades...");
     createEntities(playerName, playerColor);
 }
@@ -89,7 +81,7 @@ void Game::createEntities(std::string playerName, Color playerColor){
         
         Color botColor = {static_cast<unsigned char>(GetRandomValue(50, 230)), static_cast<unsigned char>(GetRandomValue(50, 230)), static_cast<unsigned char>(GetRandomValue(50, 230)), 255};
         
-        auto* bot = new Bot(botName, botColor);
+        auto* bot = new Bot(botName, botColor, tuning);
         bot->setId(i+1);
         bot->setTroops(config.bot_troops);
         this->entities.push_back(bot);
@@ -145,8 +137,9 @@ void Game::update(float deltaTime)
         Entity* from = request.from;
         Entity* to = request.to;
 
-        const float roll =static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
-        const bool accepted = roll < 0.55f;
+        const float roll = static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
+
+        const bool accepted = tuning.allow_alliances && roll < tuning.alliance_accept_chance;
 
         if (accepted){
             alliances.accept(to, from, game_time);
@@ -457,16 +450,16 @@ Target Game::chooseBotTarget(Entity* owner) const
     const float roll = static_cast<float>(std::rand())
         / static_cast<float>(RAND_MAX);
 
-    if (roll < BOT_ENEMY_TARGET_CHANCE)
+    if (roll < tuning.enemy_target_chance)
     {
         //prioriza atacar a los que no son aliados
         Entity* enemy = randomNeighborEntity(owner, true);
         if (enemy != nullptr) return Target::enemy(enemy);
 
         //si solo quedan aliados pues se ataca a ellos
-        const float betrayRoll = static_cast<float>(std::rand())/ static_cast<float>(RAND_MAX);
+        const float betrayRoll = static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
 
-        if (betrayRoll < BOT_BETRAY_CHANCE){
+        if (tuning.allow_alliances && betrayRoll < tuning.betrayal_chance){
             enemy = randomNeighborEntity(owner, false);
             if (enemy != nullptr) {
                 return Target::enemy(enemy);
@@ -749,6 +742,8 @@ std::size_t Game::computeAttackResistance(const Target& target) const
 
 void Game::tryBotAlliance(Bot* bot)
 {
+    if (!tuning.allow_alliances) return;
+
     Entity* target = randomNeighborEntity(bot, true);
     if (target == nullptr) {
         return;
@@ -757,9 +752,9 @@ void Game::tryBotAlliance(Bot* bot)
         return;
     }
 
-    //probabilidad de iniciar la solicitud, del 35% minimo
-    const float roll = static_cast<float>(std::rand())/ static_cast<float>(RAND_MAX);
-    if (roll > 0.35f) {
+    //probabilidad de iniciar la solicitud, depende de la dificultad del bot (GameConfig.hpp)
+    const float roll = static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
+    if (roll > tuning.alliance_request_chance) {
         return;
     } 
     //espera de 0,75 a 2 segs
