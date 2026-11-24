@@ -182,6 +182,7 @@ void MenuState::updateSettingsLayout()
 
     if (!sound_slider.dragging) {
         sound_slider.value = AppSettings::sfxVolume;
+        AudioManager::setSfxVolume(AppSettings::sfxVolume);
     }
 
     settings_back_button.bounds = settings_layout.backButton;
@@ -500,14 +501,34 @@ void MenuState::handleCustomizationInput(){
 }
 
 void MenuState::handleSettingsInput(){
-    updateLayout();
+    updateSettingsLayout();
 
     if (IsKeyPressed(KEY_ESCAPE)) {
         show_settings = false;
         return;
     }
 
-    settings_back_button.update(GetMousePosition());
+    const Vector2 mouse = GetMousePosition();
+
+    //pantalla
+    for (int i = 0; i < 3; ++i) {
+        display_mode_checkboxes[i].update(mouse);
+
+        if (display_mode_checkboxes[i].clicked) {
+            AppSettings::applyDisplayMode(static_cast<DisplayMode>(i));
+            updateSettingsLayout();
+            break;
+        }
+    }
+
+    //sonido
+    if (sound_slider.update(mouse)) {
+        AppSettings::sfxVolume = sound_slider.value;
+        AudioManager::setSfxVolume(AppSettings::sfxVolume);
+    }
+
+    //boton volver
+    settings_back_button.update(mouse);
 
     if (settings_back_button.clicked) {
         show_settings = false;
