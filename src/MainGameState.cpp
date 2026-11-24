@@ -6,6 +6,7 @@
 #include <raylib.h>
 #include "rlImGui.h"
 #include "system/AudioManager.hpp"
+#include "system/ResourceManager.hpp"
 #include "ui/UiSprites.hpp"
 #include <algorithm>
 #include <cmath>
@@ -301,16 +302,25 @@ void drawTerritoryLabel(const TerritoryLabel& label){
     DrawText(label.troops.c_str(),static_cast<int>(label.rect.x + (label.rect.width - troopsWidth) / 2.0f),static_cast<int>(textTop + label.nameFontSize + gap),label.troopsFontSize, color);
 }
 
-//dibuja la corona del primero en la clasificacion
-void drawCrownIcon(float x, float y, float width, float height, Color color){
-    auto drawShape = [](float sx, float sy, float sw, float sh, Color c){
-        DrawRectangle(static_cast<int>(sx),static_cast<int>(sy + sh * 0.60f),static_cast<int>(sw),static_cast<int>(sh * 0.35f),c);
-        DrawTriangle(Vector2{sx, sy + sh * 0.60f},Vector2{sx + sw * 0.25f, sy},Vector2{sx + sw * 0.50f, sy + sh * 0.60f},c);
-        DrawTriangle(Vector2{sx + sw * 0.25f, sy + sh * 0.60f},Vector2{sx + sw * 0.50f, sy},Vector2{sx + sw * 0.75f, sy + sh * 0.60f},c);
-        DrawTriangle(Vector2{sx + sw * 0.50f, sy + sh * 0.60f},Vector2{sx + sw * 0.75f, sy},Vector2{sx + sw, sy + sh * 0.60f},c);
-    };
-    drawShape(x - 1.0f, y - 1.0f, width + 2.0f, height + 2.0f,Color{40, 32, 10, 255});
-    drawShape(x, y, width, height, color);
+//para cargar los sprites
+bool drawSpriteInRect(const char* key, Rectangle dest, Color tint)
+{
+    Texture2D* texture = ResourceManager::getTexture(key);
+    if (texture == nullptr || texture->id == 0) {
+        return false;
+    }
+
+    DrawTexturePro(
+        *texture,
+        Rectangle{0.0f, 0.0f,
+                  static_cast<float>(texture->width),
+                  static_cast<float>(texture->height)},
+        dest,
+        Vector2{0.0f, 0.0f},
+        0.0f,
+        tint);
+
+    return true;
 }
 
 //clasificacion (por pixeles conquistados)
@@ -403,8 +413,8 @@ void drawLeaderboard(const std::vector<Entity*>& entities,Player* player,int scr
         float nameX = row.x + 42.0f;
 
         if (isFirst){
-            drawCrownIcon(nameX, row.y + 6.0f, 13.0f, 11.0f,Color{255, 245, 180, 255});
-            nameX += 18.0f;
+            drawSpriteInRect(UiSprites::Crown,Rectangle{nameX, row.y + 3.0f, 18.0f, 18.0f},WHITE);
+            nameX += 23.0f;
         }
 
         DrawText(entity->getName().c_str(),static_cast<int>(nameX),static_cast<int>(row.y + 4.0f),15, textColor);
