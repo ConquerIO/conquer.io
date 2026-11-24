@@ -52,7 +52,9 @@ constexpr float LABEL_TROOPS_SCALE = 0.65f;
 constexpr float LABEL_LINE_GAP = 0.25f;
 
 //icono de alianza encima del nombre
-constexpr float ALLY_ICON_SIZE = 14.0f;
+constexpr float ALLY_ICON_MIN_SIZE = 14.0f;
+constexpr float ALLY_ICON_MAX_SIZE = 40.0f;
+constexpr float ALLY_ICON_FONT_SCALE = 0.9f;
 constexpr float ALLY_ICON_GAP = 2.0f;
 
 //esto lo que hace es la etiqueta de la tropas y nombres para mostrarla
@@ -212,9 +214,10 @@ TerritoryLabel buildLabel(const Map& map, Entity* owner, const TerritoryStats& s
     int troopsFontSize = static_cast<int>(nameFontSize * LABEL_TROOPS_SCALE);
 
     const int iconCount = (isAlly ? 1 : 0) + (isLeader ? 1 : 0);
-    const float iconHeight =iconCount > 0 ? ALLY_ICON_SIZE : 0.0f;
-    const float iconWidth =iconCount > 0? iconCount * ALLY_ICON_SIZE + (iconCount - 1) * ALLY_ICON_GAP: 0.0f;
-    const float iconGap =iconCount > 0 ? ALLY_ICON_GAP : 0.0f;
+    const float iconGap = iconCount > 0 ? ALLY_ICON_GAP : 0.0f;
+    float iconSize = iconCount > 0? std::clamp(static_cast<float>(nameFontSize) * ALLY_ICON_FONT_SCALE,ALLY_ICON_MIN_SIZE,ALLY_ICON_MAX_SIZE): 0.0f;
+    float iconHeight = iconSize;
+    float iconWidth = iconCount > 0? iconCount * iconSize + (iconCount - 1) * ALLY_ICON_GAP: 0.0f;
 
     float textHeight = static_cast<float>(nameFontSize + troopsFontSize) + gap;
     float blockHeight = textHeight + iconHeight + iconGap;
@@ -229,6 +232,9 @@ TerritoryLabel buildLabel(const Map& map, Entity* owner, const TerritoryStats& s
         troopsFontSize = static_cast<int>(nameFontSize * LABEL_TROOPS_SCALE);
         gap = nameFontSize * LABEL_LINE_GAP;
         textHeight = static_cast<float>(nameFontSize + troopsFontSize) + gap;
+        iconSize = iconCount > 0? std::clamp(static_cast<float>(nameFontSize) * ALLY_ICON_FONT_SCALE,ALLY_ICON_MIN_SIZE,ALLY_ICON_MAX_SIZE): 0.0f;
+        iconHeight = iconSize;
+        iconWidth = iconCount > 0? iconCount * iconSize + (iconCount - 1) * ALLY_ICON_GAP: 0.0f;
         blockHeight = textHeight + iconHeight + iconGap;
     }
 
@@ -298,6 +304,7 @@ void drawTerritoryLabel(const TerritoryLabel& label){
     const float gap = label.nameFontSize * LABEL_LINE_GAP;
     const float nameWidth = MeasureText(label.name.c_str(), label.nameFontSize);
     const float troopsWidth = MeasureText(label.troops.c_str(), label.troopsFontSize);
+    const float iconSize = label.iconRect.height;
 
     float textTop = label.rect.y;
 
@@ -309,26 +316,16 @@ void drawTerritoryLabel(const TerritoryLabel& label){
         if (label.leader){
             drawSpriteInRect(
                 UiSprites::Crown,
-                Rectangle{
-                    iconX,
-                    iconY,
-                    ALLY_ICON_SIZE,
-                    ALLY_ICON_SIZE
-                },
+                Rectangle{iconX, iconY, iconSize, iconSize},
                 WHITE);
 
-            iconX += ALLY_ICON_SIZE + ALLY_ICON_GAP;
+            iconX += iconSize + ALLY_ICON_GAP;
         }
-
+        
         if (label.allied){
             drawSpriteInRect(
                 UiSprites::HandshakeSmall,
-                Rectangle{
-                    iconX,
-                    iconY,
-                    ALLY_ICON_SIZE,
-                    ALLY_ICON_SIZE
-                },
+                Rectangle{iconX, iconY, iconSize, iconSize},
                 WHITE);
         }
 
