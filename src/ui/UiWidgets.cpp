@@ -113,22 +113,35 @@ void Panel::draw(const UiTheme& theme, float scale) const {
 }
 
 void Checkbox::update(Vector2 mouse) {
-    clicked = CheckCollisionPointRec(mouse, bounds) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
-    if (clicked) AudioManager::play(Sfx::UiChange);
+    clicked = enabled&& CheckCollisionPointRec(mouse, bounds)&& IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
+
+    if (clicked) {
+        AudioManager::play(Sfx::UiChange);
+    }
 }
 
 void Checkbox::draw(const UiTheme& theme, float scale, const Font* font) const {
     const float box = 18.0f * scale;
     const float boxY = bounds.y + (bounds.height - box) * 0.5f;
 
-    DrawRectangle(bounds.x, boxY, box, box, checked ? theme.primary : theme.secondary); //el rect ocupa el cuadrado y el nombre
-    DrawRectangleLinesEx({ bounds.x, boxY, box, box }, std::max(1.0f, scale), checked ? theme.primary : theme.border);
+    Color boxFill = checked ? theme.primary : theme.secondary;
+    Color boxBorder = checked ? theme.primary : theme.border;
+    Color textColor = theme.text;
+
+    if (!enabled) {
+        boxFill = Fade(boxFill, 0.45f);
+        boxBorder = Fade(boxBorder, 0.45f);
+        textColor = Fade(textColor, 0.45f);
+    }
+
+    DrawRectangle(bounds.x, boxY, box, box, boxFill); //el rect ocupa el cuadrado y el nombre
+    DrawRectangleLinesEx({ bounds.x, boxY, box, box }, std::max(1.0f, scale), boxBorder);
 
     const Font& f = font ? *font : GetFontDefault();
     const float fs = theme.checkboxFontSize * scale;
     const Vector2 ts = MeasureTextEx(f, label.c_str(), fs, 1.0f);
 
-    DrawTextEx(f, label.c_str(), { bounds.x + box + 10.0f * scale, bounds.y + (bounds.height - ts.y) * 0.5f }, fs, 1.0f, theme.text);
+    DrawTextEx(f, label.c_str(), { bounds.x + box + 10.0f * scale, bounds.y + (bounds.height - ts.y) * 0.5f }, fs, 1.0f, textColor);
 }
 
 bool Slider::update(Vector2 mouse) {
