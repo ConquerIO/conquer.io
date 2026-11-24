@@ -26,10 +26,13 @@ public:
     static void play(Sfx sfx);
     static void toggleMute();   // silencia / reactiva todo el audio (F2)
     static bool isMuted() { return muted; }
+    static void setSfxVolume(float volume);
+    static float getSfxVolume() { return sfxVolume; }
 
 private:
     static bool muted;
     static constexpr int COUNT = static_cast<int>(Sfx::Count);
     static std::array<Sound, COUNT> sounds;
     static std::array<bool, COUNT> loaded;
+    static float sfxVolume;
 };
