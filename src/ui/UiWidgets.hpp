@@ -46,6 +46,7 @@ struct Checkbox { //para las opciones del menu de personalizacion
     std::string label;
     bool checked = false;
     bool clicked = false;
+    bool enabled = true;
 
     void update(Vector2 mouse);
     void draw(const UiTheme& theme, float scale, const Font* font = nullptr) const;

@@ -9,6 +9,6 @@ enum class DisplayMode {
 namespace AppSettings {
     inline DisplayMode displayMode = DisplayMode::Windowed;
     inline float sfxVolume = 1.0f;
-
-    void applyDisplayMode(DisplayMode mode);
+    void resetToWindowed();
+    void applyTargetDisplayMode(DisplayMode mode);
 }
