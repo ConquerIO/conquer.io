@@ -83,7 +83,7 @@ void ContextMenu::close(){
 }
 
 //dice la accion del menu que se pulsa
-ContextMenu::Action ContextMenu::handleInput(bool canAttack, bool canDonate, bool canAlly){
+ContextMenu::Action ContextMenu::handleInput(bool canAttack, bool canAttackByBoat, bool canDonate, bool canAlly){
     if(!is_open){
         return Action::None;
     }
@@ -95,6 +95,10 @@ ContextMenu::Action ContextMenu::handleInput(bool canAttack, bool canDonate, boo
             if(canAttack){
                 return Action::Attack;
             }
+        }
+
+        if(CheckCollisionPointRec(mouse, boatItem)){
+            if(canAttackByBoat) return Action::Boat;
         }
 
         if(CheckCollisionPointRec(mouse, donateItem)){
@@ -128,7 +132,7 @@ ContextMenu::Action ContextMenu::handleInput(bool canAttack, bool canDonate, boo
 
 
 //datos para dibujar el menu
-void ContextMenu::render(const char* title,int attackPercent,int attackTroops,bool canAttack,int donateTroops, bool canAlly, const char* allyLabel) const{
+void ContextMenu::render(const char* title,int attackPercent,int attackTroops,bool canAttack, bool canAttackByBoat,int donateTroops, bool canAlly, const char* allyLabel) const{
     if(!is_open){
         return;
     }
@@ -153,7 +157,6 @@ void ContextMenu::render(const char* title,int attackPercent,int attackTroops,bo
     DrawText("Atacar",static_cast<int>(attackItem.x + 8.0f + (hasSword ? 28.0f : 0.0f)),static_cast<int>(attackItem.y + 7.0f),16,canAttack ? RAYWHITE : Fade(RAYWHITE, 0.35f));
     
     //barco
-    const bool canAttackByBoat = false;
     const bool hoverBoat = canAttackByBoat && CheckCollisionPointRec(mouse, boatItem);
     DrawRectangleRec(boatItem,hoverBoat ? Color{45, 120, 60, 255} : Color{40, 46, 56, 255});
     const bool hasBoat = drawMenuIcon(UiSprites::Ship,boatItem, canAttackByBoat ? WHITE : Fade(WHITE, 0.35f));

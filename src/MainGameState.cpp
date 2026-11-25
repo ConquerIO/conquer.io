@@ -703,8 +703,9 @@ void MainGameState::handleInput()
 
         const bool canAttack =(attack_percent > 0) && isCellAttackable(column, row);
         const bool canDonate =cell.owner != nullptr && cell.owner != player&& donadorTroops > 1 && donation > 0;
+        const bool canAttackByBoat = false;
 
-        const ContextMenu::Action action =context_menu.handleInput(canAttack, canDonate, canAlly);
+        const ContextMenu::Action action =context_menu.handleInput(canAttack, canAttackByBoat, canDonate, canAlly);
 
         if (action == ContextMenu::Action::Attack){
             executeContextAttack();
@@ -1437,7 +1438,8 @@ void MainGameState::render()
             const bool canDonate =cell.owner != nullptr && cell.owner != player&& donadorTroops > 1 && donation > 0;
             const bool canAttack =(attack_percent > 0) && isCellAttackable(column, row);
             const int attackTroops = static_cast<int>(static_cast<float>(player->getTroops()) * attack_percent / 100.0f);
-            context_menu.render(title.c_str(),attack_percent,attackTroops,canAttack,canDonate ? static_cast<int>(donation) : 0,canAlly, allyLabel.c_str());
+            const bool canAttackByBoat = false;
+            context_menu.render(title.c_str(),attack_percent,attackTroops,canAttack,canAttackByBoat,canDonate ? static_cast<int>(donation) : 0,canAlly, allyLabel.c_str());
         }
     }
 

@@ -7,6 +7,7 @@ public:
     enum class Action {
         None,
         Attack,
+        Boat,
         Donate,
         Alliance
     };
@@ -22,9 +23,9 @@ public:
     }
 
     //dice la accion del menu que se pulsa
-    Action handleInput(bool canAttack, bool canDonate, bool canAlly);
+    Action handleInput(bool canAttack, bool canAttackByBoat, bool canDonate, bool canAlly);
     //datos para dibujar el menu
-    void render(const char* title,int attackPercent,int attackTroops,bool canAttack, int donateTroops, bool canAlly, const char* allyLabel) const;
+    void render(const char* title,int attackPercent,int attackTroops,bool canAttack, bool canAttackByBoat, int donateTroops, bool canAlly, const char* allyLabel) const;
 
 private:
     bool is_open = false;
