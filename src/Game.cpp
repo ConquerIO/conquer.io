@@ -139,7 +139,9 @@ void Game::update(float deltaTime)
 
         const float roll = static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
 
-        const bool accepted = tuning.allow_alliances && roll < tuning.alliance_accept_chance;
+        const bool allowed = request.from == getPlayer() ? tuning.allow_player_alliances : tuning.allow_bot_alliances;  //comprueba quien realiza la petiicion
+
+        const bool accepted = allowed && roll < tuning.alliance_accept_chance; //si allowed=true luego se acepta con prababiliadad
 
         if (accepted){
             alliances.accept(to, from, game_time);
@@ -507,7 +509,7 @@ Target Game::chooseBotTarget(Entity* owner) const
         //si solo quedan aliados pues se ataca a ellos
         const float betrayRoll = static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
 
-        if (tuning.allow_alliances && betrayRoll < tuning.betrayal_chance){
+        if (tuning.allow_bot_alliances && betrayRoll < tuning.betrayal_chance){
             enemy = randomNeighborEntity(owner, false);
             if (enemy != nullptr) {
                 return Target::enemy(enemy);
@@ -790,12 +792,17 @@ std::size_t Game::computeAttackResistance(const Target& target) const
 
 void Game::tryBotAlliance(Bot* bot)
 {
-    if (!tuning.allow_alliances) return;
+    if (!tuning.allow_player_alliances && !tuning.allow_bot_alliances) return;
 
     Entity* target = randomNeighborEntity(bot, true);
     if (target == nullptr) {
         return;
     }
+    //comprueba si esta pidiendo alianza a jugador o bot (en facil/muy facil un bot puede pedir alianza al jugador pero no entre bots)
+    const bool isPlayer = (target == getPlayer());
+    if (isPlayer && !tuning.allow_player_alliances) return;
+    if (!isPlayer && !tuning.allow_bot_alliances) return;
+
     if (!alliances.canRequest(bot, target, game_time)) {
         return;
     }

@@ -41,7 +41,7 @@ bool Bot::shouldExpand(float deltaTime, float interval)
 }
 
 bool Bot::shouldRequestAlliance(float deltaTime){
-    if (!tuning.allow_alliances) return false;
+    if (!tuning.allow_player_alliances && !tuning.allow_bot_alliances) return false;
 
     alliance_timer -= deltaTime;
     if (alliance_timer > 0.0f) {

@@ -11,12 +11,13 @@ enum class BotDifficulty{
 };
 
 struct BotTuning { //parametros para configurar el nivel de difucultad de los bots
-    bool allow_alliances = true;
+    bool allow_player_alliances = true; // jugador <-> bots
+    bool allow_bot_alliances = false;   // bots <-> bots
     float alliance_request_chance = 0.35f;
     float alliance_accept_chance = 0.55f;
     float alliance_request_interval_min = 20.0f;
     float alliance_request_interval_max = 40.0f;
-    float betrayal_chance = 0.40f;
+    float betrayal_chance = 0.20f;
 
     float min_attack_ratio = 0.15f;
     float max_attack_ratio = 0.28f;
@@ -41,7 +42,6 @@ inline const BotTuning& tuningFor(BotDifficulty difficulty) //configuracion de l
     //si se omites valores, se usa el de por defecto
     static const BotTuning very_easy = [] {
         BotTuning t;
-        t.allow_alliances = false; //no puede hacer alianzas
         t.min_attack_ratio = 0.00f; //min y max del ratio de tropas con el que atacan
         t.max_attack_ratio = 1.00f;
         t.first_attack_delay_min = 4.0f; //min y max del ratio de delay del primer ataque de los bots
@@ -54,7 +54,6 @@ inline const BotTuning& tuningFor(BotDifficulty difficulty) //configuracion de l
 
     static const BotTuning easy = [] {
         BotTuning t;
-        t.allow_alliances = false;
         t.min_attack_ratio = 0.10f;
         t.max_attack_ratio = 0.50f;
         t.enemy_target_chance = 0.30f;
@@ -63,8 +62,9 @@ inline const BotTuning& tuningFor(BotDifficulty difficulty) //configuracion de l
 
     static const BotTuning medium = [] {
         BotTuning t; //permite alianzas
+        t.allow_bot_alliances = true;
         t.alliance_request_chance = 0.20f; //probabiliadad de enviar una alizanza
-        t.alliance_accept_chance = 0.45f; //probabiladad de aceptar una solicitud recibida
+        t.alliance_accept_chance = 0.40f; //probabiladad de aceptar una solicitud recibida
         t.alliance_request_interval_min = 25.0f; //tiempo min y max entre opurtunidades de pedir alianza (cada cuanto tiempo el bot vuelve a plantearse una alianza como min y max)
         t.alliance_request_interval_max = 45.0f;
         t.betrayal_chance = 0.30f; //porb de traiccionar a un aliado
@@ -76,9 +76,10 @@ inline const BotTuning& tuningFor(BotDifficulty difficulty) //configuracion de l
 
     static const BotTuning hard = [] {
         BotTuning t;
-        t.alliance_request_chance = 0.45f;
-        t.alliance_accept_chance = 0.70f;
-        t.betrayal_chance = 0.15f;
+        t.allow_bot_alliances = true;
+        t.alliance_request_chance = 0.25f;
+        t.alliance_accept_chance = 0.20f;
+        t.betrayal_chance = 0.35f;
         t.min_attack_ratio = 0.15f;
         t.max_attack_ratio = 0.20f;
         t.enemy_target_chance = 0.40f;
@@ -90,6 +91,10 @@ inline const BotTuning& tuningFor(BotDifficulty difficulty) //configuracion de l
     static const BotTuning extreme = [] {
         BotTuning t = hard; //como dificil, pero
         t.allow_bot_donations = true; //permite donaciones entre bots
+        t.allow_bot_alliances = true;
+        t.alliance_request_chance = 0.25f; // pide menos alianzas
+        t.alliance_accept_chance = 0.15f; // acepta menos alianzas
+        t.betrayal_chance = 0.40f;
         return t;
     }();
 
