@@ -444,8 +444,53 @@ Entity* Game::randomNeighborEntity(Entity* owner, bool avoidAllies) const
     return neighbors[std::rand() % neighbors.size()];
 }
 
+//devulve el enemigo al que el bot owner puede unirse para atacar
+Entity* Game::findCoordinatedTarget(Entity* owner) const
+{
+    for (Entity* other : entities) {
+        if (other == owner || other == nullptr) continue;
+        if (!alliances.areAllied(owner, other)) continue;
+
+        const Target& allyTarget = other->getTarget(); //obtiene el objetivo del otro aliado
+        if (!allyTarget.isEnemy()) continue; //comprobacion de si esta atacando a otra entidad enemiga
+
+        Entity* enemy = allyTarget.getEntity(); //obtiene al enemigo que esta atacando el otro bot
+        if (enemy == nullptr || enemy == owner) continue;
+        if (alliances.areAllied(owner, enemy)) { //evita a sus aliados
+            continue;
+        }
+
+        for (const auto& cell : owner->getFrontier()) { //recorre la frontera
+            for (int i = 0; i < 4; ++i) { //recorre cada celd de la frontera y mira sus 4 vecinos
+                const int nx = cell.first + NEIGHBOR_X[i];
+                const int ny = cell.second + NEIGHBOR_Y[i];
+
+                if (nx < 0 || ny < 0 || nx >= static_cast<int>(map.getWidth()) || ny >= static_cast<int>(map.getHeight())) {
+                    continue;
+                }
+
+                if (map.getCell(nx, ny).owner == enemy) {
+                    return enemy;
+                }
+            }
+        }
+    }
+
+    return nullptr;
+}
+
+
 Target Game::chooseBotTarget(Entity* owner) const
 {
+    if (tuning.coordinated_attacks) { //si permite ataques coordinados
+        const float coordRoll = static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
+
+        if (coordRoll < tuning.coordination_chance) {
+            Entity* shared = findCoordinatedTarget(owner);
+            if (shared != nullptr) return Target::enemy(shared);
+        }
+    }
+
     // Preferentemente tierra; con cierta probabilidad, una entidad fronteriza.
     const float roll = static_cast<float>(std::rand())
         / static_cast<float>(RAND_MAX);
