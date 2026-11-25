@@ -1312,8 +1312,8 @@ void MainGameState::render()
             BeginMode2D(map_camera);
             for (int dy = -1; dy <= 1; ++dy) {
                 for (int dx = -1; dx <= 1; ++dx) {
-                    int px = cx + dx;
-                    int py = cy + dy;
+                    unsigned long px = cx + dx;
+                    unsigned long py = cy + dy;
                     if (px >= 0 && px < map.getWidth() && py >= 0 && py < map.getHeight()) {
                         const TerritoryCell& cell = map.getCell(px, py);
 
@@ -1476,7 +1476,6 @@ void MainGameState::render()
         DrawText(result, (screenWidth - MeasureText(result, 54)) / 2, screenHeight / 2 - 60, 54, GOLD);
         DrawText(result, (screenWidth - MeasureText(result, 54)) / 2,
                  screenHeight / 2 - 60, 54, GOLD);
-        const char* restart = "Pulsa cualquier tecla para salir";
     }
 
     //se dibuja la interfaz de debug

@@ -203,7 +203,7 @@ void Game::update(float deltaTime)
         }
     }
 
-    for(int i = 1; i < entities.size(); ++i){
+    for(unsigned long i = 1; i < entities.size(); ++i){
         auto* bot = static_cast<Bot*>(entities[i]);
         if (bot->shouldRequestAlliance(deltaTime)){
             tryBotAlliance(bot);
@@ -553,7 +553,6 @@ float Game::calculateInterest(float troops, float pixels) const{
 void Game::updateTroopGrowth(Entity* owner){
     const float pixels=getPlayerPixels(owner);
     const float currentTroops= owner->getTroops();
-    const float limit=calculateTroopLimit(pixels);
     const float interest=calculateInterest(currentTroops,pixels);
 
     const float newTroops = currentTroops < 1.0f ? 1.0f : currentTroops * (1.0 + interest);
