@@ -94,6 +94,9 @@ private:
     float calculateInterest(float troops, float pixels) const;
     float calculateTroopLimit(float pixels) const;
     void updateTroopGrowth(Entity* owner);
+    void tryBotDonation(Bot* bot);
+    Entity* findCoordinatedTarget(Entity* owner) const;
+
 
     void placePlayerAndStart();
     void placeBots();
@@ -111,6 +114,7 @@ private:
     Entity* winner;
 
     GameConfig config;
+    BotTuning tuning;
 
     AllianceManager alliances;
     std::vector<AllianceEvent> alliance_events;

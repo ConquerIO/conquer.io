@@ -24,10 +24,6 @@ namespace
     constexpr std::size_t LAND_RESISTANCE = 1;
     constexpr double ENEMY_RESISTANCE_FACTOR = 1.5;
 
-    //constante de traicion de una alianza de un bot, del 40%
-    constexpr float BOT_BETRAY_CHANCE = 0.40f;
-
-
 int colorDistance(Color a, Color b)
 {
     const int redDifference = static_cast<int>(a.r) - b.r;
@@ -57,10 +53,6 @@ bool isConquerable(const TerritoryCell& cell, const Target& target)
 // Desplazamientos de los 4 vecinos: arriba, abajo, izquierda, derecha.
 constexpr int NEIGHBOR_X[4] = {0, 0, -1, 1};
 constexpr int NEIGHBOR_Y[4] = {-1, 1, 0, 0};
-
-// Probabilidad de que el objetivo de un bot sea una entidad fronteriza.
-// El resto de las veces ataca tierra (preferentemente tierra).
-constexpr float BOT_ENEMY_TARGET_CHANCE = 0.30f;
 }
 
 Game::Game(std::string playerName, Color playerColor, const GameConfig &config):
@@ -73,7 +65,7 @@ Game::Game(std::string playerName, Color playerColor, const GameConfig &config):
           ? Map::fromImage(config.map_filename.c_str())
           : Map::generateMap(500, 500))
 {
-    
+    tuning = tuningFor(config.difficulty);
     Logger::info("Creando entidades...");
     createEntities(playerName, playerColor);
 }
@@ -89,7 +81,7 @@ void Game::createEntities(std::string playerName, Color playerColor){
         
         Color botColor = {static_cast<unsigned char>(GetRandomValue(50, 230)), static_cast<unsigned char>(GetRandomValue(50, 230)), static_cast<unsigned char>(GetRandomValue(50, 230)), 255};
         
-        auto* bot = new Bot(botName, botColor);
+        auto* bot = new Bot(botName, botColor, tuning);
         bot->setId(i+1);
         bot->setTroops(config.bot_troops);
         this->entities.push_back(bot);
@@ -145,8 +137,9 @@ void Game::update(float deltaTime)
         Entity* from = request.from;
         Entity* to = request.to;
 
-        const float roll =static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
-        const bool accepted = roll < 0.55f;
+        const float roll = static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
+
+        const bool accepted = tuning.allow_alliances && roll < tuning.alliance_accept_chance;
 
         if (accepted){
             alliances.accept(to, from, game_time);
@@ -214,6 +207,9 @@ void Game::update(float deltaTime)
         auto* bot = static_cast<Bot*>(entities[i]);
         if (bot->shouldRequestAlliance(deltaTime)){
             tryBotAlliance(bot);
+        }
+        if (bot->shouldDonate(deltaTime)) {
+            tryBotDonation(bot);
         }
         if (bot->getTarget().isNone())
         {
@@ -451,22 +447,67 @@ Entity* Game::randomNeighborEntity(Entity* owner, bool avoidAllies) const
     return neighbors[std::rand() % neighbors.size()];
 }
 
+//devulve el enemigo al que el bot owner puede unirse para atacar
+Entity* Game::findCoordinatedTarget(Entity* owner) const
+{
+    for (Entity* other : entities) {
+        if (other == owner || other == nullptr) continue;
+        if (!alliances.areAllied(owner, other)) continue;
+
+        const Target& allyTarget = other->getTarget(); //obtiene el objetivo del otro aliado
+        if (!allyTarget.isEnemy()) continue; //comprobacion de si esta atacando a otra entidad enemiga
+
+        Entity* enemy = allyTarget.getEntity(); //obtiene al enemigo que esta atacando el otro bot
+        if (enemy == nullptr || enemy == owner) continue;
+        if (alliances.areAllied(owner, enemy)) { //evita a sus aliados
+            continue;
+        }
+
+        for (const auto& cell : owner->getFrontier()) { //recorre la frontera
+            for (int i = 0; i < 4; ++i) { //recorre cada celd de la frontera y mira sus 4 vecinos
+                const int nx = cell.first + NEIGHBOR_X[i];
+                const int ny = cell.second + NEIGHBOR_Y[i];
+
+                if (nx < 0 || ny < 0 || nx >= static_cast<int>(map.getWidth()) || ny >= static_cast<int>(map.getHeight())) {
+                    continue;
+                }
+
+                if (map.getCell(nx, ny).owner == enemy) {
+                    return enemy;
+                }
+            }
+        }
+    }
+
+    return nullptr;
+}
+
+
 Target Game::chooseBotTarget(Entity* owner) const
 {
+    if (tuning.coordinated_attacks) { //si permite ataques coordinados
+        const float coordRoll = static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
+
+        if (coordRoll < tuning.coordination_chance) {
+            Entity* shared = findCoordinatedTarget(owner);
+            if (shared != nullptr) return Target::enemy(shared);
+        }
+    }
+
     // Preferentemente tierra; con cierta probabilidad, una entidad fronteriza.
     const float roll = static_cast<float>(std::rand())
         / static_cast<float>(RAND_MAX);
 
-    if (roll < BOT_ENEMY_TARGET_CHANCE)
+    if (roll < tuning.enemy_target_chance)
     {
         //prioriza atacar a los que no son aliados
         Entity* enemy = randomNeighborEntity(owner, true);
         if (enemy != nullptr) return Target::enemy(enemy);
 
         //si solo quedan aliados pues se ataca a ellos
-        const float betrayRoll = static_cast<float>(std::rand())/ static_cast<float>(RAND_MAX);
+        const float betrayRoll = static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
 
-        if (betrayRoll < BOT_BETRAY_CHANCE){
+        if (tuning.allow_alliances && betrayRoll < tuning.betrayal_chance){
             enemy = randomNeighborEntity(owner, false);
             if (enemy != nullptr) {
                 return Target::enemy(enemy);
@@ -749,6 +790,8 @@ std::size_t Game::computeAttackResistance(const Target& target) const
 
 void Game::tryBotAlliance(Bot* bot)
 {
+    if (!tuning.allow_alliances) return;
+
     Entity* target = randomNeighborEntity(bot, true);
     if (target == nullptr) {
         return;
@@ -757,15 +800,58 @@ void Game::tryBotAlliance(Bot* bot)
         return;
     }
 
-    //probabilidad de iniciar la solicitud, del 35% minimo
-    const float roll = static_cast<float>(std::rand())/ static_cast<float>(RAND_MAX);
-    if (roll > 0.35f) {
+    //probabilidad de iniciar la solicitud, depende de la dificultad del bot (GameConfig.hpp)
+    const float roll = static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
+    if (roll > tuning.alliance_request_chance) {
         return;
     } 
     //espera de 0,75 a 2 segs
     const float respondDelay =0.75f + static_cast<float>(std::rand())/ static_cast<float>(RAND_MAX) * 1.25f;
     alliances.sendRequest(bot,target,game_time,game_time + respondDelay);
 }
+
+void Game::tryBotDonation(Bot* bot)
+{
+    if (!tuning.allow_bot_donations) return;
+    if (!bot->getTarget().isNone()) return; //evita donar a bots que estan atacando
+
+    Entity* receiver = nullptr;
+    std::size_t bestTroops = std::numeric_limits<std::size_t>::max();
+
+    for (Entity* candidate : entities) { //recorre a las entidades
+        if (candidate == nullptr || candidate == bot) continue;
+        if (candidate == getPlayer()) continue; // solo entre bots
+        if (!alliances.areAllied(bot, candidate)) continue; //solo considera aliados
+
+        const std::size_t troops = candidate->getTroops();
+        if (troops < bestTroops) { //se queda con el aliado con menos tropas
+            bestTroops = troops;
+            receiver = candidate;
+        }
+    }
+
+    if (receiver == nullptr){
+        return; //si no tiene aliados no dona
+    }
+
+    const std::size_t available = bot->getTroops(); // si solo tiene 1 o menos tropas que donar no dona
+    if (available <= 1) return;
+
+    const float t = static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
+
+    //elige un numero entre min y max para donar (en extremo 10-15%)
+    const float ratio = tuning.min_donation_ratio + t * (tuning.max_donation_ratio - tuning.min_donation_ratio);
+
+    std::size_t amount = static_cast<std::size_t>(static_cast<float>(available) * ratio);
+
+    if (amount == 0) amount = 1;
+    if (amount >= available) amount = available - 1;
+
+    //se quita las tropas y se las da al receptor
+    bot->setTroops(available - amount);
+    receiver->setTroops(receiver->getTroops() + amount);
+}
+
 
 #ifdef CONQUER_VERIFY_COUNTS
 // Solo para pruebas: compara los contadores incrementales con un escaneo completo.
