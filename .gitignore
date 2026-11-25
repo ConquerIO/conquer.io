@@ -58,3 +58,22 @@ build-web/
 
 # Resultados de bench-multihilo-ccache.sh
 resultados-bench-*.md
+
+# Paquetes Debian generados
+*.deb
+*.changes
+*.build
+*.buildinfo
+*.dsc
+*.tar.gz
+*.tar.xz
+*.orig.tar.*
+
+# Archivos temporales de Debian
+debian/.debhelper/
+debian/tmp/
+debian/files
+debian/conquer.io/
+
+# Distribuciones generadas
+dist/
