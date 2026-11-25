@@ -208,6 +208,9 @@ void Game::update(float deltaTime)
         if (bot->shouldRequestAlliance(deltaTime)){
             tryBotAlliance(bot);
         }
+        if (bot->shouldDonate(deltaTime)) {
+            tryBotDonation(bot);
+        }
         if (bot->getTarget().isNone())
         {
             if (bot->shouldStartAttack(deltaTime))
@@ -806,6 +809,49 @@ void Game::tryBotAlliance(Bot* bot)
     const float respondDelay =0.75f + static_cast<float>(std::rand())/ static_cast<float>(RAND_MAX) * 1.25f;
     alliances.sendRequest(bot,target,game_time,game_time + respondDelay);
 }
+
+void Game::tryBotDonation(Bot* bot)
+{
+    if (!tuning.allow_bot_donations) return;
+    if (!bot->getTarget().isNone()) return; //evita donar a bots que estan atacando
+
+    Entity* receiver = nullptr;
+    std::size_t bestTroops = std::numeric_limits<std::size_t>::max();
+
+    for (Entity* candidate : entities) { //recorre a las entidades
+        if (candidate == nullptr || candidate == bot) continue;
+        if (candidate == getPlayer()) continue; // solo entre bots
+        if (!alliances.areAllied(bot, candidate)) continue; //solo considera aliados
+
+        const std::size_t troops = candidate->getTroops();
+        if (troops < bestTroops) { //se queda con el aliado con menos tropas
+            bestTroops = troops;
+            receiver = candidate;
+        }
+    }
+
+    if (receiver == nullptr){
+        return; //si no tiene aliados no dona
+    }
+
+    const std::size_t available = bot->getTroops(); // si solo tiene 1 o menos tropas que donar no dona
+    if (available <= 1) return;
+
+    const float t = static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
+
+    //elige un numero entre min y max para donar (en extremo 10-15%)
+    const float ratio = tuning.min_donation_ratio + t * (tuning.max_donation_ratio - tuning.min_donation_ratio);
+
+    std::size_t amount = static_cast<std::size_t>(static_cast<float>(available) * ratio);
+
+    if (amount == 0) amount = 1;
+    if (amount >= available) amount = available - 1;
+
+    //se quita las tropas y se las da al receptor
+    bot->setTroops(available - amount);
+    receiver->setTroops(receiver->getTroops() + amount);
+}
+
 
 #ifdef CONQUER_VERIFY_COUNTS
 // Solo para pruebas: compara los contadores incrementales con un escaneo completo.

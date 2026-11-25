@@ -276,7 +276,7 @@ void DebugOverlay::drawGamePanel(const Game& game, const GameConfig& config)
                          game.getTroopLimit(player)));
     kv("Territorio", format("%.2f %%  (%zu / %zu celdas)",
                             player_percent, player_cells, land_cells));
-    kv("Dificultad bots", format("%s  (sin efecto aun)",
+    kv("Dificultad bots", format("%s",
                                  difficultyName(config.difficulty).c_str()));
 
     section("JUGADOR");

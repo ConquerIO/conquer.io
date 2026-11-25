@@ -1,7 +1,7 @@
 #pragma once
 #include <string>
 
-// Por ahora solo se guarda el valor elegido (NO afecta a su comportamient - por implementar)
+// Dificultad de los bots: modifica tiempos, ratios, alianzas y donaciones.
 enum class BotDifficulty{
     VERY_EASY,
     EASY,
@@ -30,10 +30,10 @@ struct BotTuning { //parametros para configurar el nivel de difucultad de los bo
     float coordination_chance = 0.0f;
 
     bool allow_bot_donations = false;
-    float donation_interval_min = 30.0f;
-    float donation_interval_max = 60.0f;
+    float donation_interval_min = 60.0f;
+    float donation_interval_max = 180.0f;
     float min_donation_ratio = 0.10f;
-    float max_donation_ratio = 0.20f;
+    float max_donation_ratio = 0.15f;
 };
 
 inline const BotTuning& tuningFor(BotDifficulty difficulty) //configuracion de los diferentes niveles de dificultad
