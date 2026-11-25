@@ -1,17 +1,18 @@
 #include "ui/UiSprites.hpp"
 #include "system/ResourceManager.hpp"
 #include "system/Logger.hpp"
+#include <filesystem>
 #include <raylib.h>
 #include <string>
 
 namespace
 {
-    std::string assetPath(const char* relative){
-        std::string base = GetApplicationDirectory();
-        if (!base.empty() && base.back() != '/') {
-            base += '/';
+    std::string assetPath(const char* relativePath){
+        if (std::filesystem::exists(relativePath)) {
+            return relativePath;
         }
-        return base + relative;
+
+        return "/usr/share/conquer.io/" + std::string(relativePath);
     }
 
     void loadSprite(const char* key, const char* relativePath){

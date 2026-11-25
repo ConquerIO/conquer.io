@@ -7,6 +7,7 @@
 #include "system/ResourceManager.hpp"
 #include "system/AudioManager.hpp"
 #include "system/AppSettings.hpp"
+#include <filesystem>
 #include <vector>
 #include <cmath>
 
@@ -55,11 +56,16 @@ static bool displayModeIsApplied(DisplayMode mode) {
 
 // funcion auxiliar que añade robustez si se ejecuta el juego en otro directorio
 std::string MenuState::assetPath(const std::string& relativePath) const{
-    std::string base = GetApplicationDirectory();
-    if (!base.empty() && base.back() != '/') {
-        base += '/';
+    if (std::filesystem::exists(relativePath)) {
+        return relativePath;
     }
-    return base + relativePath;
+    std::string installedPath = "/usr/share/conquer.io/" + relativePath;
+
+    if (std::filesystem::exists(installedPath)) {
+        return installedPath;
+    }
+
+    return installedPath;
 }
 
 void MenuState::scanAvailableMaps(){

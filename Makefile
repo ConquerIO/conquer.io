@@ -16,6 +16,7 @@
 # Para añadir una librería basta con ampliar LIBS.
 
 # ---- Configuración editable -------------------------------------------------
+DIST_DIR := dist
 TARGET   := game
 
 # Comprobar si ccache está disponible en el sistema
@@ -53,8 +54,19 @@ INCS    := -I $(SRC_DIR) $(addprefix -I ,$(patsubst %/,%,$(wildcard vendor/*/)))
 LDFLAGS := $(addprefix -L ,$(LIBDIRS))
 
 # ---- Reglas -----------------------------------------------------------------
-.PHONY: check-emsdk web web-serve web-chrome all clean run clean-ccache-stats clean-ccache ccache-stats
+.PHONY: check-emsdk web web-serve web-chrome all clean install run clean-ccache-stats clean-ccache ccache-stats
 .DEFAULT_GOAL := all
+
+dist: 
+	@echo "$(BLUE) Generando distribucion debian en $(DIST_DIR)...$(RESET)"
+	@dpkg-buildpackage -us -uc -b 
+	@mkdir -p $(DIST_DIR)
+	@mv ../*.deb $(DIST_DIR)/ 2>/dev/null || true
+	@mv ../*.buildinfo $(DIST_DIR)/ 2>/dev/null || true
+	@mv ../*.changes $(DIST_DIR)/ 2>/dev/null || true
+	@echo "$(GREEN) Paquete en $(DIST_DIR)/$(RESET)"
+	@ls -lh $(DIST_DIR)/*.deb
+
 
 all: $(TARGET)
 
@@ -66,6 +78,7 @@ $(BUILD_DIR)/%.o: %.cpp
 	@echo "[cxx]  $<"
 	@mkdir -p $(dir $@)
 	@$(CXX) $(CXXFLAGS) $(DEFS) $(INCS) -MMD -MP -c $< -o $@
+
 
 # ---- Web (Emscripten) -------------------------------------------------------
 # Requisitos: emsdk instalado y activo (source /ruta/a/emsdk/emsdk_env.sh) y raylib compilada para web en
@@ -126,6 +139,21 @@ web-chrome: web
 
 run: all
 	./$(TARGET)
+
+PREFIX ?= usr
+APP_NAME ?= conquerio
+
+install: all
+	@echo "[install] Instalando $(APP_NAME)..."
+
+	install -Dm755 $(TARGET) \
+		$(DESTDIR)/$(PREFIX)/games/$(APP_NAME)
+
+	install -d $(DESTDIR)/$(PREFIX)/share/$(APP_NAME)
+	cp -r assets maps \
+		$(DESTDIR)/$(PREFIX)/share/$(APP_NAME)/
+
+	@echo "[install] Instalación completada"
 
 clean:
 	rm -rf build build-web $(TARGET)
