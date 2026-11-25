@@ -1,0 +1,42 @@
+name: Build and Release DEB
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build-deb:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Descargar código fuente
+        uses: actions/checkout@v4
+
+      - name: Instalar herramientas de compilación
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential dpkg-dev devscripts equivs
+
+      - name: Instalar dependencias del proyecto
+        run: |
+          sudo mk-build-deps --install --remove \
+            --tool "apt-get -y --no-install-recommends" \
+            debian/control
+
+      - name: Limpiar compilación anterior
+        run: make clean
+
+      - name: Generar paquete DEB
+        run: make dist
+
+      - name: Comprobar paquete generado
+        run: ls -lh dist/*.deb
+
+      - name: Adjuntar DEB a la Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.deb
+          fail_on_unmatched_files: true
