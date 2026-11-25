@@ -33,6 +33,7 @@ private:
     Vector2 origin{};
     Rectangle bounds{};
     Rectangle attackItem{};
+    Rectangle boatItem{};
     Rectangle donateItem{};
     Rectangle allianceItem{};
 

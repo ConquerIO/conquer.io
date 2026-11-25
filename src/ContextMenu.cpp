@@ -36,6 +36,8 @@ void ContextMenu::open(int cellIndex, Vector2 mouse, int screenWidth, int screen
     constexpr float W = 190.0f;
     //alto de cada boton
     constexpr float ITEM_H = 34.0f;
+    //numero de opciones del menu
+    constexpr int ITEM_COUNT = 4;
     //margen
     constexpr float PADDING = 6.0f;
     //distancia del click a la esquina
@@ -43,7 +45,7 @@ void ContextMenu::open(int cellIndex, Vector2 mouse, int screenWidth, int screen
     //alto cabecera
     constexpr float HEADER_H = 22.0f;
 
-    const float height = PADDING * 2.0f + HEADER_H + ITEM_H * 3.0f;
+    const float height = PADDING * 2.0f + HEADER_H + ITEM_H * ITEM_COUNT;
 
     float x = mouse.x + OFFSET;
     float y = mouse.y + OFFSET;
@@ -68,8 +70,9 @@ void ContextMenu::open(int cellIndex, Vector2 mouse, int screenWidth, int screen
     const float firstY = y + PADDING + HEADER_H;
 
     attackItem= Rectangle{ itemX, firstY, itemW, ITEM_H };
-    donateItem= Rectangle{ itemX, firstY + ITEM_H, itemW, ITEM_H };
-    allianceItem=Rectangle{ itemX, firstY + ITEM_H * 2.0f, itemW, ITEM_H };
+    boatItem  = Rectangle{ itemX, firstY + ITEM_H, itemW, ITEM_H };
+    donateItem= Rectangle{ itemX, firstY + ITEM_H * 2.0f, itemW, ITEM_H };
+    allianceItem=Rectangle{ itemX, firstY + ITEM_H * 3.0f, itemW, ITEM_H };
 }
 
 
@@ -148,7 +151,14 @@ void ContextMenu::render(const char* title,int attackPercent,int attackTroops,bo
     DrawRectangleRec(attackItem,hoverAttack ? Color{45, 120, 60, 255} : Color{40, 46, 56, 255});
     const bool hasSword = drawMenuIcon(UiSprites::Sword,attackItem,canAttack ? WHITE : Fade(WHITE, 0.35f));
     DrawText("Atacar",static_cast<int>(attackItem.x + 8.0f + (hasSword ? 28.0f : 0.0f)),static_cast<int>(attackItem.y + 7.0f),16,canAttack ? RAYWHITE : Fade(RAYWHITE, 0.35f));
-        
+    
+    //barco
+    const bool canAttackByBoat = false;
+    const bool hoverBoat = canAttackByBoat && CheckCollisionPointRec(mouse, boatItem);
+    DrawRectangleRec(boatItem,hoverBoat ? Color{45, 120, 60, 255} : Color{40, 46, 56, 255});
+    const bool hasBoat = drawMenuIcon(UiSprites::Ship,boatItem, canAttackByBoat ? WHITE : Fade(WHITE, 0.35f));
+    DrawText("Barco",static_cast<int>(boatItem.x + 8.0f + (hasBoat ? 28.0f : 0.0f)),static_cast<int>(boatItem.y + 8.0f),16,canAttackByBoat ? RAYWHITE : Fade(RAYWHITE, 0.35f));
+    
     //donar
     const bool canDonate = donateTroops > 0;
     const bool hoverDonate =canDonate && CheckCollisionPointRec(mouse, donateItem);
